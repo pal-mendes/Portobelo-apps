@@ -1,0 +1,406 @@
+
+<!-- Login.html (AuthCoreLib) -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-store, no-cache, must-revalidate, max-age=0"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Área reservada</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 2em;
+      }
+      .btn {
+        display: inline-block;
+        padding: 0.6em 1em;
+        border: 1px solid #999;
+        border-radius: 6px;
+        text-decoration: none;
+      }
+      #status {
+        margin: 0.75em 0 0;
+        color: #555;
+      }
+    </style>
+
+    <!-- Variáveis do servidor -->
+    <script>
+      const CANON_URL = "<?= CANON_URL ?>"; // URL canónico (.../macros/s/ID/exec)
+      const SESSION_TICKET = "<?= ticket || TICKET || '' ?>";
+      const SERVER_LOG = `<?= SERVER_LOG ?>`;
+      const NOREDIRECT = /[?&]noredirect=1\b/i.test(location.search);
+      try {
+        localStorage.setItem("appCanonicalUrl", CANON_URL);
+      } catch (_) {}
+    </script>
+
+	  <!-- Logger global único (consola apenas) - no head dos html -->
+    <script>
+      (function () {
+        const SERVER_DEBUG = "<?= DEBUG ?>" === "1";
+        const URL_DEBUG_ON = /[?&]debug=1\b/i.test(location.search);
+        const URL_DEBUG_OFF = /[?&](debug=0|nodebug=1)\b/i.test(location.search);
+        try { // gerir flag persistente
+          if ((!URL_DEBUG_ON && !SERVER_DEBUG) || URL_DEBUG_OFF) { localStorage.removeItem("pbDebug"); }
+        } catch (_) {}
+
+        let DBG = SERVER_DEBUG || URL_DEBUG_ON;
+        try { DBG = DBG || localStorage.getItem("pbDebug") === "1"; } catch (_) {}
+        try { if (DBG) localStorage.setItem("pbDebug", "1"); } catch (_) {}
+
+        // disponibiliza logger globalmente
+        window.__DEBUG_ON = !!DBG;
+        window.isDbg = () => !!window.__DEBUG_ON;
+        // log() = sempre visível
+        window.log = (...args) => { try { console.log("[PB]", ...args); } catch (_) {} };
+        // dbg() = só quando debug ativo
+        window.dbg = (...args) => { if (window.__DEBUG_ON) { try { console.debug("[PB:DBG]", ...args); } catch (_) {} } };
+        // helpers para ativar/desativar debug persistente
+        window.pbDebug = {
+          enable:  () => { try { localStorage.setItem("pbDebug","1"); } catch(_){ } window.__DEBUG_ON = true; },
+          disable: () => { try { localStorage.removeItem("pbDebug"); } catch(_){ } window.__DEBUG_ON = false; },
+          status:  () => !!window.__DEBUG_ON
+        };
+        // logs de arranque (só consola)
+        window.addEventListener("DOMContentLoaded", function () {
+         const __SL = (typeof SERVER_LOG !== "undefined" && SERVER_LOG) ? SERVER_LOG : "";
+          if (__SL) __SL.split("\n").forEach((l) => l && dbg(l));
+          //if (!window.__DEBUG_ON) return;
+          dbg("DOM ready: " + location.href);
+          if (document.referrer) dbg("Referrer: " + document.referrer);
+          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
+          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
+          dbg("DOM ready: " + location.href);
+          if (document.referrer) dbg("Referrer: " + document.referrer);
+          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
+          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
+        });
+        // Opcional: erros sempre visíveis na consola
+        window.addEventListener('error', (e) => {
+          try { console.error('[JS error]', e.message, e.error?.stack || ''); } catch (_) {}
+        });
+        window.addEventListener('unhandledrejection', (ev) => {
+          const r = ev?.reason;
+          try { console.error('[Promise rejection]', r?.message || r, r?.stack || ''); } catch (_) {}
+        });		
+      })();
+    </script>	
+  </head>
+
+  <body>
+    <h2>Área reservada a associados</h2>
+    <p>
+      <a id="login-link" class="btn" href="#" style="display: none"
+        >Entrar com conta Google</a
+      >
+    </p>
+    <div id="status"></div>
+
+    <!-- 1) Optional wipe (quando renderizado com WIPE=1) -->
+    <script>
+      (function () {
+        const WIPE = "<?= WIPE ?>" === "1";
+        if (!WIPE) return;
+        try {
+          localStorage.removeItem("sessTicket");
+          log("wipe: localStorage ok");
+        } catch (e) {
+          log("wipe ls ERR " + e);
+        }
+        try {
+          document.cookie =
+            "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
+          log("wipe: cookie ok");
+        } catch (e) {
+          log("wipe cookie ERR " + e);
+        }
+      })();
+    </script>
+
+    <!-- 2) Fluxo de autenticação -->
+    <script>
+      (function () {
+        const BTN = document.getElementById("login-link");
+        const ST = document.getElementById("status");
+
+        const WANT_DEBUG =
+          /[?&]debug=1\b/i.test(location.search) ||
+          (function () {
+            try {
+              return localStorage.getItem("pbDebug") === "1";
+            } catch (_) {
+              return false;
+            }
+          })();
+
+        const UI_DELAY_BTN = 1200; // só mostramos o botão passado isto (auto)
+        const UI_DELAY_HINT = 2500; // só mostramos um hint/fallback passado isto (auto)
+        const GIVE_UP = 10000; // depois disto mostramos tudo
+
+        function setStatus(s, asHTML) {
+          if (!ST) return;
+          if (asHTML) ST.innerHTML = s;
+          else ST.textContent = s;
+        }
+        function bestLocalTicket() {
+          try {
+            const t = localStorage.getItem("sessTicket") || "";
+            if (t) return t;
+          } catch (_) {}
+          try {
+            const m = (document.cookie || "").match(
+              /(?:^|;\s*)sessTicket=([^;]+)/,
+            );
+            return m && m[1] ? decodeURIComponent(m[1]) : "";
+          } catch (_) {}
+          return "";
+        }
+        function goWithTicket(t) {
+          const next =
+            CANON_URL +
+            "?ticket=" +
+            encodeURIComponent(t) +
+            (WANT_DEBUG ? "&debug=1" : "");
+          log("Go with ticket → " + next);
+          try {
+            localStorage.setItem("sessTicket", t);
+          } catch (_) {}
+          setStatus(
+            'A redirecionar… Se não avançar, <a href="' +
+              next +
+              '" target="_self" rel="noopener">clique aqui</a>.',
+            true,
+          );
+          try {
+            location.replace(next);
+            return;
+          } catch (err) {
+            log("same-frame replace failed: " + ((err && err.message) || err));
+          }
+          try {
+            window.open(next, "_blank", "noopener");
+            return;
+          } catch (_) {}
+          try {
+            if (window.top && window.top !== window) {
+              window.top.location.assign(next);
+              return;
+            }
+          } catch (err) {
+            log("top assign blocked: " + ((err && err.message) || err));
+          }
+          try {
+            location.href = next;
+          } catch (_) {}
+        }
+
+        // Receber ticket via postMessage
+        let popupRef = null;
+        window.addEventListener("message", function (ev) {
+          const d = (ev && ev.data) || {};
+          if (d && d.type === "portobelo_ticket" && d.ticket) {
+            log("ticket via postMessage");
+            try {
+              if (popupRef && !popupRef.closed) popupRef.close();
+            } catch (_) {}
+            goWithTicket(d.ticket);
+          }
+        });
+
+        // Polling de fallback (3 min)
+        function startServerPolling(nonce, authUrl) {
+          log("startServerPolling(" + nonce + ")");
+          const t0 = Date.now();
+          const MAX = 180000;
+          let delay = 1800;
+          let done = false;
+
+          // UI atrasada (hint) só se nada acontecer
+          const hintTimer = setTimeout(function () {
+            if (!done)
+              setStatus(
+                'A autenticação abriu numa nova janela. Se não avançar, <a href="' +
+                  authUrl +
+                  '" target="_top" rel="noopener">clique aqui</a>.',
+                true,
+              );
+          }, UI_DELAY_HINT);
+
+          (function tick() {
+            if (done) return;
+            google.script.run
+              .withSuccessHandler(function (ticket) {
+                if (done) return;
+                if (ticket) {
+                  done = true;
+                  clearTimeout(hintTimer);
+                  log("server → ticket (" + String(ticket).slice(0, 12) + "…)");
+                  try {
+                    if (popupRef && !popupRef.closed) popupRef.close();
+                  } catch (_) {}
+                  goWithTicket(ticket);
+                  return;
+                }
+                if (Date.now() - t0 > MAX) {
+                  done = true;
+                  setStatus("Tempo esgotado.");
+                  return;
+                }
+                delay = Math.min(delay * 1.35, 6500);
+                setTimeout(tick, delay + Math.random() * 250);
+              })
+              .withFailureHandler(function () {
+                if (done) return;
+                if (Date.now() - t0 > MAX) {
+                  done = true;
+                  setStatus("Tempo esgotado.");
+                  return;
+                }
+                delay = Math.min(delay * 1.35, 6500);
+                setTimeout(tick, delay);
+              })
+              .pollTicket(nonce);
+          })();
+        }
+
+        function beginAuthFlow(manualClick) {
+          //const EMBEDDED = window.top !== window;
+          const nonce =
+            crypto && crypto.randomUUID
+              ? crypto.randomUUID()
+              : Date.now() + "." + Math.random();
+          setStatus("A preparar autenticação…");
+
+          google.script.run
+            .withSuccessHandler(function (authUrl) {
+              // Tentativa 1: POPUP
+              try {
+                popupRef = window.open(
+                  authUrl,
+                  "portobeloAuth",
+                  "width=520,height=720",
+                );
+              } catch (_) {
+                popupRef = null;
+              }
+
+              if (!popupRef) {
+                // Se popup bloqueada:
+                log("popup blocked");
+                if (manualClick) {
+                  // se foi clique do utilizador, mostra já alternativas
+                  setStatus(
+                    'Pop-up bloqueado. <a href="' +
+                      authUrl +
+                      '" target="_top" rel="noopener">Clique aqui para continuar</a>.',
+                    true,
+                  );
+                  if (BTN) BTN.style.display = "";
+                } else {
+                  // se foi auto: só mostramos UI após pequenos atrasos
+                  setTimeout(function () {
+                    if (BTN) BTN.style.display = "";
+                  }, UI_DELAY_BTN);
+                  setTimeout(function () {
+                    setStatus(
+                      'Não foi possível abrir a janela automaticamente. <a href="' +
+                        authUrl +
+                        '" target="_top" rel="noopener">Clique aqui para continuar</a>.',
+                      true,
+                    );
+                  }, UI_DELAY_HINT);
+                  setTimeout(function () {
+                    if (BTN) BTN.style.display = "";
+                  }, GIVE_UP);
+                }
+                return;
+              }
+
+              // Popup OK
+              log("popup opened OK");
+              setStatus(
+                "A autenticação abriu numa nova janela. Conclua o login nessa janela.",
+              );
+              startServerPolling(nonce, authUrl);
+            })
+            .withFailureHandler(function (err) {
+              log(
+                "buildAuthUrlFor fail: " +
+                  (err && err.message ? err.message : err),
+              );
+              setStatus(
+                "Não foi possível iniciar a autenticação. Tente novamente.",
+              );
+              if (BTN) BTN.style.display = "";
+            })
+            .buildAuthUrlFor(nonce, WANT_DEBUG, window.top !== window);
+        }
+
+        // Botão (para quando a pop-up automática falha ou NOREDIRECT)
+        BTN.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          beginAuthFlow(true);
+        });
+
+        // Bootstrap “seguro”: se já houver ticket local/cookie válido, vai direto
+        (function bootstrap() {
+          if (NOREDIRECT) {
+            if (BTN) BTN.style.display = "";
+            return;
+          }
+
+          const t = bestLocalTicket();
+          if (!t) {
+            // sem ticket → podemos autostartar popup (se AUTOSTART=1)
+            const AUTOSTART = "<?= AUTOSTART || '' ?>" === "1";
+            if (AUTOSTART) {
+              // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
+              beginAuthFlow(false);
+              // proteção: ao fim de X segundos, garante que pelo menos o botão aparece
+              setTimeout(function () {
+                if (BTN) BTN.style.display = "";
+              }, GIVE_UP);
+            } else {
+              if (BTN) BTN.style.display = "";
+            }
+            return;
+          }
+
+          log("Found local/cookie ticket — validating…");
+          google.script.run
+            .withSuccessHandler(function (valid) {
+              if (valid) {
+                goWithTicket(t);
+                return;
+              }
+              log("Ticket inválido → wipe");
+              try {
+                localStorage.removeItem("sessTicket");
+              } catch (_) {}
+              try {
+                document.cookie =
+                  "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
+              } catch (_) {}
+              setStatus(
+                'A sua sessão expirou. Clique em "Entrar com conta Google".',
+              );
+              if (BTN) BTN.style.display = "";
+            })
+            .withFailureHandler(function (err) {
+              log("validate fail: " + (err && err.message ? err.message : err));
+              setStatus(
+                'Não foi possível validar a sessão. Clique em "Entrar com conta Google".',
+              );
+              if (BTN) BTN.style.display = "";
+            })
+            .isTicketValid(t);
+        })();
+      })();
+    </script>
+  </body>
+</html>

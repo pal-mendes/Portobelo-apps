@@ -1,0 +1,182 @@
+<!-- Main.html (Anúncios) -->
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Anúncios Portobelo</title>
+  <style>
+    <?!= include('Styles'); ?>
+    #dbgDock {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 50vh;
+      background: #111;
+      color: #0f0;
+      font: 12px/1.35 monospace;
+      border-top: 2px solid #444;
+      padding: 8px;
+      overflow: auto;
+      z-index: 2147483647;
+    }
+  </style>
+
+  <!-- Debug dock unificado (substitui todos os blocos de debug anteriores) -->
+  <script>
+  (function(){
+    const SERVER_LOG   = `<?= SERVER_LOG ?>`;
+    const SERVER_DEBUG = "<?= DEBUG ?>" === "1";
+    const URL_DEBUG_ON  = /[?&]debug=1\b/i.test(location.search);
+    const URL_DEBUG_OFF = /[?&](debug=0|nodebug=1)\b/i.test(location.search);
+
+    try{
+      if ((!URL_DEBUG_ON && !SERVER_DEBUG) || URL_DEBUG_OFF) {
+        localStorage.removeItem('pbDebug');
+      }
+    }catch(_){}
+
+    let WANT_DEBUG = SERVER_DEBUG || URL_DEBUG_ON;
+    try{ WANT_DEBUG = WANT_DEBUG || (localStorage.getItem('pbDebug') === '1'); }catch(_){}
+    try{ if (WANT_DEBUG) localStorage.setItem('pbDebug','1'); }catch(_){}
+
+    if (!WANT_DEBUG) { window.__dbg = function(){}; return; }
+
+    const dock=document.createElement('div'); dock.id='dbgDock';
+    dock.style.cssText='position:fixed;left:0;right:0;bottom:0;height:40vh;background:#111;color:#0f0;font:12px/1.35 monospace;border-top:2px solid #444;padding:8px;overflow:auto;z-index:2147483647';
+    function add(l){ try{console.log('[DBG]',l);}catch(_){}; const p=document.createElement('div'); p.textContent=(new Date()).toISOString().slice(11,19)+' '+l; dock.appendChild(p); dock.scrollTop=dock.scrollHeight; }
+    window.__dbg = add;
+
+    window.addEventListener('DOMContentLoaded', function(){
+      document.body.appendChild(dock);
+      if (SERVER_LOG) SERVER_LOG.split('\n').forEach(l=>l&&add(l));
+      add('Main ready: '+location.href);
+    });
+  })();
+  </script>
+
+  <script> const CANON_URL = "<?= CANON_URL ?>"; </script>
+
+
+  <!-- 2) (opcional) redireção se houver ticket em localStorage -->
+  <script>
+    (function(){
+      try{
+        if (!/[\?&]ticket=/.test(location.search)) {
+          var t = localStorage.getItem('sessTicket') || '';
+          if (t) {
+            var url = (window.CANON_URL||location.origin+location.pathname) + '?ticket=' + encodeURIComponent(t) + (("<?= DEBUG ?>"==="1") ? '&debug=1' : '');
+            window.top.location.replace(url);
+          }
+        }
+      }catch(e){}
+    })();
+  </script>
+
+
+
+  <!-- Se por acaso entrar com /u/{n}, tenta corrigir (só funciona se HTML carregar) -->
+  <script>
+    (function(){
+    try {
+    var p = location.pathname; var p1 = p.replace(/\/macros\/u\/\d+\//, '/macros/');
+    if (p1 !== p) { __dbg('Fix path: '+p+' → '+p1); location.replace(p1 + location.search); }
+    } catch(e){ __dbg('Fix path ERR: '+e); }
+    })();
+  </script>
+</head>
+
+<body style="font-family: sans-serif; padding: 2em;">
+  <div id="spinner" style="display:none; text-align: center; margin-top: 2em;">
+    <div class="loader"></div>
+  </div>
+
+  <div id="main-page">
+    <div class="fixed-header">
+      <div class="header-bar">
+        <div class="left-block">
+          <div class="nav-icons">
+            <span class="icon-group">
+              <a class="icon-btn" href="https://www.titulares-portobelo.pt" target="_top" rel="noopener" title="Início" onclick="__dbg('Home click')">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
+              </a>
+              <a class="icon-btn" href="https://www.titulares-portobelo.pt/pessoal" target="_top" rel="noopener" title="Área pessoal" onclick="__dbg('Pessoal click')">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5Z" fill="currentColor"></path></svg>
+              </a>
+            </span>
+            <h2>Consulta de Anúncios</h2>
+          </div>
+          <div class="top-button">
+            <button onclick="__dbg('Atualizar lista clicked'); loadTable()">🔄 Atualizar lista de anúncios</button>
+            <button onclick="__dbg('Toggle formulário'); toggleFormulario()">➕ Adicionar/Apagar anúncio</button>
+            <div>(Clique no título da coluna para a ordenar) <span id="clique"></span></div>
+          </div>
+        </div>
+        <div id="contador" style="padding: 0.5em; font-weight: bold;">Total: 0 anúncios</div>
+        <div class="version">
+          <div>Versão: <span id="versao"></span></div>
+          <div>Atualização: <span id="atualizacao"></span></div>
+          <div>Visitas: <span id="visitas"></span></div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr id="header-row">
+            <th>Anúncio <span class="sort-icon"></span></th>
+            <th>Tipo <span class="sort-icon"></span></th>
+            <th>Telemóvel <span class="sort-icon"></span></th>
+            <th>Descrição com data de ocupação <span class="sort-icon"></span></th>
+            <th>Entrada <span class="sort-icon"></span></th>
+          </tr>
+          <tr class="filter-row"></tr>
+        </thead>
+      </table>
+    </div>
+
+
+    <div id="formulario" style="display:none;">
+      <?!= include('Form'); ?>
+    </div>
+
+
+    <div id="anuncios-wrapper">
+      <table id="anuncios-table">
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const SESSION_TICKET = "<?= ticket ?>";
+    const VERSION = "<?= VERSION ?>";
+    const TOTAL_VISITAS = "<?= count ?>";
+  </script>
+
+  <!-- 4) (opcional) deixar o ticket em window.name (útil se abrires em nova aba) -->
+  <script>
+    try {
+      if ("<?= ticket ?>") {
+        window.name = 'pbTicket:' + "<?= ticket ?>";
+        __dbg('Main: window.name set');
+      }
+    } catch(e) { __dbg('Main: window.name ERR '+e); }
+  </script>
+
+  <!-- 5) Persistir ticket e (se for popup) tentar avisar opener (mantém como tens) -->
+  <script>
+    try {
+      if (SESSION_TICKET) {
+        __dbg('Set localStorage + cookie with ticket');
+        localStorage.setItem('sessTicket', SESSION_TICKET);
+        localStorage.setItem('appCanonicalUrl', CANON_URL);
+        document.cookie = 'sessTicket=' + encodeURIComponent(SESSION_TICKET) + '; Max-Age=' + (14*24*3600) + '; Path=/; Secure; SameSite=Lax';
+        // … podes manter o teu bloco de postMessage se quiseres …
+      }
+    } catch(e){ __dbg('localStorage/cookie ERR: '+e); }
+  </script>
+
+  <?!= include('App'); ?>
+
+</body>
+
+</html>

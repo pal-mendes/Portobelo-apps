@@ -1,0 +1,269 @@
+<!-- Login.html -->
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Área reservada</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 2em
+    }
+
+    .btn {
+      display: inline-block;
+      padding: .6em 1em;
+      border: 1px solid #999;
+      border-radius: 6px;
+      text-decoration: none
+    }
+
+    #status {
+      margin: .75em 0 0;
+      color: #555
+    }
+
+    #dbgDock {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 46vh;
+      background: #111;
+      color: #0f0;
+      font: 12px/1.35 monospace;
+      border-top: 2px solid #444;
+      padding: 8px;
+      overflow: auto;
+      z-index: 2147483647
+    }
+  </style>
+
+  <!-- Variáveis do servidor -->
+  <script>
+    const CANON_URL    = "<?= CANON_URL ?>";     // URL canónico (.../macros/s/ID/exec)
+    const SERVER_LOG   = `<?= SERVER_LOG ?>`;
+  </script>
+
+  <!-- Debug dock -->
+  <script>
+  (function(){
+    const SERVER_DEBUG = "<?= DEBUG ?>" === "1";
+    const URL_DEBUG_ON  = /[?&]debug=1\b/i.test(location.search);
+    const URL_DEBUG_OFF = /[?&](debug=0|nodebug=1)\b/i.test(location.search);
+
+    // 1) auto-clear se a página não veio com ?debug=1 (e não estamos em server debug)
+    try{
+      if ((!URL_DEBUG_ON && !SERVER_DEBUG) || URL_DEBUG_OFF) {
+        localStorage.removeItem('pbDebug');
+      }
+    }catch(_){}
+
+    // 2) volta a calcular o modo debug já com o pbDebug possivelmente limpo
+    let WANT_DEBUG = SERVER_DEBUG || URL_DEBUG_ON;
+    try{ WANT_DEBUG = WANT_DEBUG || (localStorage.getItem('pbDebug') === '1'); }catch(_){}
+
+    // 3) se estivermos em debug, “gruda” para as próximas navegações (só enquanto vierem com ?debug=1)
+    try{ if (WANT_DEBUG) localStorage.setItem('pbDebug','1'); }catch(_){}
+
+    // 4) montar o dock apenas em debug
+    const dock = document.createElement('div'); dock.id='dbgDock';
+    function add(m){
+      try{ console.log('[DBG]', m);}catch(_){}
+      const p=document.createElement('div');
+      p.textContent=(new Date()).toISOString().slice(11,19)+' '+m;
+      dock.appendChild(p); dock.scrollTop=dock.scrollHeight;
+    }
+    window.__dbg = WANT_DEBUG ? add : function(){};
+
+    window.__dbg('frame='+(window.top===window?'top':'iframe'));
+    window.__dbg('page origin='+location.origin);
+    try{ window.__dbg('canon origin='+new URL("<?= CANON_URL ?>").origin);}catch(_){}
+
+    window.addEventListener('DOMContentLoaded', function(){
+      if (!WANT_DEBUG) return;               // <-- só injeta o dock em debug
+      document.body.appendChild(dock);
+      if (`<?= SERVER_LOG ?>`) `<?= SERVER_LOG ?>`.split('\n').forEach(l=>l&&add(l));
+      add('DOM ready: '+location.href);
+      if (document.referrer) add('Referrer: '+document.referrer);
+      add('embedded? '+(window.top!==window));
+    });
+  })();
+  </script>
+
+</head>
+
+<body>
+  <h2>Área reservada a associados</h2>
+  <p><a id="login-link" class="btn" href="#">Entrar com conta Google</a></p>
+  <div id="status"></div>
+
+
+  <!-- 1) wipe + log() -->
+  <script>
+    (function(){
+      const WIPE = "<?= WIPE ?>" === "1";
+      function log(m){ try{console.log('[LOGIN]', m);}catch(_){} }
+      if (WIPE) {
+        try{ localStorage.removeItem('sessTicket'); log('wipe: localStorage ok'); }catch(e){ log('wipe ls ERR '+e); }
+        try{ document.cookie='sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax'; log('wipe: cookie ok'); }catch(e){ log('wipe cookie ERR '+e); }
+      }
+    })();
+  </script>
+
+  <!-- 2) fluxo de autenticação -->
+  <script>
+    (function(){
+  const WANT_DEBUG = /[?&]debug=1\b/i.test(location.search) || /[?&]debug=1\b/i.test(document.referrer||'');
+  // const STICKY_DBG = WANT_DEBUG || (function(){ try{return localStorage.getItem('pbDebug')==='1'}catch(_){return false} })();
+  const STICKY_DBG = /[?&]debug=1\b/i.test(location.search)
+  || (function(){ try{return localStorage.getItem('pbDebug')==='1'}catch(_){return false} })();
+
+  const EMBEDDED  = (window.top !== window);
+  const BASE      = CANON_URL;
+
+  function add(m){ window.__dbg(m); }
+  function setStatus(s){ var el=document.getElementById('status'); if(el) el.textContent=s; }
+
+  function goWithTicket(t){
+    const next = BASE + '?ticket=' + encodeURIComponent(t) + (STICKY_DBG ? '&debug=1' : '');
+    add('Go with ticket → '+next);
+    try{ localStorage.setItem('sessTicket', t); }catch(_){}
+    try{ location.replace(next); }catch(_){ location.href = next; }
+  }
+
+  // Poll de fallback (3 min)
+  function startServerPolling(nonce){
+    add('startServerPolling() nonce='+nonce);
+    const t0  = Date.now();
+    const MAX = 180000;   // 3 min
+    let ticks = 0, done = false;
+
+    const tm = setInterval(function(){
+      if (done) return;
+      ticks++;
+      try{
+        google.script.run
+          .withSuccessHandler(function(ticket){
+            if (done) return;
+            if (ticket) {
+              done = true;
+              add('server → ticket recebido ('+ticket.slice(0,12)+'…)');
+              clearInterval(tm);
+              try{ if (popupRef && !popupRef.closed) popupRef.close(); }catch(_){}
+              goWithTicket(ticket);
+              return;
+            }
+            if (ticks % 5 === 0) add('poll… ('+ticks+')');
+            if (Date.now() - t0 > MAX) {
+              done = true;
+              clearInterval(tm);
+              add('poll timeout ('+MAX+' ms)');
+              setStatus('Demasiado tempo de inatividade! Por favor carregue em "Entrar com conta Google" e conclua a autenticação em menos de 3 minutos.');
+              try{ if (popupRef && !popupRef.closed) popupRef.close(); }catch(_){}
+            }
+          })
+          .withFailureHandler(function(err){
+            if (done) return;
+            add('poll fail: '+(err && err.message ? err.message : err));
+            if (Date.now() - t0 > MAX) {
+              done = true;
+              clearInterval(tm);
+              add('poll stopped after timeout due to errors');
+              setStatus('Demasiado tempo de inatividade! Por favor carregue em "Entrar com conta Google" e conclua a autenticação em menos de 3 minutos.');
+              try{ if (popupRef && !popupRef.closed) popupRef.close(); }catch(_){}
+            }
+          })
+          .pollTicket(nonce);
+      }catch(e){
+        if (done) return;
+        add('poll fail: '+(e && e.message ? e.message : e));
+        if (Date.now() - t0 > MAX) {
+          done = true;
+          clearInterval(tm);
+          add('poll stopped after timeout due to errors');
+          setStatus('Demasiado tempo de inatividade! Por favor carregue em "Entrar com conta Google" e conclua a autenticação em menos de 3 minutos.');
+          try{ if (popupRef && !popupRef.closed) popupRef.close(); }catch(_){}
+        }
+      }
+    }, 800);
+  }
+
+
+  // Receber ticket por postMessage (fecha popup via referência)
+  let popupRef = null;
+  window.addEventListener('message', function(ev){
+    const d = ev && ev.data || {};
+    if (d && d.type === 'portobelo_ticket' && d.ticket){
+      add('ticket via postMessage');
+      // fecha o popup com força
+      try{
+        if (popupRef && !popupRef.closed) {
+          try { popupRef.close(); } catch(_) {}
+          try { popupRef.opener = null; } catch(_) {}
+          try { popupRef.location.replace('about:blank'); } catch(_) {}
+          try { popupRef.close(); } catch(_) {}
+        }
+      }catch(_){}
+      goWithTicket(d.ticket);
+    }
+  });
+
+  function beginAuthFlow(auto){
+    // NONCE cliente (será assinado no state no servidor)
+    const nonce = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now()+'.'+Math.random());
+    setStatus('A abrir janela de autenticação…');
+
+    // Pede o URL de OAuth ao servidor e abre DIRETO no Google
+    google.script.run
+      .withSuccessHandler(function(authUrl){
+        try{
+          popupRef = window.open(authUrl, 'portobeloAuth', 'width=520,height=720');
+        }catch(_){ popupRef = null; }
+        if (!popupRef){
+          add('popup blocked');
+          setStatus('Pop-up bloqueado. Clique em “Entrar com conta Google”.');
+          return;
+        }
+        add('popup opened OK (direct to accounts.google.com)');
+        setStatus('A autenticação abriu numa nova janela. Conclua o login nessa janela.');
+        startServerPolling(nonce);
+      })
+      .withFailureHandler(function(err){
+        add('buildAuthUrlFor fail: '+(err && err.message ? err.message : err));
+        setStatus('Não foi possível iniciar a autenticação. Tente novamente.');
+      })
+      .buildAuthUrlFor(nonce, STICKY_DBG, EMBEDDED);
+  }
+
+  // Botão (útil se popup automático estiver bloqueado)
+  document.getElementById('login-link').addEventListener('click', function(e){
+    e.preventDefault();
+    beginAuthFlow(false);
+  });
+
+  // Auto-abrir popup ao carregar (se o browser permitir)
+  window.addEventListener('DOMContentLoaded', function(){
+    beginAuthFlow(true);
+  });
+
+  // Bootstrap: se já houver ticket, avança (resolve o #4)
+  (function(){
+    try{
+      const t = localStorage.getItem('sessTicket') || '';
+      if (t){ add('Found existing ticket in this origin'); goWithTicket(t); return; }
+      // pequeno extra: tenta ler cookie se existir
+      const m = (document.cookie||'').match(/(?:^|;\s*)sessTicket=([^;]+)/);
+      if (m && m[1]){ goWithTicket(decodeURIComponent(m[1])); }
+    }catch(_){}
+  })();
+})();
+  </script>
+
+
+</body>
+
+</html>

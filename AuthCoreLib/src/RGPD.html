@@ -1,0 +1,345 @@
+<!-- RGPD.html (em AuthCoreLib) -->
+<!doctype html>
+<html>
+  <head>
+    <base target="_self" />
+    <meta charset="utf-8" />
+    <title>RGPD</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 820px;
+        margin: 18px auto;
+        padding: 0 14px;
+        line-height: 1.45;
+      }
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      button {
+        padding: 8px 12px;
+        border: 1px solid #999;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+    </style>
+    <!-- Variáveis do servidor -->
+    <script>
+      const CANON_URL = "<?= CANON_URL ?>"; // URL canónico (.../macros/s/ID/exec)
+      const SESSION_TICKET = "<?= ticket || TICKET || '' ?>";
+      const SERVER_LOG = `<?= SERVER_LOG ?>`;
+      const NOREDIRECT = /[?&]noredirect=1\b/i.test(location.search);
+      try {
+        localStorage.setItem("appCanonicalUrl", CANON_URL);
+      } catch (_) {}
+    </script>
+
+	  <!-- Logger global único (consola apenas) - no head dos html -->
+    <script>
+      (function () {
+        const SERVER_DEBUG = "<?= DEBUG ?>" === "1";
+        const URL_DEBUG_ON = /[?&]debug=1\b/i.test(location.search);
+        const URL_DEBUG_OFF = /[?&](debug=0|nodebug=1)\b/i.test(location.search);
+        try { // gerir flag persistente
+          if ((!URL_DEBUG_ON && !SERVER_DEBUG) || URL_DEBUG_OFF) { localStorage.removeItem("pbDebug"); }
+        } catch (_) {}
+
+        let DBG = SERVER_DEBUG || URL_DEBUG_ON;
+        try { DBG = DBG || localStorage.getItem("pbDebug") === "1"; } catch (_) {}
+        try { if (DBG) localStorage.setItem("pbDebug", "1"); } catch (_) {}
+
+        // disponibiliza logger globalmente
+        window.__DEBUG_ON = !!DBG;
+        window.isDbg = () => !!window.__DEBUG_ON;
+        // log() = sempre visível
+        window.log = (...args) => { try { console.log("[PB]", ...args); } catch (_) {} };
+        // dbg() = só quando debug ativo
+        window.dbg = (...args) => { if (window.__DEBUG_ON) { try { console.debug("[PB:DBG]", ...args); } catch (_) {} } };
+        // helpers para ativar/desativar debug persistente
+        window.pbDebug = {
+          enable:  () => { try { localStorage.setItem("pbDebug","1"); } catch(_){ } window.__DEBUG_ON = true; },
+          disable: () => { try { localStorage.removeItem("pbDebug"); } catch(_){ } window.__DEBUG_ON = false; },
+          status:  () => !!window.__DEBUG_ON
+        };
+        // logs de arranque (só consola)
+        window.addEventListener("DOMContentLoaded", function () {
+         const __SL = (typeof SERVER_LOG !== "undefined" && SERVER_LOG) ? SERVER_LOG : "";
+          if (__SL) __SL.split("\n").forEach((l) => l && dbg(l));
+          //if (!window.__DEBUG_ON) return;
+          dbg("DOM ready: " + location.href);
+          if (document.referrer) dbg("Referrer: " + document.referrer);
+          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
+          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
+          dbg("DOM ready: " + location.href);
+          if (document.referrer) dbg("Referrer: " + document.referrer);
+          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
+          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
+        });
+        // Opcional: erros sempre visíveis na consola
+        window.addEventListener('error', (e) => {
+          try { console.error('[JS error]', e.message, e.error?.stack || ''); } catch (_) {}
+        });
+        window.addEventListener('unhandledrejection', (ev) => {
+          const r = ev?.reason;
+          try { console.error('[Promise rejection]', r?.message || r, r?.stack || ''); } catch (_) {}
+        });		
+      })();
+    </script>	
+  </head>
+  <body>
+    <h2>Proteção de dados (RGPD)</h2>
+    <div class="card">
+      <p><b>REGULAMENTO DA ASSOCIAÇÃO DOS TITULARES DE DRHP DO PORTOBELO</b></p>
+      <p><b>Artigo 9.º — Proteção de dados</b></p>
+      <ol>
+        <li>
+          A Associação recolhe e trata dados pessoais dos associados
+          estritamente necessários ao cumprimento dos seus fins, designadamente
+          identificação, contactos e dados relativos às semanas detidas.
+        </li>
+        <li>
+          A Associação compromete-se a adotar medidas técnicas e organizativas
+          adequadas para a proteção desses dados.
+        </li>
+        <li>
+          Os dados serão usados apenas para fins associativos, com respeito pelo
+          RGPD e legislação nacional.
+        </li>
+        <li>
+          Os associados têm direito a aceder, retificar e solicitar a eliminação
+          dos seus dados, salvo os que sejam legalmente obrigatórios para o
+          funcionamento da Associação.
+        </li>
+      </ol>
+      <div id="rgpd-multi" style="display: none; margin: 12px 0"></div>
+      <div id="rgpd-multi-actions" style="display: none; margin: 12px 0">
+        <button id="rgpd-save" class="btn">Guardar</button>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+
+        /*
+        const EMBED = (function(){
+          // estamos dentro de um <iframe> (top !== self) e viemos do teu site/Sites
+          if (window.top === window.self) return false;
+          const ref = document.referrer || '';
+          return /titulares-portobelo\.pt|sites\.google\.com/i.test(ref);
+        })();
+        */
+
+        log(`RGPD page`);
+
+        function detectEnv(){
+          const IN_IFRAME = (function(){ try { return window.top !== window.self; } catch(_) { return true; } })();
+          const AO = (location.ancestorOrigins && Array.from(location.ancestorOrigins)) || [];
+
+          // Qualquer origem Apps Script wrapper
+          const isAppsScript = (o) => /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(o);
+
+          // Estamos “externamente embebidos” se houver PELO MENOS um ancestor que NÃO seja Apps Script
+          const HAS_NON_APPS_ANCESTOR = AO.some(o => !isAppsScript(o));
+
+          const EXTERNAL_EMBED = IN_IFRAME && HAS_NON_APPS_ANCESTOR;
+          //return { IN_IFRAME, EXTERNAL_EMBED, AO };
+          return { EXTERNAL_EMBED };
+        }
+
+        // ✅ EMBED robusto
+        const { EXTERNAL_EMBED } = detectEnv();
+        const EMBED = /\bembed=1\b/i.test(location.search) || EXTERNAL_EMBED;  // só é true em iframe EXTERNO
+
+        let CANON = "<?= CANON ?>";
+        if (!CANON) {
+          try { CANON = localStorage.getItem('appCanonicalUrl') || ''; } catch(_) {}
+          if (!CANON) CANON = location.origin + location.pathname;
+        }
+
+        let TICKET = "<?= TICKET ?>";
+        if (!TICKET) {
+          // 1) tenta apanhar do URL (vindo do Main com ?ticket=…)
+          try { TICKET = new URL(location.href).searchParams.get('ticket') || ''; } catch(_) {}
+        }
+        if (!TICKET) {
+          // 2) último recurso: localStorage (só funciona se mesma origem)
+          try { TICKET = localStorage.getItem('sessTicket') || ''; } catch(_) {}
+        }
+
+
+        log(`RGPD page ready; CANON=${CANON}; have TICKET=${!!TICKET}; EMBED=${EMBED}; EXTERNAL_EMBED=${EXTERNAL_EMBED}`);
+
+        function spanChip(txt){
+          return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
+        }
+
+        function renderMulti(rows){
+          log("[RGPD/multi] entrada");
+          try { log("[RGPD/multi] rows=" + JSON.stringify(rows)); } catch(_){}
+          if (!rows || !rows.length){
+            log("[RGPD/multi] nenhuma linha para este utilizador");
+            const box = document.getElementById('rgpd-multi');
+            box.style.display = '';
+            box.innerHTML = `
+              <div class="card">
+                <div class="muted">Não há linhas para gerir o RGPD neste e-mail.</div>
+                <div style="margin-top:8px">
+                  <button id="rgpd-back">Voltar</button>
+                </div>
+              </div>`;
+            document.getElementById('rgpd-back')?.addEventListener('click', () => {
+              const u = new URL(CANON);
+              if (TICKET) u.searchParams.set("ticket", TICKET);
+              if (DBG)    u.searchParams.set("debug", "1");
+              u.searchParams.set("ts", Date.now());
+              location.replace(u.toString());
+            });
+            return;
+          }
+
+          log("[RGPD/multi] criar html");
+          // constroi cards com checkboxes
+          const html = rows.map(r => `
+            <div class="card" style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin:8px 0">
+              <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+                <input type="checkbox" data-row="${r.row}" ${r.rgpd ? "checked":""}>
+                <div>
+                  <div><b>Semana(s)</b> ${spanChip(r.semanas)}</div>
+                  <div class="muted small rgpd-label">RGPD: ${r.rgpd ? "Aceite" : "Rejeitado"}</div>
+                </div>
+              </label>
+            </div>
+          `).join("");
+
+          const box = document.getElementById('rgpd-multi');
+          box.innerHTML = html;
+          box.style.display = '';
+
+          // Atualiza rótulo “RGPD: …” em tempo real
+          box.querySelectorAll('input[type="checkbox"][data-row]').forEach(cb => {
+            const row = +cb.getAttribute('data-row');
+            const lab = cb.closest('.card')?.querySelector('.rgpd-label');
+            const update = () => {
+              const on = !!cb.checked;
+              if (lab) lab.textContent = 'RGPD: ' + (on ? 'Aceite' : 'Rejeitado');
+              log(`[RGPD/multi] toggle row=${row} → ${on ? 'Aceite' : 'Rejeitado'}`);
+            };
+            cb.addEventListener('change', update);
+          });
+
+          const actions = document.getElementById('rgpd-multi-actions');
+          actions.style.display = '';
+
+          document.getElementById('rgpd-save').onclick = function(ev){
+          ev.preventDefault();
+          log("[RGPD/multi] save click");
+
+          const accepted = Array.from(document.querySelectorAll('#rgpd-multi input[type="checkbox"][data-row]'))
+            .filter(b => b.checked).map(b => +b.getAttribute('data-row'));
+
+          log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
+
+          // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
+          const u = new URL(CANON);
+          //u.searchParams.set('action','postrgpd');
+          // força o servidor a ir direto ao Main (ignora gates)
+          u.searchParams.set('go','main');
+   
+          if (TICKET) u.searchParams.set('ticket', TICKET);
+          //if (/[?&]debug=1\b/i.test(location.search)) u.searchParams.set('debug','1');
+          if (DBG)    u.searchParams.set("debug","1");
+          if (EXTERNAL_EMBED) u.searchParams.set("embed","1"); // só para diagnóstico no server
+          u.searchParams.set('from','rgpd-save');
+          u.searchParams.set('ts', Date.now());
+          //const postUrl = u.toString();
+          const mainUrl = u.toString();
+
+          let navigated = false;
+          function goNow(where){
+            if (navigated) return;
+            navigated = true;
+            log("[RGPD/multi] navigating → " + where + (EXTERNAL_EMBED ? " (SELF→TOP)" : " (TOP→SELF)"));
+            /*
+              try {
+              const IN_IFRAME = (function(){ try { return window.top !== window.self; } catch(_) { return true; } })();
+              const AO = (location.ancestorOrigins && Array.from(location.ancestorOrigins)) || [];
+              const isAppsScript = (o) => /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(o);
+              const EXTERNAL_EMBED = IN_IFRAME && AO.some(o => !isAppsScript(o));
+              if (EXTERNAL_EMBED) u.searchParams.set("embed","1");
+            } catch(_){}
+            
+            location.replace(u.toString());
+            */
+            /*
+            try { location.replace(where); }
+            catch(_) { try { location.assign(where); } catch(__) { location.href = where; } }
+            */
+
+            /* OK em standalone mas não em embed
+            // 1) tenta topo (sair da frame), ainda dentro do click = gesto do utilizador
+            try { window.top?.open(where, "_top"); return; } catch(_) {}
+            try { window.top.location = where; return; } catch(_) {}
+            // 2) fallback: mesma frame
+            try { location.replace(where); return; } catch(_) {}
+            try { location.assign(where); return; } catch(_) {}
+            location.href = where;
+            */
+
+            const goSelf = () => {
+              try{ location.replace(where); return true; }catch(_){}
+              try{ location.assign(where); return true; }catch(_){}
+              try{ location.href=where; return true; }catch(_){}
+              return false; 
+            };
+            const goTop  = () => {
+              try{ window.top.location = where; return true; }catch(_){}
+              try{ window.top?.open(where, "_top"); return true; }catch(_){}
+              return false; 
+            };
+            if (EXTERNAL_EMBED ? (goSelf() || goTop()) : (goTop() || goSelf())) return;
+
+
+          }
+
+          // Watchdog: se o callback não disparar, força a navegação
+          const wd = setTimeout(function(){
+            log("[RGPD/multi] WARN: success handler não chamou em 2s → forçar navegação");
+            goNow(mainUrl);
+          }, 2000);
+
+          google.script.run
+            .withSuccessHandler(function(res){
+            clearTimeout(wd);
+            try { log("[RGPD/multi] save ok " + JSON.stringify(res)); } catch(_){}
+            goNow(mainUrl);
+            })
+            .withFailureHandler(function(err){
+            clearTimeout(wd);
+            const msg = err && err.message ? err.message : String(err);
+            log("[RGPD/multi] save FAIL: " + msg);
+            alert('Erro a guardar: ' + msg);
+            })
+            .setRgpdRowsFor(TICKET, accepted);
+          };
+        }
+
+        log("about to call listRgpdRowsFor (host)");
+        // Chama o host para obter linhas; se vier vazio, a página da biblioteca fica no modo single padrão
+        google.script.run
+          .withSuccessHandler(renderMulti)
+          .withFailureHandler(function(err){
+            alert("Erro a carregar linhas: " + (err && err.message ? err.message : String(err)));
+          })
+          .listRgpdRowsFor(TICKET);
+      })();
+    </script>
+  </body>
+</html>

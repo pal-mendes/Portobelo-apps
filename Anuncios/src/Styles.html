@@ -1,0 +1,170 @@
+/* Styles.html (CSS) */
+.loader {
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #3498db;
+  border-radius: 50%;
+  width: 60px; height: 60px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
+
+body { margin: 0; background-color: #f9f9f9; }
+
+h2 { margin: 0; font-size: 24px; }
+
+.fixed-header { position: sticky; top: 0; background: #fff; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,.1); }
+/* .header-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px 16px; } */
+.header-bar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px 16px; }
+
+.title-row { display: flex; align-items: center; gap: 6px; }
+
+.nav-icons { display: flex; align-items: center; gap: 0; margin: 0; }
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px; text-decoration: none;
+  color: inherit; background: transparent; transition: background .15s ease;
+}
+/* opcional: encolher ligeiramente o SVG para caber bem no 28x28 */
+.icon-btn svg{
+  width: 18px;
+  height: 18px;
+  display:block;
+}
+
+.icon-group{
+  display:inline-flex;
+  border-radius:6px;
+  overflow:hidden;     /* “une” visualmente os botões */
+}
+.icon-group .icon-btn{
+  width:28px; height:28px; line-height:0; border-radius:0; margin:0; padding:0;
+}
+.icon-group .icon-btn:hover{ background:rgba(0,0,0,.06); }
+
+/* título colado mas legível */
+.nav-icons h2{ margin-left:6px; }
+
+.nav-icons .icon-group{
+  display: inline-flex;
+  gap: 0;
+  border-radius: 6px;
+  overflow: hidden;       /* une visualmente */
+}
+
+/* retirar a largura fixa de 28px dentro do grupo */
+.nav-icons .icon-group .icon-btn{
+  width: auto;            
+  height: 28px;
+  padding: 0;             
+  margin: 0;
+  border-radius: 0;
+  line-height: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+/* o SVG ocupa só o necessário */
+.nav-icons .icon-group .icon-btn svg{
+  width: 18px;            /* ou 20px, como preferir */
+  height: 18px;
+  display: block;
+}
+
+/* (opcional) sobrepor 1px para “colar” visualmente */
+.nav-icons .icon-group .icon-btn + .icon-btn{
+  margin-left: -1px;      /* teste -1px, -2px conforme o gosto */
+}
+
+/* afastar um bocadinho do título */
+.nav-icons h2{ margin-left: 6px; }
+
+.version { justify-self: end; text-align: right; white-space: nowrap; }
+.left-block{ min-width: 0; }
+
+/* Garante que o contador fica SEMPRE centrado, em todas as larguras/rotações */
+#contador{
+  justify-self: center;
+  text-align: center;
+}
+
+/* .version { font-size: 14px; color: #666; text-align: right; margin-left: auto; } */
+.version { justify-self: end; text-align: right; }
+
+.top-button { display: flex; justify-content: flex-start; gap: 8px; margin-top: 0; flex-wrap: wrap}
+.top-button a,
+.top-button button {
+  white-space: nowrap;       /* não quebra texto dentro do botão */
+  display: inline-flex; 
+  align-items: center;
+  width: auto;               /* evita esticar para a largura total */
+  min-width: max-content;    /* garante espaço para todo o texto */
+}
+
+table { width: 100%; border-collapse: collapse; margin-top: 0; table-layout: fixed; }
+thead th { position: sticky; top: 40px; background: #f0f0f0; padding: 8px; border-bottom: 2px solid #ccc; cursor: pointer; z-index: 5; }
+thead th.sortable:hover { background-color: #e0e0e0; }
+.sort-icon { margin-left: 4px; font-size: 10px; }
+
+tbody td { padding: 8px; border-bottom: 1px solid #ddd; overflow-wrap: break-word; word-wrap: break-word; }
+tr:nth-child(even) { background-color: #f2f2f2; }
+
+.filter-row select, .filter-row input { width: 100%; box-sizing: border-box; padding: 4px; }
+
+#anuncios-wrapper { overflow-x: auto; }
+#anuncios-wrapper table { min-width: 620px; }
+
+th:nth-child(1), td:nth-child(1) { width: 100px; }
+th:nth-child(2), td:nth-child(2) { width: 160px; }
+th:nth-child(3), td:nth-child(3) { width: 160px; }
+th:nth-child(4), td:nth-child(4) {
+  /* as outras colunas são 100 + 160 + 160 + 120 = 540px */
+  width: calc(100% - 540px);
+  min-width: 220px;      /* evita ficar minúscula */
+  white-space: normal;   /* dobra linhas normalmente */
+  /* overflow-wrap: anywhere; /* quebra palavras longas se necessário */ */
+  word-break: break-word; /* um pouco mais conservador que 'anywhere' */
+}
+th:nth-child(5), td:nth-child(5) { width: 120px; }
+
+/* Para telemóveis: */
+@media (max-width: 600px) {
+  h2 { font-size: 20px; }
+  .header-bar{
+    grid-template-columns: minmax(0,auto) 1fr minmax(0,auto); 
+    /*
+    grid-template-areas:
+      "left   version"
+      "counter counter";
+    */
+    gap: 6px 10px;
+  }
+  .title-row { gap: 4px; }
+
+  .nav-icons .icon-group .icon-btn{ height: 26px; }
+  .nav-icons .icon-group .icon-btn svg{ width: 16px; height: 16px; }
+  .nav-icons h2{ margin-left:4px; }
+  /* .nav-icons{ gap: 1px; } */
+  /* .left-block{ grid-area: left; } */
+  /* #contador{  grid-area: counter; } */
+  #contador { font-size:14px; max-width:90vw; overflow:hidden; text-overflow:ellipsis; }
+  .top-button { justify-content: flex-start; }
+  /* .version{   grid-area: version; } */
+  .version{ font-size: 12px; }
+  th:nth-child(1), td:nth-child(1) { width: 84px; }
+  th:nth-child(2), td:nth-child(2) { width: 110px; }
+  th:nth-child(3), td:nth-child(3) { width: 110px; }
+  th:nth-child(5), td:nth-child(5) { width: 96px; }
+  th:nth-child(4), td:nth-child(4) {
+    width: calc(100% - (84px + 110px + 110px + 96px));
+    min-width: 40vw;     /* assegura uma “fatia” decente do ecrã */
+  }
+}
+
+th, td { box-sizing: border-box; }
+
+
+#mensagem-submissao { display:none; color: green; font-weight: bold; font-size: 1.6em; animation: blink 1s step-start infinite; text-align: center; margin-top: 1em; }
+@keyframes blink { 50% { opacity: 0; } }
+
+#formulario { padding: 16px; background-color: #eef; margin: 10px; border: 1px solid #ccc; }
+#formulario input, #formulario textarea, #formulario select { display: block; width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; }

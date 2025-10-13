@@ -1,0 +1,260 @@
+<!-- App.html -->
+<script>
+  // Proteções básicas
+  window.addEventListener('error', function (e) {
+    const el = document.getElementById('mensagem-submissao') || document.getElementById('contador');
+    if (el) el.textContent = 'Erro JavaScript: ' + e.message;
+  });
+
+  let rawData = [];
+  let sortDirection = -1; // descendente
+  let sortColumn = 0;     // ordenar por "Anúncio" por omissão
+  let envioEmCurso = false;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('versao').textContent = VERSION;
+    document.getElementById('visitas').textContent = TOTAL_VISITAS;
+    loadTable();
+  });
+
+  function loadTable() {
+    document.getElementById('spinner').style.display = 'block';
+    google.script.run
+    .withSuccessHandler(function(novosDados) {
+      document.getElementById('spinner').style.display = 'none';
+      if (!Array.isArray(novosDados)) { __dbg('getAnunciosDataSess → não é array'); return; }
+
+      rawData = novosDados.filter(r => r.some(c => c !== '' && c != null));
+      sortColumn = 0; // data
+      sortDirection = -1; // mais recentes primeiro
+      setupFilters();
+      applyFilters();
+      updateSortIcons();
+
+      google.script.run
+      .withSuccessHandler(function(novaData) {
+        document.getElementById('atualizacao').textContent = novaData;
+      })
+        .withFailureHandler(function(err) {
+          __dbg('getUltimaAtualizacao ERROR: ' + err);
+          document.getElementById('atualizacao').textContent = 'Erro';
+        })      
+      .getUltimaAtualizacao();
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('spinner').style.display = 'none';
+      __dbg('getAnunciosDataSess ERROR: ' + err);
+      var el = document.getElementById('contador'); 
+      if (el) el.textContent = 'Erro ao carregar dados (' + err + ')';
+    })
+    .getAnunciosDataSess(SESSION_TICKET);
+  }
+
+  function normalizePhone(raw) {
+    const digits = String(raw || '').replace(/\D/g, '').replace(/^0+/, '');
+    let d = digits;
+    if (d.length === 9) d = '351' + d;       // PT
+    else if (d.length === 10) d = '00' + d;  // ex.: +33 -> 11 dígitos…
+    else if (d.length === 11) d = '0' + d;
+    if (d.length < 12 || d.length > 15) return { ok:false };
+    const pretty = d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,9)+' '+d.slice(9,12) + (d.length>12 ? (' '+d.slice(12)) : '');
+    return { ok:true, digits:d, pretty:pretty };
+  }
+
+  function enviarAnuncio() {
+    if (envioEmCurso) return;
+    envioEmCurso = true;
+
+    const botao = document.getElementById('botaoSubmeter');
+    if (botao) botao.disabled = true;
+    document.getElementById('spinner').style.display = 'block';
+
+    const telRaw = document.getElementById('anuncioTelefone').value;
+    const norm = normalizePhone(telRaw);
+    if (!norm.ok) {
+      document.getElementById('spinner').style.display = 'none';
+      alert('Número de telemóvel inválido.');
+      if (botao) botao.disabled = false;
+      envioEmCurso = false;
+      return;
+    }
+
+    const tipo = (document.getElementById('anuncioTipo').value || '').trim();
+    if (!tipo) {
+      document.getElementById('spinner').style.display = 'none';
+      alert('Selecione o tipo de anúncio.');
+      if (botao) botao.disabled = false;
+      envioEmCurso = false;
+      return;
+    }
+
+    const descricao = (document.getElementById('anuncioDescricao').value || '').trim();
+    if (descricao.length < 10) {
+      document.getElementById('spinner').style.display = 'none';
+      alert('A descrição deve ter pelo menos 10 caracteres.');
+      if (botao) botao.disabled = false;
+      envioEmCurso = false;
+      return;
+    }
+
+    const entrada = (document.getElementById('anuncioEntrada').value || '').trim();
+
+    const dados = [
+      '',            // Data (preenchida no backend)
+      tipo,
+      norm.pretty,   // guardamos formatado; o backend valida por dígitos
+      descricao,
+      entrada
+    ];
+
+    google.script.run.withSuccessHandler(function() {
+      document.getElementById('spinner').style.display = 'none';
+      // Reset dos campos
+      document.getElementById('anuncioTelefone').value = '';
+      document.getElementById('anuncioTipo').selectedIndex = 0;
+      document.getElementById('anuncioEntrada').value = '';
+      document.getElementById('anuncioDescricao').value = '';
+
+      const msg = document.getElementById('mensagem-submissao');
+      msg.textContent = '✅ Anúncio submetido com sucesso. Será contactado em breve.';
+      msg.style.display = 'block';
+      setTimeout(function(){ msg.style.display = 'none'; }, 10000);
+
+      if (botao) botao.disabled = false;
+      envioEmCurso = false;
+      // Opcional: fechar formulário
+      // toggleFormulario();
+      // Opcional: recarregar lista
+      // loadTable();
+    }).withFailureHandler(function(err){
+      document.getElementById('spinner').style.display = 'none';
+      alert(err.message);
+      if (botao) botao.disabled = false;
+      envioEmCurso = false;
+    }).submitAnuncioSess(SESSION_TICKET, dados);
+  }
+
+  function setupFilters() {
+    const headerRow = document.getElementById('header-row');
+    headerRow.innerHTML = '';
+    const headers = ['Anúncio','Tipo','Telemóvel','Descrição com data de ocupação','Entrada'];
+    const filterTypes = ['none','dropdown','dropdown','input','dropdown'];
+
+    headers.forEach((h, i) => {
+      const th = document.createElement('th');
+      th.classList.add('sortable');
+      th.innerHTML = h + ' <span class="sort-icon"></span>';
+      th.addEventListener('click', () => {
+        if (sortColumn === i) sortDirection *= -1; else { sortColumn = i; sortDirection = 1; }
+        updateSortIcons();
+        applyFilters();
+      });
+      headerRow.appendChild(th);
+    });
+
+    const filterRow = document.querySelector('.filter-row');
+    if (filterRow) {
+      filterRow.innerHTML = '';
+      headers.forEach((_, i) => {
+        const th = document.createElement('th');
+        if (filterTypes[i] === 'dropdown') {
+          const select = document.createElement('select');
+          let unique = [...new Set(rawData.map(row => formatCell(row[i], i)))];
+          if (i === 2) { // Telemóvel: ordenar por dígitos
+            unique.sort((a,b) => (a||'').replace(/\s+/g,'').localeCompare((b||'').replace(/\s+/g,''), undefined, { numeric: true }));
+          } else {
+            unique.sort();
+          }
+          if (i === 4 && !unique.includes('')) unique.push('');
+          let options = '<option value="">Todos</option>';
+          unique.forEach(function(val){ options += '<option>' + (val === '' ? '[Vazio]' : val) + '</option>'; });
+          select.innerHTML = options;
+          select.addEventListener('change', applyFilters);
+          th.appendChild(select);
+        } else if (filterTypes[i] === 'input') {
+          const input = document.createElement('input');
+          input.placeholder = 'Filtrar';
+          input.addEventListener('input', applyFilters);
+          th.appendChild(input);
+        }
+        filterRow.appendChild(th);
+      });
+    }
+  }
+
+  function updateSortIcons() {
+    const headerCells = document.querySelectorAll('#header-row th');
+    headerCells.forEach((th, i) => {
+      const icon = th.querySelector('.sort-icon');
+      if (!icon) return;
+      if (i === sortColumn) icon.textContent = (sortDirection === 1 ? '▲' : '▼');
+      else icon.textContent = '';
+    });
+  }
+
+  function applyFilters() {
+    let filteredData = rawData.slice();
+
+    const filterRow = document.querySelector('.filter-row');
+    const filters = Array.from(filterRow.querySelectorAll('input, select')).map(el => (el.value||'').trim().toLowerCase());
+
+    filteredData = filteredData.filter(row => {
+      return row.every((cell, idx) => {
+        if (idx === 0) return true; // não há filtro na primeira coluna (data)
+        const filter = filters[idx-1];
+        if (!filter) return true;
+        const formatted = (formatCell(cell, idx) || '').toString().toLowerCase();
+        if (filter === '[vazio]') return formatted === '';
+        return formatted.includes(filter);
+      });
+    });
+
+    if (sortColumn >= 0) {
+      filteredData.sort((a, b) => {
+        let valA = a[sortColumn], valB = b[sortColumn];
+        if (sortColumn === 0) { valA = new Date(valA); valB = new Date(valB); }
+        if (valA instanceof Date && !isNaN(valA) && valB instanceof Date && !isNaN(valB)) {
+          return (valA.getTime() - valB.getTime()) * sortDirection;
+        }
+        if (valA > valB) return sortDirection;
+        if (valA < valB) return -sortDirection;
+        return 0;
+      });
+    }
+
+    createTable(filteredData);
+    const contador = document.getElementById('contador');
+    if (contador) contador.textContent = 'Mostrando ' + filteredData.length + ' anúncios';
+  }
+
+  function createTable(data) {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      row.forEach((cell, i) => {
+        const td = document.createElement('td');
+        td.textContent = formatCell(cell, i);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    const total = document.getElementById('contador');
+    if (total) total.textContent = 'Total: ' + data.length + ' anúncios';
+  }
+
+  function formatCell(cell, index) {
+    if (index === 0) {
+      const date = new Date(cell);
+      if (!isNaN(date)) return date.toISOString().split('T')[0];
+    }
+    return cell;
+  }
+
+  function toggleFormulario() {
+    const f = document.getElementById('formulario');
+    const isVisible = (f.style.display === 'block');
+    f.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>

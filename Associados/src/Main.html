@@ -1,0 +1,988 @@
+<!-- Main.html (Associados) -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Área do Associado</title>
+    <style>
+      :root {
+        --fg: #111;
+        --muted: #666;
+        --line: #e5e7eb;
+        --chip: #eef2ff;
+        --ok: #16a34a;
+        --nok: #dc2626;
+        --pend: #a16207;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family:
+          system-ui,
+          Segoe UI,
+          Roboto,
+          Arial;
+        background: #fff;
+        color: var(--fg);
+      }
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+      }
+      .title {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 16px auto;
+        padding: 0 16px;
+      }
+      #who {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #who .muted {
+        color: var(--muted);
+      }
+      #who img.avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        object-fit: cover;
+      }
+      .section {
+        margin: 18px 0;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin: 12px 0;
+      }
+      .small {
+        font-size: 12px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      .euro {
+        font-variant-numeric: tabular-nums;
+      }
+      .line {
+        margin: 6px 0;
+      }
+      .label {
+        font-size: 12px;
+        color: #666;
+      }
+      .value {
+        font-size: 15px;
+      }
+      .wraptext {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .stat-ok {
+        color: var(--ok);
+        font-weight: 600;
+      }
+      .stat-nok {
+        color: var(--nok);
+        font-weight: 600;
+      }
+      .stat-pend {
+        color: var(--pend);
+        font-weight: 600;
+      }
+
+      /* Info blocks */
+      .info {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 12px;
+        align-items: stretch;
+        margin: 18px 0;
+      }
+      .info .badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        white-space: nowrap;
+      }
+      .info .box {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .info .box.nowrap {
+        white-space: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .week-link {
+        text-decoration: none;
+        border-bottom: 1px dotted #9ca3af;
+      }
+      .week-link:hover {
+        border-bottom-color: #111;
+      }
+
+      /* Botão básico */
+      .btn {
+        display: inline-block;
+        padding: 6px 10px;
+        border: 1px solid #999;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      /* Transações — largura ao conteúdo, não estica ao cartão */
+      /* a tabela encolhe ao conteúdo e não “cola” à borda do card */
+      #tx-table {
+        width: max-content;
+      }
+      #transacoes-card {
+        overflow-x: auto;
+      }
+      #transacoes-card table.tx {
+        width: max-content;
+        max-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+      #transacoes-card .tx th,
+      #transacoes-card .tx td {
+        padding: 6px 0;
+        white-space: nowrap;
+        font-size: 15px;
+      }
+      /* espaçamento “2ch” entre colunas */
+      #transacoes-card .tx th + th,
+      #transacoes-card .tx td + td {
+        padding-left: 2ch;
+      }
+
+      /* Alinhamentos pedidos */
+      #transacoes-card .tx th:nth-child(1),
+      #transacoes-card .tx td:nth-child(1) {
+        text-align: left;
+      }
+      #transacoes-card .tx th:nth-child(2),
+      #transacoes-card .tx td:nth-child(2) {
+        text-align: right;
+        min-width: 17ch;
+        font-variant-numeric: tabular-nums;
+      }
+      #transacoes-card .tx th:nth-child(3),
+      #transacoes-card .tx td:nth-child(3) {
+        text-align: right;
+        min-width: 8ch;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+
+    <!-- Variáveis do servidor -->
+    <script>
+      const CANON_URL = "<?= CANON_URL ?>"; // URL canónico (.../macros/s/ID/exec)
+      const SESSION_TICKET = "<?= ticket || TICKET || '' ?>";
+      const SERVER_LOG = `<?= SERVER_LOG ?>`;
+      const NOREDIRECT = /[?&]noredirect=1\b/i.test(location.search);
+      try {
+        localStorage.setItem("appCanonicalUrl", CANON_URL);
+      } catch (_) {}
+    </script>
+
+	  <!-- Logger global único (consola apenas) - no head dos html -->
+    <script>
+      (function () {
+        const SERVER_DEBUG = "<?= DEBUG ?>" === "1";
+        const URL_DEBUG_ON = /[?&]debug=1\b/i.test(location.search);
+        const URL_DEBUG_OFF = /[?&](debug=0|nodebug=1)\b/i.test(location.search);
+        try { // gerir flag persistente
+          if ((!URL_DEBUG_ON && !SERVER_DEBUG) || URL_DEBUG_OFF) { localStorage.removeItem("pbDebug"); }
+        } catch (_) {}
+
+        let DBG = SERVER_DEBUG || URL_DEBUG_ON;
+        try { DBG = DBG || localStorage.getItem("pbDebug") === "1"; } catch (_) {}
+        try { if (DBG) localStorage.setItem("pbDebug", "1"); } catch (_) {}
+
+        // disponibiliza logger globalmente
+        window.__DEBUG_ON = !!DBG;
+        window.isDbg = () => !!window.__DEBUG_ON;
+        // log() = sempre visível
+        window.log = (...args) => { try { console.log("[PB]", ...args); } catch (_) {} };
+        // dbg() = só quando debug ativo
+        window.dbg = (...args) => { if (window.__DEBUG_ON) { try { console.debug("[PB:DBG]", ...args); } catch (_) {} } };
+        // helpers para ativar/desativar debug persistente
+        window.pbDebug = {
+          enable:  () => { try { localStorage.setItem("pbDebug","1"); } catch(_){ } window.__DEBUG_ON = true; },
+          disable: () => { try { localStorage.removeItem("pbDebug"); } catch(_){ } window.__DEBUG_ON = false; },
+          status:  () => !!window.__DEBUG_ON
+        };
+        // logs de arranque (só consola)
+        window.addEventListener("DOMContentLoaded", function () {
+         const __SL = (typeof SERVER_LOG !== "undefined" && SERVER_LOG) ? SERVER_LOG : "";
+          if (__SL) __SL.split("\n").forEach((l) => l && dbg(l));
+          //if (!window.__DEBUG_ON) return;
+          dbg("DOM ready: " + location.href);
+          if (document.referrer) dbg("Referrer: " + document.referrer);
+          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
+          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
+          dbg("DOM ready: " + location.href);
+          if (document.referrer) dbg("Referrer: " + document.referrer);
+          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
+          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
+        });
+        // Opcional: erros sempre visíveis na consola
+        window.addEventListener('error', (e) => {
+          try { console.error('[JS error]', e.message, e.error?.stack || ''); } catch (_) {}
+        });
+        window.addEventListener('unhandledrejection', (ev) => {
+          const r = ev?.reason;
+          try { console.error('[Promise rejection]', r?.message || r, r?.stack || ''); } catch (_) {}
+        });		
+      })();
+    </script>	
+
+    <script>
+      // Flag global reutilizável (standalone=false, embed externo=true)
+      (function () {
+        function isAppsScript(o) {
+          return /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
+            o,
+          );
+        }
+        function computeExternalEmbed() {
+          var inFrame = true;
+          try {
+            inFrame = window.top !== window.self;
+          } catch (_) {
+            inFrame = true;
+          }
+          var ao =
+            (location.ancestorOrigins &&
+              Array.from(location.ancestorOrigins)) ||
+            [];
+          return (
+            inFrame &&
+            ao.some(function (o) {
+              return !isAppsScript(o);
+            })
+          );
+        }
+        window.EXTERNAL_EMBED = computeExternalEmbed(); // ← fica disponível globalmente
+      })();
+    </script>
+  </head>
+
+  <body>
+    <div class="header">
+      <div class="title">Área do Associado</div>
+      <div class="small muted" id="who"></div>
+    </div>
+
+    <div class="wrap">
+      <div id="content" class="section">A carregar…</div>
+
+      <div class="section" id="transacoes-sec" style="display: none">
+        <h3>Transações bancárias</h3>
+        <h4 id="tr-hint" class="muted small" style="margin-top: -6px"></h4>
+        <div class="card" id="transacoes-card">
+          <table id="tx-table" class="tx">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Telefone</th>
+                <th>Montante</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // 1) persistir ticket e limpar o query ?ticket=
+        (function () {
+          try {
+            if (SESSION_TICKET) {
+              localStorage.setItem("sessTicket", SESSION_TICKET);
+              document.cookie =
+                "sessTicket=" +
+                encodeURIComponent(SESSION_TICKET) +
+                "; Path=/; SameSite=Lax; Secure";
+              const u = new URL(location.href);
+              if (u.searchParams.has("ticket")) {
+                u.searchParams.delete("ticket");
+                history.replaceState({}, document.title, u.toString());
+              }
+            }
+          } catch (_) {}
+        })();
+
+        // depois de persistir o ticket
+        (function () {
+          function detectEnv() {
+            const IN_IFRAME = (function () {
+              try {
+                return window.top !== window.self;
+              } catch (_) {
+                return true;
+              }
+            })();
+            const AO =
+              (location.ancestorOrigins &&
+                Array.from(location.ancestorOrigins)) ||
+              [];
+
+            // Qualquer origem Apps Script wrapper
+            const isAppsScript = (o) =>
+              /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
+                o,
+              );
+
+            // Estamos “externamente embebidos” se houver PELO MENOS um ancestor que NÃO seja Apps Script
+            const HAS_NON_APPS_ANCESTOR = AO.some((o) => !isAppsScript(o));
+
+            const EXTERNAL_EMBED = IN_IFRAME && HAS_NON_APPS_ANCESTOR;
+            return { IN_IFRAME, EXTERNAL_EMBED, AO };
+          }
+
+          //const { EXTERNAL_EMBED } = detectEnv();
+
+          const CANON = "<?= CANON_URL ?>";
+          const TPL_TICKET = "<?= ticket ?>"; // injeta o ticket do servidor
+          const WANT_DEBUG = /\bdebug=1\b/i.test(location.search);
+          const IN_IFRAME = (function () {
+            try {
+              return window.top !== window.self;
+            } catch (_) {
+              return true;
+            }
+          })();
+          const AO =
+            (location.ancestorOrigins &&
+              Array.from(location.ancestorOrigins)) ||
+            [];
+          const isAppsScript = (o) =>
+            /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
+              o,
+            );
+          const EXTERNAL_EMBED = IN_IFRAME && AO.some((o) => !isAppsScript(o));
+
+          // Fallback ao storage se o template vier sem ticket:
+          let t = TPL_TICKET;
+          if (!t) {
+            try {
+              t = localStorage.getItem("sessTicket") || "";
+            } catch (_) {}
+          }
+          //if (t) u.searchParams.set("ticket", t);
+
+          // 👉 replica o caminho do login: ?ticket=… + go=rgpd
+          const u = new URL(CANON);
+          if (t) u.searchParams.set("ticket", t);
+          u.searchParams.set("go", "rgpd"); // <— forçar render RGPD no ramo do ticket
+
+          if (WANT_DEBUG) u.searchParams.set("debug", "1");
+          if (EXTERNAL_EMBED) u.searchParams.set("embed", "1"); // só para logging/diagnóstico no server
+          u.searchParams.set("ts", Date.now()); // cache-buster
+          //if (/\bdebug=1\b/i.test(location.search)) u.searchParams.set("debug", "1");
+
+          /*
+          a.href = u.toString();
+          a.rel = "noopener";
+          a.removeAttribute("target");   // vamos navegar na mesma frame
+
+          log?.("RGPD EXTERNAL_EMBED=" + EXTERNAL_EMBED);
+
+          a.addEventListener("click", function (ev) {
+            try { ev.preventDefault(); } catch (_) {}
+            const href = a.href;
+            log?.(`RGPD via go=rgpd → ${href} | embed=${EXTERNAL_EMBED}`);
+
+            // Em Sites (embed externo) E também em standalone:
+            // usa o MESMO método do login: replace/assign na própria frame
+            try { log?.("location.replace()"); location.replace(href); } catch(_) {
+              try { log?.("location.assign()"); location.assign(href); } catch(__) {
+                try { log?.("location.href()"); location.href = href; } catch(err) { 
+                  log?.("location.href() => err" + (err && err.message)); 
+                }
+              }
+            }			
+          }, { capture:true });
+          */
+        })();
+
+        const $ = (sel) => document.querySelector(sel);
+        function fmtEUR(n) {
+          try {
+            return (n || 0).toLocaleString("pt-PT", {
+              style: "currency",
+              currency: "EUR",
+            });
+          } catch (_) {
+            return String(n || 0);
+          }
+        }
+        function wantDbg() {
+          try {
+            return (
+              /[?&]debug=1\b/i.test(location.search) ||
+              localStorage.getItem("pbDebug") === "1"
+            );
+          } catch (_) {
+            return false;
+          }
+        }
+
+        // === Helper local (só para logs bonitos)
+        function _iso(d) {
+          return d
+            ? new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 10)
+            : "—";
+        }
+
+        // === Cálculo dos trimestres completos para a Jóia, com debug
+        function computeJoiaQuarters(adesaoStr) {
+          // 1) parse robusto de datas PT / ISO
+          function parsePtDate(s) {
+            if (!s) return null;
+            s = String(s).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+              // ISO
+              const [y, m, d] = s.split(/[^\d]/).map(Number);
+              return new Date(y, m - 1, d);
+            }
+            const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+            if (m) {
+              let d = +m[1],
+                mo = +m[2] - 1,
+                y = +m[3];
+              if (y < 100) y += 2000;
+              return new Date(y, mo, d);
+            }
+            const t = Date.parse(s);
+            return isNaN(t) ? null : new Date(t);
+          }
+
+          // 2) mínimo = 26/03/2025 (meses 0-based ⇒ 2 = março)
+          const MIN = new Date(2025, 2, 26);
+
+          const ad = parsePtDate(adesaoStr);
+          if (!ad) {
+            try {
+              log?.(`[joia] data inválida: ${adesaoStr}`);
+            } catch (_) {}
+            return 0;
+          }
+
+          const adj = ad < MIN ? MIN : ad;
+          const y = adj.getFullYear();
+          const m = adj.getMonth() + 1; // 1..12
+          const q = Math.floor((m - 1) / 3) + 1; // 1..4
+          const qstart = new Date(y, (q - 1) * 3, 1); // 1.º dia do trimestre
+          const afterQstart = adj.getTime() > qstart.getTime() ? 1 : 0;
+          const full = 5 - q - afterQstart; // 0..4
+
+          try {
+            log?.(
+              `[joia] adesão=${_iso(ad)} → adj=${_iso(adj)} | ano=${y} | Q=${q} (qstart=${_iso(qstart)}) | afterQstart=${afterQstart} | trimestres=${full}`,
+            );
+          } catch (_) {}
+
+          return Math.max(0, Math.min(4, full));
+        }
+
+        function fmtSemanasText(str, naoExibir) {
+          const parts = String(str || "")
+            .split(/[+,\s]+/)
+            .filter(Boolean);
+          if (!parts.length) return "";
+
+          function esc(s) {
+            return String(s).replace(
+              /[&<>"']/g,
+              (c) =>
+                ({
+                  "&": "&amp;",
+                  "<": "&lt;",
+                  ">": "&gt;",
+                  '"': "&quot;",
+                  "'": "&#39;",
+                })[c],
+            );
+          }
+
+          return parts
+            .map((w) => {
+              const label = esc(w);
+              if (naoExibir) {
+                // texto simples (sem link) quando naoExibir=true
+                return `<span class="mono">${label}</span>`;
+              }
+              return `<a class="mono week-link" href="#" data-week="${label}" title="Descarregar FT-IPS">${label}</a>`;
+            })
+            .join('<span class="muted"> · </span>');
+        }
+
+        function cardLinha(c) {
+          //Só se chega aqui quando houve uma contribuição de pelo menos um euro, o que significa que o estado é:
+          // - 6: falta informação - pode-se exibir tudo.
+          // - 9: já não é titular
+          // - OK: tudo em ordem
+
+          //log?.(`[cardLinha] entrada`); //também funciona
+          log?.("[cardLinha] entrada");
+
+          const naoTitular = String(c.estado || "").trim() === "9";
+          const rgpdAceite = !!c.rgpdOk;
+          const saldoNeg = !!c.saldoNeg;
+
+          // quando não mostrar nada de IPS nem links de semanas:
+          let naoExibir = !rgpdAceite || saldoNeg || naoTitular;
+
+          //log?.(`[cardLinha] naoExibir=${naoExibir}`);
+          log?.("[cardLinha] naoExibir=" + naoExibir);
+
+          // Prioridade das mensagens IPS
+          // 1) se, se saldo negativo → "Regularize as quotas, por favor"
+          // 2) senão RGPD não aceite → "Aceite o RGPD, por favor"
+          // 3) senão, aplica a lógica anterior (placeholders quando naoTitular)
+          let primTxt, outTxt;
+          if (saldoNeg) {
+            primTxt = outTxt = "Regularize as quotas, por favor";
+          } else if (!rgpdAceite) {
+            primTxt = outTxt = "Aceite o RGPD, por favor";
+          } else if (naoTitular) {
+            primTxt = outTxt = "---";
+          } else {
+            //Apanha o caso das IPS não terem sido emitidas
+            primTxt = c.primIPS && String(c.primIPS).trim() ? c.primIPS : "---";
+            outTxt = c.outIPS && String(c.outIPS).trim() ? c.outIPS : "---";
+          }
+
+          // Texto de RGPD por cartão
+          const rgpdTxt = rgpdAceite ? "Aceite" : "Rejeitado";
+
+          // IPS “data”/“estado” mantém a tua lógica atual (respeita o naoTitular)
+          const dataIPSTxt = naoExibir ? "---" : c.dataIPS || "---";
+          const statIPSTxt = naoExibir ? "---" : c.statIPS || "---";
+
+          const tri = computeJoiaQuarters(c.adesaoRaw);
+          log?.("[cardLinha] tri=" + tri);
+          const joiaTxt =
+            tri > 0
+              ? `<div class="small muted">A jóia corresponde à quota de <b>${tri}</b> ${tri === 1 ? "trimestre" : "trimestres"} ${tri === 1 ? "completo" : "completos"} desde a data de adesão, não anterior a 26/3/2025, até ao fim desse ano.</div>`
+              : "";
+
+          log?.("[cardLinha] adesão e estado");
+
+          // quando já não é titular (estado = 9) mostra placeholders ‘---’ e não a legenda “Tem tudo em dia”
+          // const adesaoTxt = naoTitular ? "---" : c.adesaoRaw || "---";
+          const adesaoTxt = c.adesaoRaw || "---";
+          log?.("[cardLinha] adesaoTxt=" + adesaoTxt);
+          const estadoTxt = naoTitular
+            ? "9 (Já não é titular)"
+            : String(c.estado || "")
+                  .trim()
+                  .toUpperCase() === "OK"
+              ? "OK (Tem tudo em dia)"
+              : (c.estado || "") === "6"
+                ? "6 (Falta informação)"
+                : c.estado || "?";
+
+          log?.("[cardLinha] estadoTxt=" + estadoTxt);
+
+          // helper p/ abrir RGPD (reutiliza o caminho go=rgpd)
+          function rgpdLinkHtml() {
+            return `<a href="#" class="rgpd-open small" title="Gerir RGPD">RGPD</a>`;
+          }
+
+          log?.("[cardLinha] antes do return");
+
+          return `
+            <div class="card">
+              <div class="line">
+                <div class="label">Semana(s)</div>
+                <div class="value">${fmtSemanasText(c.semanas || "", naoExibir)}</div>
+              </div>
+
+              <div class="line">
+                <div class="label">Adesão · Estado · IPS · RGPD</div>
+                <div class="value">
+                  ${adesaoTxt} · ${estadoTxt}
+                  · Data IPS: ${dataIPSTxt}
+                  · Estado IPS: ${statIPSTxt}
+                  · RGPD: <b>${rgpdTxt}</b> (${rgpdLinkHtml()})
+                </div>
+              </div>
+
+              <div class="line"><div class="label">Primeiro titular (IPS)</div><div class="value wraptext">${primTxt}</div></div>
+              <div class="line"><div class="label">Outros titulares (IPS)</div><div class="value wraptext">${outTxt}</div></div>
+              <div class="line"><div class="label">Nome(s)</div><div class="value wraptext">${c.nomes || ""}</div></div>
+              <div class="line"><div class="label">E-mail(s)</div><div class="value wraptext">${c.emails || ""}</div></div>
+              <div class="line"><div class="label">Telemóvel(eis)</div><div class="value wraptext">${c.telefones || ""}</div></div>
+
+              <div class="line">
+                <div class="value euro">
+                  Quota anual: ${c.quota || ""} ·
+                  Pagamentos: ${c.pago || ""} ·
+                  Jóia: ${c.joia || ""} ·
+                  Quotas devidas: ${fmtEUR(c.quotasDevidas ?? 0)} ·
+                  Saldo: ${c.saldo || ""}
+                </div>
+              </div>
+
+              ${joiaTxt}
+            </div>`;
+        }
+
+        function renderTransacoes(tx, phones) {
+          if (!tx || !tx.length) return;
+          document.getElementById("transacoes-sec").style.display = "";
+
+          function parsePt(val) {
+            const s = String(val || "")
+              .replace(/\s/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".")
+              .replace(/[^\d.\-]/g, "");
+            const n = parseFloat(s);
+            return isNaN(n) ? 0 : n;
+          }
+          const total = tx.reduce((sum, t) => sum + parsePt(t.amount), 0);
+
+          // subtítulo <h4>
+          const h4 = document.getElementById("tr-hint");
+          if (h4) {
+            h4.textContent = `Os movimentos associados aos primeiros números de telemóvel (${phones.join(", ")}) totalizam ${fmtEUR(total)}`;
+          }
+
+          const tb = document.querySelector("#tx-table tbody");
+          tb.innerHTML = tx
+            .map(
+              (t) => `
+            <tr>
+              <td>${t.date || ""}</td>
+              <td>${t.phone || ""}</td>
+              <td class="euro">${t.amount || ""}</td>
+            </tr>
+          `,
+            )
+            .join("");
+        }
+
+        function escapeHtml(s) {
+          return String(s || "").replace(
+            /[&<>"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[c],
+          );
+        }
+
+        function render(data) {
+          if (data?.log && Array.isArray(data.log)) {
+            try {
+              data.log.forEach((l) => log("[SV] " + l));
+            } catch (_) {}
+          }
+
+          try {
+            log?.("[render] start");
+            const name = data?.user?.name || "";
+            const email = data?.user?.email || "";
+            const pic = data?.user?.picture || "";
+
+            const who = $("#who");
+            if (who) {
+              who.innerHTML =
+                (pic
+                  ? `<img class="avatar" src="${pic}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
+                  : "") +
+                `<span>${name || email}</span>` +
+                (email ? ` <span class="muted">· ${email}</span>` : "");
+            }
+
+            const cards = data?.cardsLinhas || [];
+            log?.("[render] cards=" + cards.length);
+            const cardsHtml = cards.length
+              ? cards.map(cardLinha).join("")
+              : '<div class="muted">Sem registos associados a este e-mail.</div>';
+
+            //log?.("[render] depois de cardLinha"); //Não funciona
+
+            const QUOTAS = { T0: 2.5, T1: 3.75, T2: 5.0 };
+            const sep = " · ";
+            const quotasLine = [
+              `T0: <b>${fmtEUR(QUOTAS.T0)}</b>`,
+              `T1: <b>${fmtEUR(QUOTAS.T1)}</b>`,
+              `T2: <b>${fmtEUR(QUOTAS.T2)}</b>`,
+            ].join(sep);
+            const quotasHtml = `
+          <div class="info">
+            <div class="badge">Quotas por tipo</div>
+            <div class="box euro nowrap">${quotasLine}</div>
+          </div>`;
+
+            const T = data?.totais || {
+              pago: 0,
+              quota: 0,
+              joia: 0,
+              quotasDevidas: 0,
+              saldo: 0,
+            };
+            const totalsHtml = `
+          <div class="info">
+            <div class="badge">Totais</div>
+            <div class="box euro">
+              Quotas anuais: <b>${fmtEUR(T.quota)}</b> ·
+              Pagamentos: <b>${fmtEUR(T.pago)}</b> ·
+              Jóias: <b>${fmtEUR(T.joia)}</b> ·
+              Quotas devidas: <b>${fmtEUR(T.quotasDevidas || 0)}</b> ·
+              Saldo: <b>${fmtEUR(T.saldo)}</b>
+            </div>
+          </div>`;
+
+            $("#content").innerHTML = quotasHtml + cardsHtml + totalsHtml;
+
+            // Anúncios (se houver)
+            const anuncios = data?.anunciosPorTelefone || {};
+            if (Object.keys(anuncios).length) {
+              const chips = Object.entries(anuncios)
+                .map(
+                  ([tel, n]) =>
+                    `<span class="mono" style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;margin-right:6px;background:#eef2ff">${tel}: ${n}</span>`,
+                )
+                .join(" ");
+              const html = `
+            <div class="info">
+              <div class="badge">Anúncios</div>
+              <div class="box">${chips}</div>
+            </div>`;
+              document
+                .querySelector("#content")
+                .insertAdjacentHTML("beforeend", html);
+            }
+            // Transações
+            renderTransacoes(
+              data?.transacoes || [],
+              data?.primeirosTelefones || [],
+            );
+            log?.("[render] content updated");
+          } catch (e) {
+            log?.("[render FATAL] " + (e && e.message));
+            const pre = document.createElement("pre");
+            pre.textContent = (e && e.stack) || String(e);
+            const c = document.getElementById("content");
+            if (c) {
+              c.innerHTML = "";
+              c.appendChild(pre);
+            }
+          }
+        }
+
+        // carregar dados
+        (function load() {
+          const ticket = (function () {
+            try {
+              return localStorage.getItem("sessTicket") || "";
+            } catch (_) {
+              return "";
+            }
+          })();
+          if (!ticket) {
+            $("#content").textContent =
+              "Sessão inválida — por favor volte a entrar.";
+            return;
+          }
+
+          google.script.run
+            .withSuccessHandler(function (ok) {
+              if (!ok) {
+                $("#content").textContent =
+                  "Sessão inválida — por favor volte a entrar.";
+                return;
+              }
+              google.script.run
+                .withSuccessHandler(render)
+                .withFailureHandler((err) => {
+                  $("#content").textContent =
+                    "Erro a carregar: " + (err?.message || err);
+                })
+                .apiGetAssociados(ticket);
+            })
+            .isTicketValid(ticket);
+        })();
+      })();
+    </script>
+    <script>
+      // Utilitário: cria e clica num <a download>
+      function triggerDownloadFromB64(b64, mime, filename) {
+        const bin = atob(b64);
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        const url = URL.createObjectURL(
+          new Blob([buf], { type: mime || "application/pdf" }),
+        );
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename || "FT-IPS.pdf";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          a.remove();
+        }, 250);
+      }
+
+      // Lê ticket do storage/cookie
+      function getSessTicket() {
+        try {
+          return localStorage.getItem("sessTicket") || "";
+        } catch (_) {
+          return "";
+        }
+      }
+
+      // Clique numa semana => download imediato
+      document.addEventListener("click", function (ev) {
+        const a = ev.target.closest("a.week-link[data-week]");
+        if (!a) return;
+
+        ev.preventDefault();
+
+        const week = a.getAttribute("data-week") || "";
+        const ticket = getSessTicket();
+        if (!ticket) {
+          alert("Sessão inválida — entre novamente, por favor.");
+          return;
+        }
+        if (!week) {
+          alert("Semana inválida.");
+          return;
+        }
+
+        const prevHtml = a.innerHTML;
+        a.innerHTML = `<span class="muted">a preparar…</span>`;
+        a.style.pointerEvents = "none";
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            a.innerHTML = prevHtml;
+            a.style.pointerEvents = "";
+            if (!res || !res.ok) {
+              alert(
+                res && res.reason === "not_found"
+                  ? `Sem FT-IPS para a semana ${week}.`
+                  : `Não foi possível obter o PDF da semana ${week}.`,
+              );
+              return;
+            }
+            triggerDownloadFromB64(res.b64, res.mime, res.name);
+          })
+          .withFailureHandler(function (err) {
+            a.innerHTML = prevHtml;
+            a.style.pointerEvents = "";
+            const msg = err && err.message ? err.message : String(err);
+            alert("Erro ao preparar o download: " + msg);
+          })
+          .apiGetWeekIpsBase64(ticket, week);
+      });
+
+      // Abrir RGPD a partir do link em cada cartão
+      document.addEventListener("click", function (ev) {
+        const a = ev.target.closest("a.rgpd-open");
+        if (!a) return;
+
+        // NÃO faças preventDefault: vamos abrir no topo via gesto do utilizador
+        // ev.preventDefault();
+
+        const ticket = (function () {
+          try {
+            return localStorage.getItem("sessTicket") || "";
+          } catch (_) {
+            return "";
+          }
+        })();
+        const canon = (function () {
+          try {
+            return localStorage.getItem("appCanonicalUrl") || CANON_URL;
+          } catch (_) {
+            return CANON_URL;
+          }
+        })();
+
+        const u = new URL(canon);
+        if (ticket) u.searchParams.set("ticket", ticket);
+        u.searchParams.set("action", "rgpd");
+        if (
+          /[?&]debug=1\b/i.test(location.search) ||
+          typeof log === "function"
+        )
+          u.searchParams.set("debug", "1");
+
+        const isExternal = !!window.EXTERNAL_EMBED;
+        if (isExternal) u.searchParams.set("embed", "1"); // só p/ diagnóstico no servidor
+
+        u.searchParams.set("ts", Date.now());
+        log?.("[RGPD] abrir via card → " + u.toString());
+
+        /*
+        try { location.replace(u.toString()); }
+        catch(_) { try { location.assign(u.toString()); }
+        catch(__) { location.href = u.toString(); } }
+        */
+
+        const href = u.toString();
+        // abre no topo (sai da frame userCodeAppPanel)
+        // Em embed: navega NA MESMA FRAME; fora: abre no topo
+        if (isExternal) {
+          // Em Sites: usar SEMPRE topo no gesto do utilizador
+          try {
+            window.top.location = href;
+          } catch (_) {
+            try {
+              window.top?.open(href, "_top");
+            } catch (__) {
+              location.href = href;
+            } // último recurso
+          }
+        } else {
+          window.open(href, "_top");
+        }
+        // impede que o href antigo "#" seja seguido
+        ev.preventDefault();
+      });
+    </script>
+  </body>
+</html>

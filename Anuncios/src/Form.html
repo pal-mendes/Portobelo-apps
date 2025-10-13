@@ -1,0 +1,29 @@
+<!-- Form.html -->
+<h2>Criar ou apagar anúncio</h2>
+
+<label for="anuncioTelefone">Telemóvel para publicar:</label>
+<input id="anuncioTelefone" type="tel" placeholder="Ex.: 351967012590 ou +33 612345678" title="Indique o seu número (será validado com o e-mail da sessão)." />
+
+<label for="anuncioTipo">Tipo de anúncio:</label>
+<select id="anuncioTipo" required title="O intercâmbio é para trocas num só ano, e a permuta é definitiva. Para apagar, escolha o mesmo tipo que o do anúncio a apagar.">
+  <option value="">Selecione o tipo de anúncio</option>
+  <option value="Alugar - senhorio">Alugar - senhorio</option>
+  <option value="Alugar - inquilino">Alugar - inquilino</option>
+  <option value="Intercâmbio">Intercâmbio</option>
+  <option value="Permuta">Permuta</option>
+  <option value="Vender">Vender</option>
+  <option value="Comprar">Comprar</option>
+</select>
+
+<label for="anuncioEntrada">Dia de entrada:</label>
+<select id="anuncioEntrada" title="Se o anúncio for de semanas sempre com o mesmo dia semanal de entrada, indique-o.">
+  <option value="">Selecione o dia de entrada</option>
+  <option value="Domingo">Domingo</option>
+  <option value="Quinta-feira">Quinta-feira</option>
+  <option value="Sábado">Sábado</option>
+</select>
+
+<textarea id="anuncioDescricao" rows="6" placeholder="Escreva aqui o que pretende…" title="Escreva pelo menos 10 caracteres com o que pretende." required></textarea>
+
+<button id="botaoSubmeter" onclick="enviarAnuncio()">📤 Submeter pedido</button>
+<p id="mensagem-submissao"></p>
