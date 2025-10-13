@@ -338,8 +338,8 @@ function renderLoginPage_(DBG, serverLog, wipe) {
           : String(serverLog || ""),
       WIPE: wipe ? "1" : "",
       debugQueryKey: 'debug',
-      localStorageKey: 'pbDebug',
-      ticket: (e && e.parameter && e.parameter.ticket) || ''  // default seguro
+      localStorageKey: 'pbDebug'
+      //ticket: (e && e.parameter && e.parameter.ticket) || ''  // default seguro
     }
     var out = t.evaluate();
     out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
