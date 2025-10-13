@@ -1,0 +1,27 @@
+// =========================
+// File: Logger_js.html - em AuthCoreLib (biblioteca)
+// =========================
+(function () {
+  const qk = (window.__SERVER_VARS && window.__SERVER_VARS.debugQueryKey) || 'debug';
+  const lsk = (window.__SERVER_VARS && window.__SERVER_VARS.localStorageKey) || 'pbDebug';
+
+  const urlHasDebug = new URLSearchParams(location.search).has(qk);
+  const lsHasDebug  = (localStorage.getItem(lsk) === '1');
+  const enabled     = urlHasDebug || lsHasDebug;
+
+  function out(kind, args) {
+    try { console[kind].apply(console, ['[PB]'].concat(Array.from(args))); } catch (_) {}
+  }
+  window.log  = function(){ out('log',  arguments); };
+  window.warn = function(){ out('warn', arguments); };
+  window.err  = function(){ out('error',arguments); };
+  window.dbg  = enabled ? window.log : function(){};
+
+  window.enableDebug = function(on) {
+    if (on) localStorage.setItem(lsk, '1'); else localStorage.removeItem(lsk);
+    try { location.reload(); } catch(_) {}
+  };
+
+  window.addEventListener('error', e => { if (enabled) window.err('error:', e.message, `${e.filename}:${e.lineno}:${e.colno}`); });
+  window.addEventListener('unhandledrejection', e => { if (enabled) window.err('promise:', e.reason); });
+})();
