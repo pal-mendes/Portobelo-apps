@@ -42,57 +42,20 @@
       } catch (_) {}
     </script>
 
-	  <!-- Logger global único (consola apenas) - no head dos html -->
+    // Ponte de compatibilidade: se __SERVER_VARS não existir, construímo-lo a partir das tuas variáveis legadas
     <script>
-      (function () {
-        const SERVER_DEBUG = "<?= DEBUG ?>" === "1";
-        const URL_DEBUG_ON = /[?&]debug=1\b/i.test(location.search);
-        const URL_DEBUG_OFF = /[?&](debug=0|nodebug=1)\b/i.test(location.search);
-        try { // gerir flag persistente
-          if ((!URL_DEBUG_ON && !SERVER_DEBUG) || URL_DEBUG_OFF) { localStorage.removeItem("pbDebug"); }
-        } catch (_) {}
+      // vira objecto JS (nunca usa símbolos “nus” que dão ReferenceError)
+      window.__SERVER_VARS = <?!= JSON.stringify(SERVER_VARS || {}) ?>;
+      // Compatibilidade com o teu código existente:
+      window.DEBUG_QUERY_KEY = window.__SERVER_VARS.debugQueryKey || window.DEBUG_QUERY_KEY || 'debug';
+      window.DEBUG_LS_KEY    = window.__SERVER_VARS.localStorageKey || window.DEBUG_LS_KEY || 'pbDebug';
+      // Se o teu JS antigo esperava uma variável “ticket” global:
+      window.ticket = (window.__SERVER_VARS.ticket !== undefined ? window.__SERVER_VARS.ticket : null);
+    </script>
 
-        let DBG = SERVER_DEBUG || URL_DEBUG_ON;
-        try { DBG = DBG || localStorage.getItem("pbDebug") === "1"; } catch (_) {}
-        try { if (DBG) localStorage.setItem("pbDebug", "1"); } catch (_) {}
-
-        // disponibiliza logger globalmente
-        window.__DEBUG_ON = !!DBG;
-        window.isDbg = () => !!window.__DEBUG_ON;
-        // log() = sempre visível
-        window.log = (...args) => { try { console.log("[PB]", ...args); } catch (_) {} };
-        // dbg() = só quando debug ativo
-        window.dbg = (...args) => { if (window.__DEBUG_ON) { try { console.debug("[PB:DBG]", ...args); } catch (_) {} } };
-        // helpers para ativar/desativar debug persistente
-        window.pbDebug = {
-          enable:  () => { try { localStorage.setItem("pbDebug","1"); } catch(_){ } window.__DEBUG_ON = true; },
-          disable: () => { try { localStorage.removeItem("pbDebug"); } catch(_){ } window.__DEBUG_ON = false; },
-          status:  () => !!window.__DEBUG_ON
-        };
-        // logs de arranque (só consola)
-        window.addEventListener("DOMContentLoaded", function () {
-         const __SL = (typeof SERVER_LOG !== "undefined" && SERVER_LOG) ? SERVER_LOG : "";
-          if (__SL) __SL.split("\n").forEach((l) => l && dbg(l));
-          //if (!window.__DEBUG_ON) return;
-          dbg("DOM ready: " + location.href);
-          if (document.referrer) dbg("Referrer: " + document.referrer);
-          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
-          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
-          dbg("DOM ready: " + location.href);
-          if (document.referrer) dbg("Referrer: " + document.referrer);
-          try { dbg("embedded? " + (window.top !== window)); } catch (_) {}
-          try { dbg("canon origin=" + new URL(CANON_URL).origin); } catch (_) {}
-        });
-        // Opcional: erros sempre visíveis na consola
-        window.addEventListener('error', (e) => {
-          try { console.error('[JS error]', e.message, e.error?.stack || ''); } catch (_) {}
-        });
-        window.addEventListener('unhandledrejection', (ev) => {
-          const r = ev?.reason;
-          try { console.error('[Promise rejection]', r?.message || r, r?.stack || ''); } catch (_) {}
-        });		
-      })();
-    </script>	
+	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib-->
+    <script src="https://script.google.com/macros/s/AKfycbzmNPPHIp35lUmlbl-6P0AmXIXT8sQuoAcjXeDlxKEGfWI7-gg3ncppVe8gtZ8BOvuIrQ/exec"></script>
+    
   </head>
   <body>
     <h2>Proteção de dados (RGPD)</h2>

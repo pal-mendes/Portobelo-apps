@@ -2,26 +2,70 @@
 // File: Logger_js.html - em AuthCoreLib (biblioteca)
 // =========================
 (function () {
-  const qk = (window.__SERVER_VARS && window.__SERVER_VARS.debugQueryKey) || 'debug';
-  const lsk = (window.__SERVER_VARS && window.__SERVER_VARS.localStorageKey) || 'pbDebug';
+  // ——— Config compatível (mantém nomes antigos se existirem) ———
+  // Preferência: variáveis injetadas pelo servidor
+  const SV = (typeof window.__SERVER_VARS === 'object' && window.__SERVER_VARS) || {};
 
-  const urlHasDebug = new URLSearchParams(location.search).has(qk);
-  const lsHasDebug  = (localStorage.getItem(lsk) === '1');
+  // Legados possíveis no teu projeto (mantidos se existentes):
+  //   DEBUG_QUERY_KEY, DEBUG_LS_KEY, isDbg, dbg(), enableDebug()
+  const QK  = window.DEBUG_QUERY_KEY || SV.debugQueryKey || 'debug';
+  const LSK = window.DEBUG_LS_KEY    || SV.localStorageKey || 'pbDebug';
+
+  // Cálculo do estado "debug"
+  const urlHasDebug = new URLSearchParams(location.search).has(QK);
+  const lsHasDebug  = (localStorage.getItem(LSK) === '1');
   const enabled     = urlHasDebug || lsHasDebug;
 
+  // Exportar nomes antigos + nomes novos (aliases)
+  // Antigos que preservamos:
+  window.DEBUG_QUERY_KEY = QK;
+  window.DEBUG_LS_KEY    = LSK;
+  window.isDbg           = enabled;          // legado
+  window.DEBUG           = enabled;          // alias extra útil
+
+  // Função base de saída
   function out(kind, args) {
     try { console[kind].apply(console, ['[PB]'].concat(Array.from(args))); } catch (_) {}
   }
+
+  // APIs de log (mantém nomes)
   window.log  = function(){ out('log',  arguments); };
   window.warn = function(){ out('warn', arguments); };
   window.err  = function(){ out('error',arguments); };
+
+  // dbg() só produz saída quando enabled
   window.dbg  = enabled ? window.log : function(){};
 
-  window.enableDebug = function(on) {
-    if (on) localStorage.setItem(lsk, '1'); else localStorage.removeItem(lsk);
+  // Toggle persistente (mantém enableDebug(), cria aliases)
+  function setDebug(on) {
+    if (on) localStorage.setItem(LSK, '1'); else localStorage.removeItem(LSK);
     try { location.reload(); } catch(_) {}
-  };
+  }
+  window.enableDebug  = function(on = true){ setDebug(!!on); }; // legado
+  window.disableDebug = function(){ setDebug(false); };         // alias novo
+  window.enableDbg    = window.enableDebug;                     // alias legado-extra
 
-  window.addEventListener('error', e => { if (enabled) window.err('error:', e.message, `${e.filename}:${e.lineno}:${e.colno}`); });
-  window.addEventListener('unhandledrejection', e => { if (enabled) window.err('promise:', e.reason); });
+  // ——— Event listeners (3) ———
+  // 1) Erros JS “não capturados”
+  window.addEventListener('error', e => {
+    if (!enabled) return;
+    window.err('error:', e.message, `${e.filename}:${e.lineno}:${e.colno}`);
+  });
+
+  // 2) Promessas rejeitadas sem catch
+  window.addEventListener('unhandledrejection', e => {
+    if (!enabled) return;
+    window.err('promise:', e.reason);
+  });
+
+  // 3) DOM pronto (útil para traço leve de arranque)
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!enabled) return;
+    window.dbg('DOM ready');
+  });
+
+  // Qualquer código que já usasse: isDbg, dbg(), enableDebug()
+  // continua a funcionar. Quando quiseres, podes migrar para window.DEBUG
+  // e window.disableDebug()… mas não é obrigatório.
 })();
+

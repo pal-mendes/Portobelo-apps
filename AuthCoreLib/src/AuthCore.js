@@ -1,6 +1,10 @@
 // =========================
 // File: AuthCore.gs - em AuthCoreLib (biblioteca)
+//
+// Script ID: 1cyjgfEtpjB7muIaSwmoLr_BD_BbgeEzHPA8M8Upni_LJkzT2hK6V1Tuh
+// URL: https://script.google.com/macros/library/d/1cyjgfEtpjB7muIaSwmoLr_BD_BbgeEzHPA8M8Upni_LJkzT2hK6V1Tuh/146
 // =========================
+
 
 // API: Funções públicas sem underscore e com nomes limpos:
 function renderLoginPage(DBG, serverLog, wipe) {
@@ -322,15 +326,21 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
 function renderLoginPage_(DBG, serverLog, wipe) {
   try {
     const t = HtmlService.createTemplateFromFile("Login");
-    t.CANON_URL = canonicalAppUrl_();
-    t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
-    t.AUTOSTART = "1"; // auto-inicia o popup
-    t.DEBUG = DBG ? "1" : "";
-    t.SERVER_LOG =
-      serverLog && serverLog.join
-        ? serverLog.join("\n")
-        : String(serverLog || "");
-    t.WIPE = wipe ? "1" : "";
+    // reúne tudo o que a página precisa
+    t.SERVER_VARS = {    
+      CANON_URL: canonicalAppUrl_(),
+      CLIENT_ID: getClientId_(), // opcional; o HTML atual nem usa
+      AUTOSTART: "1", // auto-inicia o popup
+      DEBUG: DBG ? "1" : "",
+      SERVER_LOG: 
+        serverLog && serverLog.join
+          ? serverLog.join("\n")
+          : String(serverLog || ""),
+      WIPE: wipe ? "1" : "",
+      debugQueryKey: 'debug',
+      localStorageKey: 'pbDebug',
+      ticket: (e && e.parameter && e.parameter.ticket) || ''  // default seguro
+    }
     var out = t.evaluate();
     out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     return out;
