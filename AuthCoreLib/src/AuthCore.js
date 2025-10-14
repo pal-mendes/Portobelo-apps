@@ -323,35 +323,36 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
 }
 
 // ===== Render do Login (comum às apps) =====
-function renderLoginPage_(DBG, serverLog, wipe) {
+function renderLoginPage_(opts) {
+  /*
+  // Segurança: a lib não sabe nada do e.parameter; o host tem de passar SERVER_VARS
+  if (!opts.SERVER_VARS) {
+    throw new Error('AuthCoreLib.renderLoginPage_: SERVER_VARS em falta. O host deve construir e passar estas variáveis.');
+  }
+  */
+  const t = HtmlService.createTemplateFromFile("Login");
+  t.CANON_URL = canonicalAppUrl_();
+  t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
+  t.TICKET = opts.ticket;
+  t.AUTOSTART = "1"; // auto-inicia o popup
+  t.DEBUG = opts.DBG ? "1" : "";
+  t.SERVER_LOG = 
+      opts.serverLog && opts.serverLog.join
+        ? opts.serverLog.join("\n")
+        : String(opts.serverLog || "");
+  t.WIPE = opts.wipe ? "1" : "";
   try {
-    const t = HtmlService.createTemplateFromFile("Login");
-    // reúne tudo o que a página precisa
-    t.SERVER_VARS = {    
-      CANON_URL: canonicalAppUrl_(),
-      CLIENT_ID: getClientId_(), // opcional; o HTML atual nem usa
-      AUTOSTART: "1", // auto-inicia o popup
-      DEBUG: DBG ? "1" : "",
-      SERVER_LOG: 
-        serverLog && serverLog.join
-          ? serverLog.join("\n")
-          : String(serverLog || ""),
-      WIPE: wipe ? "1" : "",
-      debugQueryKey: 'debug',
-      localStorageKey: 'pbDebug'
-      //ticket: (e && e.parameter && e.parameter.ticket) || ''  // default seguro
-    }
     var out = t.evaluate();
     out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     return out;
   } catch (err) {
     const msg =
-      "Login.html evaluate() falhou:\n" +
+      "Login.html evaluate() falhou - 11:08: (ticket=" + t.ticket + ")\n" +
       String(err) +
       "\n--- SERVER LOG ---\n" +
-      (serverLog && serverLog.join
-        ? serverLog.join("\n")
-        : String(serverLog || ""));
+      (opts.serverLog && opts.serverLog.join
+        ? opts.serverLog.join("\n")
+        : String(opts.serverLog || ""));
     return HtmlService.createHtmlOutput(
       '<pre style="white-space:pre-wrap">' + msg + "</pre>",
     );

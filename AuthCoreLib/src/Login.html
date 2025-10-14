@@ -48,6 +48,7 @@
       window.DEBUG_LS_KEY    = window.__SERVER_VARS.localStorageKey || window.DEBUG_LS_KEY || 'pbDebug';
       // Se o teu JS antigo esperava uma variável “ticket” global:
       window.ticket = (window.__SERVER_VARS.ticket !== undefined ? window.__SERVER_VARS.ticket : null);
+      window.CANON_URL       = window.__SERVER_VARS.CANON_URL || window.CANON_URL || '';
     </script>
 
 	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib-->

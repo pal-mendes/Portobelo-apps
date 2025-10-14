@@ -612,6 +612,9 @@ function doGet(e){
   //L("code=", (e && e.parameter && e.parameter.code) || "(none)");
   //if (String(e.parameter.go || '') === 'main') {
   L("go=", (e && e.parameter && e.parameter.go) || "(none)");
+  L("ticket: (e && e.parameter && e.parameter.ticket) || (none)=", (e && e.parameter && e.parameter.ticket) || "(none)");
+  L("ticket: e?.parameter?.ticket || (none)=", e?.parameter?.ticket || "(none)");
+  L("ticket: e?.parameter?.ticket=", e?.parameter?.ticket);
 
   // 1) OAuth callback
   if (e && e.parameter && e.parameter.code){ L("route: finishAuth"); return AuthCoreLib.finishAuth(e, authCfg_()); }
@@ -838,7 +841,29 @@ function doGet(e){
     }
   }
 
-  if (action === "login"){ L("route: login");  return AuthCoreLib.renderLoginPage(DBG, [], false); }
+  var opts = {
+    brand: 'Portobelo',
+    APP_NAME: 'Associados',
+    origin: e?.parameter?.origin || null,
+    ticket: (e && e.parameter && e.parameter.ticket) || "",
+    // Podes ter um helper próprio para isto; senão, usa o do ScriptApp
+    CANON_URL: ScriptApp.getService().getUrl() || '',
+    //OAUTH_CLIENT_ID: props.getProperty('OAUTH_CLIENT_ID'), //props is not defined. Should it be ScriptApp.getProperty?
+    AUTOSTART: "1", // auto-inicia o popup
+    debugQueryKey: 'debug',
+    localStorageKey: 'pbDebug',
+    //userEmail: opts.userEmail || '',
+    SERVER_VARS: null,
+    DEBUG: DBG,    
+    serverLog: [],
+    WIPE: false,
+  };    
+
+  if (action === "login") {
+    L("route: login");
+    opts.serverLog = ["login"];
+    return AuthCoreLib.renderLoginPage(opts); 
+  }
   if (action === "logout"){
     L("route: logout");
     const out = HtmlService.createHtmlOutput(
@@ -898,13 +923,16 @@ function doGet(e){
 
     } catch(err){
       L("invalid ticket → login(wipe) ERR="+(err && err.message));
-      return AuthCoreLib.renderLoginPage(DBG, ["wipe"], true);
+      opts.serverLog = ["wipe"];
+      opts.WIPE = true;
+      return AuthCoreLib.renderLoginPage(opts);
     }
   }
 
   // sem ticket → login
   L("no ticket → render login");
-  return AuthCoreLib.renderLoginPage(DBG, [], false);
+  opts.serverLog = ["sem ticket"];
+  return AuthCoreLib.renderLoginPage(opts);
 
 }
 
