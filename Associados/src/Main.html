@@ -202,16 +202,16 @@
 
     <!-- Variáveis do servidor -->
     <script>
-      const CANON_URL = "<?= CANON_URL ?>"; // URL canónico (.../macros/s/ID/exec)
-      const SESSION_TICKET = "<?= ticket || TICKET || '' ?>";
-      const SERVER_LOG = `<?= SERVER_LOG ?>`;
+      const CANON_URL = "<?= (typeof CANON_URL !== 'undefined' ? CANON_URL : (typeof CANON !== 'undefined' ? CANON : '')) ?>"; // URL canónico (.../macros/s/ID/exec)
+      const SESSION_TICKET = "<?= (typeof ticket !== 'undefined' ? ticket : (typeof TICKET !== 'undefined' ? TICKET : '')) ?>`;
+      const SERVER_LOG = `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`;
       const NOREDIRECT = /[?&]noredirect=1\b/i.test(location.search);
       try {
         localStorage.setItem("appCanonicalUrl", CANON_URL);
       } catch (_) {}
     </script>
 
-    // Ponte de compatibilidade: se __SERVER_VARS não existir, construímo-lo a partir das tuas variáveis legadas
+    <!-- Ponte de compatibilidade: se __SERVER_VARS não existir, construímo-lo a partir das tuas variáveis legadas -->
     <script>
       // vira objecto JS (nunca usa símbolos “nus” que dão ReferenceError)
       window.__SERVER_VARS = <?!= JSON.stringify(SERVER_VARS || {}) ?>;

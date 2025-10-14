@@ -333,7 +333,6 @@ function renderLoginPage_(opts) {
   const t = HtmlService.createTemplateFromFile("Login");
   t.CANON_URL = canonicalAppUrl_();
   t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
-  t.TICKET = opts.ticket;
   t.AUTOSTART = "1"; // auto-inicia o popup
   t.DEBUG = opts.DBG ? "1" : "";
   t.SERVER_LOG = 
@@ -341,13 +340,18 @@ function renderLoginPage_(opts) {
         ? opts.serverLog.join("\n")
         : String(opts.serverLog || "");
   t.WIPE = opts.wipe ? "1" : "";
+  // 🔒 Defesas contra ReferenceError no template
+  if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
+  t.ticket = "";   // ← mesmo que não uses, evita o erro quando existir <?= ticket ?>
+  t.TICKET = "";   // ← alias, caso o HTML use TICKET
+  t.SERVER_VARS = "";
   try {
     var out = t.evaluate();
     out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     return out;
   } catch (err) {
     const msg =
-      "Login.html evaluate() falhou - 11:08: (ticket=" + t.ticket + ")\n" +
+      "Login.html evaluate() falhou\n" +
       String(err) +
       "\n--- SERVER LOG ---\n" +
       (opts.serverLog && opts.serverLog.join

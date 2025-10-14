@@ -841,7 +841,8 @@ function doGet(e){
     }
   }
 
-  var opts = {
+  var optsLogin = {
+    /*
     brand: 'Portobelo',
     APP_NAME: 'Associados',
     origin: e?.parameter?.origin || null,
@@ -854,6 +855,7 @@ function doGet(e){
     localStorageKey: 'pbDebug',
     //userEmail: opts.userEmail || '',
     SERVER_VARS: null,
+    */
     DEBUG: DBG,    
     serverLog: [],
     WIPE: false,
@@ -861,8 +863,8 @@ function doGet(e){
 
   if (action === "login") {
     L("route: login");
-    opts.serverLog = ["login"];
-    return AuthCoreLib.renderLoginPage(opts); 
+    optsLogin.serverLog = ["login"];
+    return AuthCoreLib.renderLoginPage(optsLogin); 
   }
   if (action === "logout"){
     L("route: logout");
@@ -923,16 +925,16 @@ function doGet(e){
 
     } catch(err){
       L("invalid ticket → login(wipe) ERR="+(err && err.message));
-      opts.serverLog = ["wipe"];
-      opts.WIPE = true;
-      return AuthCoreLib.renderLoginPage(opts);
+      optsLogin.serverLog = ["wipe"];
+      optsLogin.WIPE = true;
+      return AuthCoreLib.renderLoginPage(optsLogin);
     }
   }
 
   // sem ticket → login
   L("no ticket → render login");
-  opts.serverLog = ["sem ticket"];
-  return AuthCoreLib.renderLoginPage(opts);
+  optsLogin.serverLog = ["sem ticket"];
+  return AuthCoreLib.renderLoginPage(optsLogin);
 
 }
 
