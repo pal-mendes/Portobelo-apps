@@ -7,8 +7,8 @@
 
 
 // API: Funções públicas sem underscore e com nomes limpos:
-function renderLoginPage(DBG, serverLog, wipe) {
-  return renderLoginPage_(DBG, serverLog, wipe);
+function renderLoginPage(opts) {
+  return renderLoginPage_(opts);
 }
 function buildAuthUrlFor(nonce, dbg, embed, cfg) {
   return buildAuthUrlFor_(nonce, dbg, embed, cfg);
