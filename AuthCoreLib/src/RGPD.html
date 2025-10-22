@@ -239,37 +239,39 @@
           u.searchParams.set('ts', Date.now());
           const mainUrl = u.toString();
 
+          // Navegação robusta: top→self (fora de embed) | self→top (embed externo)
 
-          // Navegação robusta (tenta várias vias; SEM 'navigated' global)
           function navigateHard(where) {
-            // 1) mesma janela
-            log("[RGPD/multi] navigatedHard: location.replace");
-            try { location.replace(where); return true; } catch(_) {}
-            log("[RGPD/multi] navigatedHard: location.assign");
-            try { location.assign(where);  return true; } catch(_) {}
-            log("[RGPD/multi] navigatedHard: location.href");
-            try { location.href = where;   return true; } catch(_) {}
-            // 2) topo (quando houver wrapper)
-            log("[RGPD/multi] navigatedHard: window.top.location");
-            try { window.top.location = where; return true; } catch(_) {}
-            log("[RGPD/multi] navigatedHard: window.top?.open");
-            try { window.top?.open(where, '_top'); return true; } catch(_) {}
-            log("[RGPD/multi] navigatedHard: return false");
-            return false;
+            function goTop() {
+              try { window.top.location = where; log("[RGPD] navigateHard: top.location"); return true; } catch(err) { log("ERR="+(err && err.message)); }
+              try { window.top?.open(where, "_top"); log("[RGPD] navigateHard: top.open(_top)"); return true; } catch(err) { log("ERR="+(err && err.message)); }
+              log("[RGPD/multi] goTop navigatedHard: return false");
+              return false;
+            }
+            function goSelf() {
+              try { location.replace(where); log("[RGPD] navigateHard: self.replace"); return true; } catch(err) { log("ERR="+(err && err.message)); }
+              try { location.assign(where);  log("[RGPD] navigateHard: self.assign");  return true; } catch(err) { log("ERR="+(err && err.message)); }
+              try { location.href = where;   log("[RGPD] navigateHard: self.href");    return true; } catch(err) { log("ERR="+(err && err.message)); }
+              log("[RGPD/multi] goSelf navigatedHard: return false");
+              return false;
+            }
+            // Fora de embed queremos sair da iframe do HTMLService → top primeiro
+            return (EXTERNAL_EMBED ? (goSelf() || goTop()) : (goTop() || goSelf()));
           }
 
           log("[RGPD/multi] antes de watchdog"); //!
           // Watchdog: se o callback não disparar, força a navegação
           const wd = setTimeout(function(){
-            log("[RGPD/multi] WARN: success handler não chamou em 5s → forçar navegação");
+            log("[RGPD/multi] WARN: success handler não chamou em 15s → forçar navegação");
             navigateHard(mainUrl);
-          }, 5000);
+          }, 15000);
 
+          log("[RGPD/multi] EXTERNAL_EMBED=" + EXTERNAL_EMBED); //!
           log("[RGPD/multi] antes de google.scrip.run .setRgpdRowsFor"); //!
           google.script.run
             .withSuccessHandler(function(res){
               clearTimeout(wd);
-              log("[RGPD/multi] withSuccessHandler");
+              log("[RGPD/multi] save ok " + JSON.stringify(res));
               // ⚠️ Tenta navegar de novo MESMO que o watchdog já tenha tentado.
               // Se a 1.ª tentativa foi bloqueada (gesto do utilizador vs. assíncrono),
               // esta costuma passar.
