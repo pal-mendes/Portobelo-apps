@@ -35,10 +35,12 @@ Portobelo-apps/
   .gitignore
   README.md  (opcional, explica a estrutura)
 
+Para adicionar novos ficheiros ao git:
+git add -A
 
 Quando se quiser mandar para o Git Hub, para o ChatGPT ver:
-git commit -m "comentários"
-git commit -a
+git commit -am "comentários" && git push
+
 
 Acesso online para o ChatGPT:
 https://github.com/pal-mendes/Portobelo-apps/tree/main/AuthCoreLib/src
@@ -53,6 +55,7 @@ Para obteres o permalink na UI do GitHub:
 2 - Abre o ficheiro → clica no botão ⋯ (menu “More”) → Copy permalink; ou carrega no número da linha e depois na tecla Y e copia o URL que mudou para …/blob/<SHA>/….
 => resultado = https://github.com/pal-mendes/Portobelo-apps/blob/2f552bd1206775522ea5f136801a2d4be6bddb17/AuthCoreLib/src/RGPD.html
 => resultado = https://github.com/pal-mendes/Portobelo-apps/blob/2f552bd1206775522ea5f136801a2d4be6bddb17/AuthCoreLib/src/Login.html
+=> resultado = https://github.com/pal-mendes/Portobelo-apps/blob/2f552bd1206775522ea5f136801a2d4be6bddb17/Associados/src/Associados.js
 
 Usar main no URL (como fizeste) é totalmente válido e público — só que é móvel: ao fazeres novos commits, as linhas podem mudar.
 

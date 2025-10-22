@@ -153,6 +153,7 @@ function renderMainPage_(ticket, DBG, serverLogLines){
   t.DEBUG      = DBG ? "1" : ""; // '1' se quiseres forçar debug visual
   t.ticket     = ticket || "";
   t.SERVER_LOG = (serverLogLines || []).join("\n");
+  t.PAGE_TAG = 'MAIN';
   const out = t.evaluate();
   out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   return out;

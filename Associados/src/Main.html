@@ -200,28 +200,36 @@
       }
     </style>
 
-    <!-- Variáveis do servidor -->
     <script>
-      const CANON_URL = "<?= (typeof CANON_URL !== 'undefined' ? CANON_URL : (typeof CANON !== 'undefined' ? CANON : '')) ?>"; // URL canónico (.../macros/s/ID/exec)
-      const SESSION_TICKET = "<?= (typeof ticket !== 'undefined' ? ticket : (typeof TICKET !== 'undefined' ? TICKET : '')) ?>`;
-      const SERVER_LOG = `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`;
-      const NOREDIRECT = /[?&]noredirect=1\b/i.test(location.search);
-      try {
-        localStorage.setItem("appCanonicalUrl", CANON_URL);
-      } catch (_) {}
-    </script>
+      /* Server Vars (unificado) — 1.º <script> no <head> */
+      (function () {
+        // Valores injetados pelo Apps Script (os que existirem; os que não existirem não rebentam)
+        var SV = {
+          canonUrl:   "<?= CANON_URL   || '' ?>",
+          ticket:     "<?= TICKET      || '' ?>",     // só aqui; o logger não usa isto
+          autostart:  "<?= AUTOSTART   || '' ?>",     // '1' ou ''
+          noredirect: /[?&]noredirect=1\b/i.test(location.search),
+          debugServer:"<?= DEBUG       || '' ?>" === "1",
+          serverLog:  `<?= SERVER_LOG  || '' ?>`,     // string (pode ser vazia)
+          // Convenções do projeto
+          debugQueryKey:   "debug",
+          localStorageKey: "pbDebug",
+          // Opcional: etiqueta para prefixo nos logs (define por página)
+          pageTag:   "<?= PAGE_TAG || '' ?>" // ex.: 'LOGIN' | 'RGPD' | 'MAIN'
+        };
 
-    <!-- Ponte de compatibilidade: se __SERVER_VARS não existir, construímo-lo a partir das tuas variáveis legadas -->
-    <script>
-      // vira objecto JS (nunca usa símbolos “nus” que dão ReferenceError)
-      window.__SERVER_VARS = <?!= JSON.stringify(SERVER_VARS || {}) ?>;
-      // Compatibilidade com o teu código existente:
-      window.DEBUG_QUERY_KEY = window.__SERVER_VARS.debugQueryKey || window.DEBUG_QUERY_KEY || 'debug';
-      window.DEBUG_LS_KEY    = window.__SERVER_VARS.localStorageKey || window.DEBUG_LS_KEY || 'pbDebug';
-      // Se o teu JS antigo esperava uma variável “ticket” global:
-      window.ticket = (window.__SERVER_VARS.ticket !== undefined ? window.__SERVER_VARS.ticket : null);
-    </script>
+        // Persistir URL canónico para navegação entre páginas, sem depender da query
+        try { localStorage.setItem("appCanonicalUrl", SV.canonUrl || (location.origin + location.pathname)); } catch(_) {}
 
+        // Tornar disponível globalmente, sem poluir com variáveis soltas
+        window.__SERVER_VARS = Object.freeze(SV);
+
+        // (Opcional) Ponte mínima para código antigo — remove quando limpares tudo
+        window.CANON_URL      = SV.canonUrl;
+        window.SESSION_TICKET = SV.ticket;
+        window.SERVER_LOG     = SV.serverLog;
+      })();
+    </script>
 
 	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib-->
     <script src="https://script.google.com/macros/s/AKfycbzmNPPHIp35lUmlbl-6P0AmXIXT8sQuoAcjXeDlxKEGfWI7-gg3ncppVe8gtZ8BOvuIrQ/exec"></script>
