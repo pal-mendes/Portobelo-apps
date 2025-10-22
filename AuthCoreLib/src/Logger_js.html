@@ -1,71 +1,55 @@
+
 // =========================
 // File: Logger_js.html - em AuthCoreLib (biblioteca)
 // =========================
+/* PB Logger — 2.º <script> no <head> */
 (function () {
-  // ——— Config compatível (mantém nomes antigos se existirem) ———
-  // Preferência: variáveis injetadas pelo servidor
-  const SV = (typeof window.__SERVER_VARS === 'object' && window.__SERVER_VARS) || {};
+  var SV  = window.__SERVER_VARS || {};
+  var QK  = 'debug';
+  var LSK = 'pbDebug';
 
-  // Legados possíveis no teu projeto (mantidos se existentes):
-  //   DEBUG_QUERY_KEY, DEBUG_LS_KEY, isDbg, dbg(), enableDebug()
-  const QK  = window.DEBUG_QUERY_KEY || SV.debugQueryKey || 'debug';
-  const LSK = window.DEBUG_LS_KEY    || SV.localStorageKey || 'pbDebug';
+  function hasDebugInQuery(){
+    try {
+      var qs = new URLSearchParams(location.search);
+      return qs.has(QK) && (qs.get(QK) === null || qs.get(QK) === '' || qs.get(QK) === '1');
+    } catch(_) { return false; }
+  }
+  function hasDebugInLS(){ try { return localStorage.getItem(LSK) === '1'; } catch(_) { return false; } }
 
-  // Cálculo do estado "debug"
-  const urlHasDebug = new URLSearchParams(location.search).has(QK);
-  const lsHasDebug  = (localStorage.getItem(LSK) === '1');
-  const enabled     = urlHasDebug || lsHasDebug;
+  var DEBUG_ENABLED = !!(SV.debugServer || hasDebugInQuery() || hasDebugInLS());
+  window.DEBUG = DEBUG_ENABLED;
 
-  // Exportar nomes antigos + nomes novos (aliases)
-  // Antigos que preservamos:
-  window.DEBUG_QUERY_KEY = QK;
-  window.DEBUG_LS_KEY    = LSK;
-  window.isDbg           = enabled;          // legado
-  window.DEBUG           = enabled;          // alias extra útil
-
-  // Função base de saída
-  function out(kind, args) {
-    try { console[kind].apply(console, ['[PB]'].concat(Array.from(args))); } catch (_) {}
+  function out(kind, args){
+    var tag = SV.pageTag ? ('['+SV.pageTag+']') : '[PB]';
+    try { console[kind].apply(console, [tag].concat([].slice.call(args))); } catch(_) {}
   }
 
-  // APIs de log (mantém nomes)
-  window.log  = function(){ out('log',  arguments); };
-  window.warn = function(){ out('warn', arguments); };
-  window.err  = function(){ out('error',arguments); };
+  // API (redeclara por cima dos stubs)
+  window.log  = function(){ out('log',   arguments); };
+  window.warn = function(){ out('warn',  arguments); };
+  window.err  = function(){ out('error', arguments); };
+  window.dbg  = DEBUG_ENABLED ? window.log : function(){};
 
-  // dbg() só produz saída quando enabled
-  window.dbg  = enabled ? window.log : function(){};
+  // Conveniências
+  window.enableDebug  = function(on){ try{ on?localStorage.setItem(LSK,'1'):localStorage.removeItem(LSK); location.reload(); }catch(_){} };
+  window.disableDebug = function(){ window.enableDebug(false); };
 
-  // Toggle persistente (mantém enableDebug(), cria aliases)
-  function setDebug(on) {
-    if (on) localStorage.setItem(LSK, '1'); else localStorage.removeItem(LSK);
-    try { location.reload(); } catch(_) {}
-  }
-  window.enableDebug  = function(on = true){ setDebug(!!on); }; // legado
-  window.disableDebug = function(){ setDebug(false); };         // alias novo
-  window.enableDbg    = window.enableDebug;                     // alias legado-extra
-
-  // ——— Event listeners (3) ———
-  // 1) Erros JS “não capturados”
+  // Erros globais (sempre)
   window.addEventListener('error', e => {
-    if (!enabled) return;
-    window.err('error:', e.message, `${e.filename}:${e.lineno}:${e.colno}`);
+    var st = (e && e.error && e.error.stack) || '';
+    window.err('JS error:', e && e.message, st);
   });
-
-  // 2) Promessas rejeitadas sem catch
   window.addEventListener('unhandledrejection', e => {
-    if (!enabled) return;
-    window.err('promise:', e.reason);
+    var r=e && e.reason; window.err('Promise rejection:', r && r.message || r, r && r.stack || '');
   });
 
-  // 3) DOM pronto (útil para traço leve de arranque)
-  document.addEventListener('DOMContentLoaded', () => {
-    if (!enabled) return;
-    window.dbg('DOM ready');
+  // Boot trace
+  document.addEventListener('DOMContentLoaded', function(){
+    var sl = SV.serverLog || '';
+    if (sl) sl.split('\n').forEach(l => l && window.log(l));
+    window.dbg('DOM ready:', location.href);
+    if (document.referrer) window.dbg('Referrer:', document.referrer);
+    try { window.dbg('embedded?', window.top !== window); } catch(_) {}
+    try { if (SV.canonUrl) window.dbg('canon origin=', new URL(SV.canonUrl).origin); } catch(_) {}
   });
-
-  // Qualquer código que já usasse: isDbg, dbg(), enableDebug()
-  // continua a funcionar. Quando quiseres, podes migrar para window.DEBUG
-  // e window.disableDebug()… mas não é obrigatório.
 })();
-

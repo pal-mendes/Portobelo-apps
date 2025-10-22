@@ -1,3 +1,4 @@
+
 <!-- RGPD.html (em AuthCoreLib) -->
 <!doctype html>
 <html>
@@ -31,26 +32,39 @@
         cursor: pointer;
       }
     </style>
-    <!-- Variáveis do servidor -->
-    <script>
-      const CANON_URL = "<?= (typeof CANON_URL !== 'undefined' ? CANON_URL : (typeof CANON !== 'undefined' ? CANON : '')) ?>"; // URL canónico (.../macros/s/ID/exec)
-      const SESSION_TICKET = "<?= (typeof ticket !== 'undefined' ? ticket : (typeof TICKET !== 'undefined' ? TICKET : '')) ?>`;
-      const SERVER_LOG = `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`;
-      const NOREDIRECT = /[?&]noredirect=1\b/i.test(location.search);
-      try {
-        localStorage.setItem("appCanonicalUrl", CANON_URL);
-      } catch (_) {}
-    </script>
 
-    <!-- Ponte de compatibilidade: se __SERVER_VARS não existir, construímo-lo a partir das tuas variáveis legadas -->
     <script>
-      // vira objecto JS (nunca usa símbolos “nus” que dão ReferenceError)
-      window.__SERVER_VARS = <?!= JSON.stringify(SERVER_VARS || {}) ?>;
-      // Compatibilidade com o teu código existente:
-      window.DEBUG_QUERY_KEY = window.__SERVER_VARS.debugQueryKey || window.DEBUG_QUERY_KEY || 'debug';
-      window.DEBUG_LS_KEY    = window.__SERVER_VARS.localStorageKey || window.DEBUG_LS_KEY || 'pbDebug';
-      // Se o teu JS antigo esperava uma variável “ticket” global:
-      window.ticket = (window.__SERVER_VARS.ticket !== undefined ? window.__SERVER_VARS.ticket : null);
+    /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
+    (function () {
+      // Defensivo: usar typeof para evitar ReferenceError no template
+      var SV = {
+        canonUrl:   "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
+        ticket:     "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
+        autostart:  "<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>",   // '1' | ''
+        debugServer:"<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" === "1",
+        serverLog:  `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
+        wipe:       "<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>",   // '1' | ''
+        pageTag:    "<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>" // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
+      };
+
+      // Flags calculadas no cliente
+      SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
+
+      // Persistir canónico para navegações subsequentes
+      try { localStorage.setItem("appCanonicalUrl", SV.canonUrl || (location.origin + location.pathname)); } catch(_) {}
+
+      // Expor de forma limpa
+      window.__SERVER_VARS = Object.freeze(SV);
+
+      // Ponte mínima (se quiser eliminar depois, pode)
+      window.CANON_URL      = SV.canonUrl;
+      window.SESSION_TICKET = SV.ticket;
+      window.SERVER_LOG     = SV.serverLog;
+
+      // --- Stubs anti-erro: garantem que log/dbg existem MESMO antes do logger carregar
+      window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
+      window.dbg = window.dbg || function(){};
+    })();
     </script>
 
 	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib-->

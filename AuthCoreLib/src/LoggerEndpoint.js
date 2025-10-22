@@ -1,3 +1,4 @@
+
 // =========================
 // File: LoggerEndpoint.gs - em AuthCoreLib (biblioteca)
 // =========================

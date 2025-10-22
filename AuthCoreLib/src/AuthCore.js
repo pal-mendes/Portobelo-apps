@@ -345,6 +345,7 @@ function renderLoginPage_(opts) {
   t.ticket = "";   // ← mesmo que não uses, evita o erro quando existir <?= ticket ?>
   t.TICKET = "";   // ← alias, caso o HTML use TICKET
   t.SERVER_VARS = "";
+  t.PAGE_TAG = 'LOGIN';
   try {
     var out = t.evaluate();
     out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -696,6 +697,7 @@ function renderRgpdPage(DBG, ticket, canonOverride) {
   t.TICKET = ticket || '';
   t.DEBUG  = DBG ? '1' : '';
   t.SERVER_LOG = ''; // evita 'SERVER_LOG is not defined' no RGPD.html
+  t.PAGE_TAG = 'RGPD';
   return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -819,6 +821,7 @@ function renderRgpdPage_AuthCore_(DBG, email, ticket, gatesCfg){
   t.CANON = canonicalAppUrl_();           // a tua função já existente que dá o URL canónico
   t.TICKET = ticket || '';
   t.DEBUG = DBG ? '1' : '';
+  t.PAGE_TAG = 'RGPD';
   //t.GATES_CFG_JSON = JSON.stringify(gatesCfg || {}); // passa config do HOST
   return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
