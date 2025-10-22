@@ -100,6 +100,7 @@
     <!-- 2) Fluxo de autenticação -->
     <script>
       (function () {
+        log("Login.html fluxo de autenticação");
         const BTN = document.getElementById("login-link");
         const ST = document.getElementById("status");
 
@@ -134,7 +135,7 @@
             "?ticket=" +
             encodeURIComponent(t) +
             (WANT_DEBUG ? "&debug=1" : "");
-          log("Go with ticket → " + next);
+          log("Login.html Go with ticket → " + next);
           try {
             localStorage.setItem("sessTicket", t);
           } catch (_) {}
@@ -237,6 +238,7 @@
         }
 
         function beginAuthFlow(manualClick) {
+          log("Login.html beginAuthFlow");
           //const EMBEDDED = window.top !== window;
           const nonce =
             crypto && crypto.randomUUID
@@ -317,7 +319,7 @@
 
         // Bootstrap “seguro”: se já houver ticket local/cookie válido, vai direto
         (function bootstrap() {
-          log("function bootstrap…");
+          log("Login.html function bootstrap…");
           if (__SERVER_VARS.noRedirect) {
             if (BTN) BTN.style.display = "";
             return;
@@ -340,7 +342,7 @@
             return;
           }
 
-          log("Found local/cookie ticket — validating…");
+          log("bootstrap Found local/cookie ticket — validating…");
           google.script.run
             .withSuccessHandler(function (valid) {
               if (valid) {

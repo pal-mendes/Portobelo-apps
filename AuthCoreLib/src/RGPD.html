@@ -131,6 +131,8 @@
           return { EXTERNAL_EMBED };
         }
 
+        const WANT_DEBUG  = window.DEBUG;
+
         // ✅ EMBED robusto
         const { EXTERNAL_EMBED } = detectEnv();
         const EMBED = /\bembed=1\b/i.test(location.search) || EXTERNAL_EMBED;  // só é true em iframe EXTERNO
@@ -175,7 +177,7 @@
             document.getElementById('rgpd-back')?.addEventListener('click', () => {
               const u = new URL(CANON);
               if (TICKET) u.searchParams.set("ticket", TICKET);
-              if (DBG)    u.searchParams.set("debug", "1");
+              if (WANT_DEBUG)    u.searchParams.set("debug", "1");
               u.searchParams.set("ts", Date.now());
               location.replace(u.toString());
             });
@@ -232,7 +234,7 @@
    
           if (TICKET) u.searchParams.set('ticket', TICKET);
           //if (/[?&]debug=1\b/i.test(location.search)) u.searchParams.set('debug','1');
-          if (DBG)    u.searchParams.set("debug","1");
+          if (WANT_DEBUG)    u.searchParams.set("debug","1");
           if (EXTERNAL_EMBED) u.searchParams.set("embed","1"); // só para diagnóstico no server
           u.searchParams.set('from','rgpd-save');
           u.searchParams.set('ts', Date.now());
@@ -240,6 +242,7 @@
           const mainUrl = u.toString();
 
           let navigated = false;
+          //!log("[RGPD/multi] navigated=" + navigated);
           function goNow(where){
             if (navigated) return;
             navigated = true;
@@ -270,28 +273,35 @@
             location.href = where;
             */
 
+            //!log("[RGPD/multi] before goSelf");
             const goSelf = () => {
               try{ location.replace(where); return true; }catch(_){}
               try{ location.assign(where); return true; }catch(_){}
               try{ location.href=where; return true; }catch(_){}
               return false; 
             };
+
+            //!log("[RGPD/multi] before goTop");
             const goTop  = () => {
               try{ window.top.location = where; return true; }catch(_){}
               try{ window.top?.open(where, "_top"); return true; }catch(_){}
               return false; 
             };
+            //!log("[RGPD/multi] after goTop");
             if (EXTERNAL_EMBED ? (goSelf() || goTop()) : (goTop() || goSelf())) return;
 
+            //!log("[RGPD/multi] end of goNow()");
 
           }
 
+          //!log("[RGPD/multi] antes de watchdog");
           // Watchdog: se o callback não disparar, força a navegação
           const wd = setTimeout(function(){
             log("[RGPD/multi] WARN: success handler não chamou em 2s → forçar navegação");
             goNow(mainUrl);
           }, 2000);
 
+          //!log("[RGPD/multi] antes de google.scrip.run .setRgpdRowsFor");
           google.script.run
             .withSuccessHandler(function(res){
             clearTimeout(wd);
@@ -308,7 +318,7 @@
           };
         }
 
-        log("about to call listRgpdRowsFor (host)");
+        //!log("about to call listRgpdRowsFor (host)");
         // Chama o host para obter linhas; se vier vazio, a página da biblioteca fica no modo single padrão
         google.script.run
           .withSuccessHandler(renderMulti)
