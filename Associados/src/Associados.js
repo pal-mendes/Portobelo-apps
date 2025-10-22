@@ -713,72 +713,75 @@ function doGet(e){
     L("route: postrgpd → next=" + next + " | rowsCsv=" + rowsCsv);
 
     const html = `
-  <!doctype html><html><head><meta charset="utf-8">
-  <title>RGPD · a voltar…</title>
-  <!-- meta refresh como último fallback -->
-  <meta http-equiv="refresh" content="12;url=${next}">
-  <style>
-    body{font-family:system-ui,sans-serif;padding:12px}
-        font:12px/1.35 monospace;border-top:2px solid #444;padding:8px;overflow:auto}
-    a.btn{display:inline-block;margin-top:10px;padding:8px 12px;border:1px solid #999;border-radius:8px;background:#fff;text-decoration:none}
-  </style>
-  </head><body>
-  <h3>Atualizando autorização…</h3>
-  <div>Aguarde um momento…</div>
-  <p><a id="fallback" class="btn" href="${next}" rel="noopener">Se não avançar, clique aqui</a></p>
-  <script>
-  (function(){
-  var TICKET = ${JSON.stringify(ticket)};
-  var NEXT   = ${JSON.stringify(next)};
-  var ROWS_CSV = ${JSON.stringify(rowsCsv)};
-    function log(m){ try{console.log('[postRGPD]',m);}catch(_){}}
+      <!doctype html><html><head><meta charset="utf-8">
+      <title>RGPD · a voltar…</title>
+      <!-- meta refresh como último fallback -->
+      <meta http-equiv="refresh" content="12;url=${next}">
+      <style>
+        body{font-family:system-ui,sans-serif;padding:12px}
+            font:12px/1.35 monospace;border-top:2px solid #444;padding:8px;overflow:auto}
+        a.btn{display:inline-block;margin-top:10px;padding:8px 12px;border:1px solid #999;border-radius:8px;background:#fff;text-decoration:none}
+      </style>
+      </head><body>
+      <h3>Atualizando autorização…</h3>
+      <div>Aguarde um momento…</div>
+      <p><a id="fallback" class="btn" href="${next}" rel="noopener">Se não avançar, clique aqui</a></p>
+      <script>
+      (function(){
+      var TICKET = ${JSON.stringify(ticket)};
+      var NEXT   = ${JSON.stringify(next)};
+      var ROWS_CSV = ${JSON.stringify(rowsCsv)};
 
+      function log(m){ try{console.log('[postRGPD]',m);}catch(_){}}
 
-  function go(where){
-    try{ location.replace(where); return; }catch(_){}
-    try{ location.assign(where);  return; }catch(_){}
-    location.href = where;
-  }
+      log('postrgpd html');
+      log("postrgpd html");
 
-  var watchdog = setTimeout(function(){
-    log('watchdog → go(NEXT)');
-    go(NEXT);
-  }, 9000);
-
-  var ACCEPTED = [];
-  if (ROWS_CSV) {
-    ACCEPTED = ROWS_CSV.split(',').map(function(s){ return parseInt(s, 10); })
-                 .filter(function(n){ return !isNaN(n); });
-  }
-
-    // Ordem de navegação: em embed → self primeiro; fora de embed → top primeiro
-    //if (EXTERNAL_EMBED) { if (!goSelf()) goTop(); } else { if (!goTop()) goSelf(); }
-    // ir sempre por self() primeiro evita bloqueios de top.location em alguns envs
-    // if (!goSelf()) goTop();
-
-  if (ACCEPTED.length) {
-    log('setRgpdRowsFor ' + JSON.stringify(ACCEPTED));
-    google.script.run
-      .withSuccessHandler(function(res){
-        log('setRgpdRowsFor OK ' + JSON.stringify(res));
-        clearTimeout(watchdog);
-        go(NEXT);
-      })
-      .withFailureHandler(function(err){
-        log('setRgpdRowsFor FAIL ' + (err && err.message || err));
-        clearTimeout(watchdog);
-        go(NEXT);
-      })
-      .setRgpdRowsFor(TICKET, ACCEPTED);
-  } else {
-    log('no ACCEPTED rows → go(NEXT)');
-    clearTimeout(watchdog);
-    go(NEXT);
+      function go(where){
+        try{ location.replace(where); return; }catch(_){}
+        try{ location.assign(where);  return; }catch(_){}
+        location.href = where;
       }
-    }
-  })();
-  </script>
-  </body></html>`;
+
+      var watchdog = setTimeout(function(){
+        log('watchdog → go(NEXT)');
+        go(NEXT);
+      }, 9000);
+
+      var ACCEPTED = [];
+      if (ROWS_CSV) {
+        ACCEPTED = ROWS_CSV.split(',').map(function(s){ return parseInt(s, 10); })
+                    .filter(function(n){ return !isNaN(n); });
+      }
+
+      // Ordem de navegação: em embed → self primeiro; fora de embed → top primeiro
+      //if (EXTERNAL_EMBED) { if (!goSelf()) goTop(); } else { if (!goTop()) goSelf(); }
+      // ir sempre por self() primeiro evita bloqueios de top.location em alguns envs
+      // if (!goSelf()) goTop();
+
+      if (ACCEPTED.length) {
+        log('setRgpdRowsFor ' + JSON.stringify(ACCEPTED));
+        google.script.run
+          .withSuccessHandler(function(res){
+            log('setRgpdRowsFor OK ' + JSON.stringify(res));
+            clearTimeout(watchdog);
+            go(NEXT);
+          })
+          .withFailureHandler(function(err){
+            log('setRgpdRowsFor FAIL ' + (err && err.message || err));
+            clearTimeout(watchdog);
+            go(NEXT);
+          })
+          .setRgpdRowsFor(TICKET, ACCEPTED);
+      } else {
+        log('no ACCEPTED rows → go(NEXT)');
+        clearTimeout(watchdog);
+        go(NEXT);
+          }
+        }
+      })();
+      </script>
+    </body></html>`;
     return HtmlService.createHtmlOutput(html)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
@@ -832,7 +835,8 @@ function doGet(e){
         (autoDl ? 'setTimeout(function(){ try{ if(a) a.click(); }catch(_){} }, 80);' : '') +
         '})();' +
         '</script>' +
-        '</body></html>';
+        '</body>' +
+      '</html>';
 
       const out = HtmlService.createHtmlOutput(html);
       out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
