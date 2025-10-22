@@ -225,88 +225,55 @@
             .filter(b => b.checked).map(b => +b.getAttribute('data-row'));
 
           log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
+          dbg("[RGPD/multi] dbg");
 
           // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
           const u = new URL(CANON);
-          //u.searchParams.set('action','postrgpd');
           // força o servidor a ir direto ao Main (ignora gates)
           u.searchParams.set('go','main');
    
           if (TICKET) u.searchParams.set('ticket', TICKET);
-          //if (/[?&]debug=1\b/i.test(location.search)) u.searchParams.set('debug','1');
           if (WANT_DEBUG)    u.searchParams.set("debug","1");
           if (EXTERNAL_EMBED) u.searchParams.set("embed","1"); // só para diagnóstico no server
           u.searchParams.set('from','rgpd-save');
           u.searchParams.set('ts', Date.now());
-          //const postUrl = u.toString();
           const mainUrl = u.toString();
 
-          let navigated = false;
-          log("[RGPD/multi] navigated=" + navigated); //!
-          function goNow(where){
-            if (navigated) return;
-            navigated = true;
-            log("[RGPD/multi] navigating → " + where + (EXTERNAL_EMBED ? " (SELF→TOP)" : " (TOP→SELF)"));
-            /*
-              try {
-              const IN_IFRAME = (function(){ try { return window.top !== window.self; } catch(_) { return true; } })();
-              const AO = (location.ancestorOrigins && Array.from(location.ancestorOrigins)) || [];
-              const isAppsScript = (o) => /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(o);
-              const EXTERNAL_EMBED = IN_IFRAME && AO.some(o => !isAppsScript(o));
-              if (EXTERNAL_EMBED) u.searchParams.set("embed","1");
-            } catch(_){}
-            
-            location.replace(u.toString());
-            */
-            /*
-            try { location.replace(where); }
-            catch(_) { try { location.assign(where); } catch(__) { location.href = where; } }
-            */
 
-            /* OK em standalone mas não em embed
-            // 1) tenta topo (sair da frame), ainda dentro do click = gesto do utilizador
-            try { window.top?.open(where, "_top"); return; } catch(_) {}
-            try { window.top.location = where; return; } catch(_) {}
-            // 2) fallback: mesma frame
-            try { location.replace(where); return; } catch(_) {}
-            try { location.assign(where); return; } catch(_) {}
-            location.href = where;
-            */
-
-            log("[RGPD/multi] before goSelf"); //!
-            const goSelf = () => {
-              try{ location.replace(where); return true; }catch(_){}
-              try{ location.assign(where); return true; }catch(_){}
-              try{ location.href=where; return true; }catch(_){}
-              return false; 
-            };
-
-            log("[RGPD/multi] before goTop"); //!
-            const goTop  = () => {
-              try{ window.top.location = where; return true; }catch(_){}
-              try{ window.top?.open(where, "_top"); return true; }catch(_){}
-              return false; 
-            };
-            log("[RGPD/multi] after goTop"); //!
-            if (EXTERNAL_EMBED ? (goSelf() || goTop()) : (goTop() || goSelf())) return;
-
-            log("[RGPD/multi] end of goNow()"); //!
-
+          // Navegação robusta (tenta várias vias; SEM 'navigated' global)
+          function navigateHard(where) {
+            // 1) mesma janela
+            log("[RGPD/multi] navigatedHard: location.replace");
+            try { location.replace(where); return true; } catch(_) {}
+            log("[RGPD/multi] navigatedHard: location.assign");
+            try { location.assign(where);  return true; } catch(_) {}
+            log("[RGPD/multi] navigatedHard: location.href");
+            try { location.href = where;   return true; } catch(_) {}
+            // 2) topo (quando houver wrapper)
+            log("[RGPD/multi] navigatedHard: window.top.location");
+            try { window.top.location = where; return true; } catch(_) {}
+            log("[RGPD/multi] navigatedHard: window.top?.open");
+            try { window.top?.open(where, '_top'); return true; } catch(_) {}
+            log("[RGPD/multi] navigatedHard: return false");
+            return false;
           }
 
           log("[RGPD/multi] antes de watchdog"); //!
           // Watchdog: se o callback não disparar, força a navegação
           const wd = setTimeout(function(){
             log("[RGPD/multi] WARN: success handler não chamou em 5s → forçar navegação");
-            goNow(mainUrl);
+            navigateHard(mainUrl);
           }, 5000);
 
           log("[RGPD/multi] antes de google.scrip.run .setRgpdRowsFor"); //!
           google.script.run
             .withSuccessHandler(function(res){
-            clearTimeout(wd);
-            try { log("[RGPD/multi] save ok " + JSON.stringify(res)); } catch(_){}
-            goNow(mainUrl);
+              clearTimeout(wd);
+              log("[RGPD/multi] withSuccessHandler");
+              // ⚠️ Tenta navegar de novo MESMO que o watchdog já tenha tentado.
+              // Se a 1.ª tentativa foi bloqueada (gesto do utilizador vs. assíncrono),
+              // esta costuma passar.
+              navigateHard(mainUrl);
             })
             .withFailureHandler(function(err){
             clearTimeout(wd);
