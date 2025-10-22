@@ -225,7 +225,7 @@
             .filter(b => b.checked).map(b => +b.getAttribute('data-row'));
 
           log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
-          dbg("[RGPD/multi] dbg");
+          //dbg("[RGPD/multi] dbg");
 
           // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
           const u = new URL(CANON);
