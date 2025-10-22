@@ -135,13 +135,13 @@
         const { EXTERNAL_EMBED } = detectEnv();
         const EMBED = /\bembed=1\b/i.test(location.search) || EXTERNAL_EMBED;  // só é true em iframe EXTERNO
 
-        let CANON = "<?!= JSON.stringify(SERVER_VARS.CANON_URL) ?>";
+        let CANON  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
         if (!CANON) {
           try { CANON = localStorage.getItem('appCanonicalUrl') || ''; } catch(_) {}
           if (!CANON) CANON = location.origin + location.pathname;
         }
 
-        let TICKET = "<?!= JSON.stringify(SERVER_VARS.ticket) ?>";
+        let TICKET = (__SERVER_VARS.ticket || (new URL(location.href).searchParams.get('ticket') || (function(){ try{return localStorage.getItem('sessTicket')}catch(_){return ''} })()));
         if (!TICKET) {
           // 1) tenta apanhar do URL (vindo do Main com ?ticket=…)
           try { TICKET = new URL(location.href).searchParams.get('ticket') || ''; } catch(_) {}

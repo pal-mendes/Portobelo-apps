@@ -345,9 +345,9 @@
 
           //const { EXTERNAL_EMBED } = detectEnv();
 
-          const CANON = "<?= CANON_URL ?>";
-          const TPL_TICKET = "<?= ticket ?>"; // injeta o ticket do servidor
-          //const WANT_DEBUG = /\bdebug=1\b/i.test(location.search);
+          const CANON       = __SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname);
+          const TPL_TICKET  = __SERVER_VARS.ticket || ''; // injeta o ticket do servidor
+          const WANT_DEBUG  = window.DEBUG;
           const IN_IFRAME = (function () {
             try {
               return window.top !== window.self;

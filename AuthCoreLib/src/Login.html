@@ -32,7 +32,7 @@
     /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
     (function () {
       // Defensivo: usar typeof para evitar ReferenceError no template
-      var SV = {
+      var SV = { //usar como __SERVER_VARS. no código
         canonUrl:   "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
         ticket:     "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
         autostart:  "<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>",   // '1' | ''
@@ -79,7 +79,8 @@
     <!-- 1) Optional wipe (quando renderizado com WIPE=1) -->
     <script>
       (function () {
-        if (!SV.wipe) return;
+        const WIPE = (__SERVER_VARS.wipe === '1');
+        if (!WIPE) return;
         try {
           localStorage.removeItem("sessTicket");
           log("wipe: localStorage ok");
@@ -102,15 +103,8 @@
         const BTN = document.getElementById("login-link");
         const ST = document.getElementById("status");
 
-        const WANT_DEBUG =
-          /[?&]debug=1\b/i.test(location.search) ||
-          (function () {
-            try {
-              return localStorage.getItem("pbDebug") === "1";
-            } catch (_) {
-              return false;
-            }
-          })();
+        const WANT_DEBUG = window.DEBUG;
+        const CANON_URL  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
 
         const UI_DELAY_BTN = 1200; // só mostramos o botão passado isto (auto)
         const UI_DELAY_HINT = 2500; // só mostramos um hint/fallback passado isto (auto)
@@ -324,7 +318,7 @@
         // Bootstrap “seguro”: se já houver ticket local/cookie válido, vai direto
         (function bootstrap() {
           log("function bootstrap…");
-          if (SV.noredirect) {
+          if (__SERVER_VARS.noRedirect) {
             if (BTN) BTN.style.display = "";
             return;
           }
@@ -332,7 +326,7 @@
           const t = bestLocalTicket();
           if (!t) {
             // sem ticket → podemos autostartar popup (se AUTOSTART=1)
-            const AUTOSTART = "<?= AUTOSTART || '' ?>" === "1";
+            const AUTOSTART = __SERVER_VARS.autostart;
             if (AUTOSTART) {
               // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
               beginAuthFlow(false);
