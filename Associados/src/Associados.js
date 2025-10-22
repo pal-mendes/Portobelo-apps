@@ -101,6 +101,7 @@ function acceptRgpdForMe(ticket, decision){
 }
 // ===== DEBUG infra =====
 function isDebug_(e){ return e && e.parameter && e.parameter.debug === "1"; }
+
 function makeLogger_(DBG) {
   const start = new Date();
   const log = [];
@@ -695,9 +696,12 @@ function doGet(e){
 
   // --- pós-RGPD: página “ponte” com conteúdo/trace e fallback em navegação robusta + logs
   if (action === 'postrgpd') {
-    L("action postrgpd");
+    L("L => action postrgpd");
+    dbgLog("dbgLog => action postrgpd");
     const ticket = (e && e.parameter && e.parameter.ticket) || '';
-    const isEmbed = String(e.parameter.embed||'') === '1';
+    const isEmbed = String(e.parameter.embed || '') === '1';
+	  // CSV de linhas aceites vindo do RGPD.html
+    const rowsCsv = String((e && e.parameter && e.parameter.rows) || '').trim();
     const next   = canon
       + (ticket ? ('?ticket=' + encodeURIComponent(ticket)) : '')
       + (DBG ? (ticket ? '&' : '?') + 'debug=1' : '')
@@ -706,16 +710,15 @@ function doGet(e){
       + '&from=postrgpd' 
       + '&ts=' + Date.now();
 
-    L("route: postrgpd → next=" + next);
+    L("route: postrgpd → next=" + next + " | rowsCsv=" + rowsCsv);
 
     const html = `
   <!doctype html><html><head><meta charset="utf-8">
   <title>RGPD · a voltar…</title>
   <!-- meta refresh como último fallback -->
-  <meta http-equiv="refresh" content="7;url=${next}">
+  <meta http-equiv="refresh" content="12;url=${next}">
   <style>
     body{font-family:system-ui,sans-serif;padding:12px}
-    #dbg{position:fixed;left:0;right:0;bottom:0;height:44vh;background:#111;color:#0f0;
         font:12px/1.35 monospace;border-top:2px solid #444;padding:8px;overflow:auto}
     a.btn{display:inline-block;margin-top:10px;padding:8px 12px;border:1px solid #999;border-radius:8px;background:#fff;text-decoration:none}
   </style>
@@ -723,60 +726,58 @@ function doGet(e){
   <h3>Atualizando autorização…</h3>
   <div>Aguarde um momento…</div>
   <p><a id="fallback" class="btn" href="${next}" rel="noopener">Se não avançar, clique aqui</a></p>
-  <div id="dbg"></div>
-  <script>(function(){
-    var N=${JSON.stringify(next)};
-    function log(m){ try{console.log('[postRGPD]',m);}catch(_){}; 
-      var p=document.createElement('div');
-      p.textContent=new Date().toISOString().slice(11,19)+' '+m; }
-    log('ready');
-
-    function detectEnv(){
-      const IN_IFRAME = (function(){ try { return window.top !== window.self; } catch(_) { return true; } })();
-      const AO = (location.ancestorOrigins && Array.from(location.ancestorOrigins)) || [];
-
-      // Qualquer origem Apps Script wrapper
-      const isAppsScript = (o) => /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(o);
-
-      // Estamos “externamente embebidos” se houver PELO MENOS um ancestor que NÃO seja Apps Script
-      const HAS_NON_APPS_ANCESTOR = AO.some(o => !isAppsScript(o));
-
-      const EXTERNAL_EMBED = IN_IFRAME && HAS_NON_APPS_ANCESTOR;
-      return { IN_IFRAME, EXTERNAL_EMBED, AO };
-    }
+  <script>
+  (function(){
+  var TICKET = ${JSON.stringify(ticket)};
+  var NEXT   = ${JSON.stringify(next)};
+  var ROWS_CSV = ${JSON.stringify(rowsCsv)};
+    function log(m){ try{console.log('[postRGPD]',m);}catch(_){}}
 
 
-    var env = (function(){ return detectEnv(); })();  // usa a função do ponto 1
-    var EXTERNAL_EMBED = env.EXTERNAL_EMBED;    
+  function go(where){
+    try{ location.replace(where); return; }catch(_){}
+    try{ location.assign(where);  return; }catch(_){}
+    location.href = where;
+  }
 
-    log('href='+location.href);
-    log('referrer='+document.referrer);
-    log('EXTERNAL_EMBED='+EXTERNAL_EMBED);
-    //log('top===self? '+(window.top===window));
-    log('→ next='+N);
+  var watchdog = setTimeout(function(){
+    log('watchdog → go(NEXT)');
+    go(NEXT);
+  }, 9000);
 
-    function goTop(){
-      try{ window.top.location =N; log('top.location=N ok'); return true; }
-      catch(e){ log('top.location=N blocked: '+(e && e.message || e)); return false; }
-    }
-    function goSelf(){
-      try{ location.assign(N); log('self.assign ok'); return true; }
-      catch(e){ log('self.assign blocked: '+(e && e.message || e)); return false; }
-    }
+  var ACCEPTED = [];
+  if (ROWS_CSV) {
+    ACCEPTED = ROWS_CSV.split(',').map(function(s){ return parseInt(s, 10); })
+                 .filter(function(n){ return !isNaN(n); });
+  }
 
     // Ordem de navegação: em embed → self primeiro; fora de embed → top primeiro
-    if (EXTERNAL_EMBED) { if (!goSelf()) goTop(); } else { if (!goTop()) goSelf(); }
+    //if (EXTERNAL_EMBED) { if (!goSelf()) goTop(); } else { if (!goTop()) goSelf(); }
     // ir sempre por self() primeiro evita bloqueios de top.location em alguns envs
     // if (!goSelf()) goTop();
-    
-    // watchdog: se ainda estivermos nesta página, tenta de novo
-    setTimeout(function(){
-      if (location.href.indexOf('action=postrgpd')>-1){
-        log('still here after 1200ms → retry');
-        if (EXTERNAL_EMBED) { if (!goSelf()) goTop(); } else { if (!goTop()) goSelf(); }
+
+  if (ACCEPTED.length) {
+    log('setRgpdRowsFor ' + JSON.stringify(ACCEPTED));
+    google.script.run
+      .withSuccessHandler(function(res){
+        log('setRgpdRowsFor OK ' + JSON.stringify(res));
+        clearTimeout(watchdog);
+        go(NEXT);
+      })
+      .withFailureHandler(function(err){
+        log('setRgpdRowsFor FAIL ' + (err && err.message || err));
+        clearTimeout(watchdog);
+        go(NEXT);
+      })
+      .setRgpdRowsFor(TICKET, ACCEPTED);
+  } else {
+    log('no ACCEPTED rows → go(NEXT)');
+    clearTimeout(watchdog);
+    go(NEXT);
       }
-    }, 1200);
-  })();</script>
+    }
+  })();
+  </script>
   </body></html>`;
     return HtmlService.createHtmlOutput(html)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
