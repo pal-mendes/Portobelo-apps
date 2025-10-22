@@ -297,9 +297,9 @@
           log("[RGPD/multi] antes de watchdog"); //!
           // Watchdog: se o callback não disparar, força a navegação
           const wd = setTimeout(function(){
-            log("[RGPD/multi] WARN: success handler não chamou em 2s → forçar navegação");
+            log("[RGPD/multi] WARN: success handler não chamou em 5s → forçar navegação");
             goNow(mainUrl);
-          }, 2000);
+          }, 5000);
 
           log("[RGPD/multi] antes de google.scrip.run .setRgpdRowsFor"); //!
           google.script.run

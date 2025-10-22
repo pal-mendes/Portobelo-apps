@@ -330,11 +330,14 @@ function renderLoginPage_(opts) {
     throw new Error('AuthCoreLib.renderLoginPage_: SERVER_VARS em falta. O host deve construir e passar estas variáveis.');
   }
   */
+
+  //const L = makeLogger_(true);
+  //L('function renderLoginPage_');
   const t = HtmlService.createTemplateFromFile("Login");
   t.CANON_URL = canonicalAppUrl_();
-  t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
+  //t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
   t.AUTOSTART = "1"; // auto-inicia o popup
-  t.DEBUG = opts.DBG ? "1" : "";
+  t.DEBUG = opts.DEBUG ? "1" : "";
   t.SERVER_LOG = 
       opts.serverLog && opts.serverLog.join
         ? opts.serverLog.join("\n")
@@ -692,8 +695,9 @@ function isRgpdAllAcceptedFor(ticket, cfg){
 
 // usado pelo host em action=rgpd
 function renderRgpdPage(DBG, ticket, canonOverride) {
+  //L('renderRgpdPage');
   const t = HtmlService.createTemplateFromFile('RGPD');
-  t.CANON  = canonOverride || canonicalAppUrl_(); // << usa o do HOST se vier
+  t.CANON_URL  = canonOverride || canonicalAppUrl_(); // << usa o do HOST se vier
   t.TICKET = ticket || '';
   t.DEBUG  = DBG ? '1' : '';
   t.SERVER_LOG = ''; // evita 'SERVER_LOG is not defined' no RGPD.html
@@ -817,8 +821,9 @@ function dedupeEmails_AuthCore_(arr){
 function renderRgpdPage_AuthCore_(DBG, email, ticket, gatesCfg){
   gatesCfg = __defCfg(gatesCfg);
 
+  //L('function renderRgpdPage_Authcore_');
   const t = HtmlService.createTemplateFromFile('RGPD'); // o HTML acima
-  t.CANON = canonicalAppUrl_();           // a tua função já existente que dá o URL canónico
+  t.CANON_URL = canonicalAppUrl_();           // a tua função já existente que dá o URL canónico
   t.TICKET = ticket || '';
   t.DEBUG = DBG ? '1' : '';
   t.PAGE_TAG = 'RGPD';

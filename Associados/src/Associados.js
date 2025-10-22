@@ -151,7 +151,7 @@ function renderMainPage_(ticket, DBG, serverLogLines){
   const t = HtmlService.createTemplateFromFile("Main");
   t.CANON_URL  = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
   t.DEBUG      = DBG ? "1" : ""; // '1' se quiseres forçar debug visual
-  t.ticket     = ticket || "";
+  t.TICKET     = ticket || "";
   t.SERVER_LOG = (serverLogLines || []).join("\n");
   t.PAGE_TAG = 'MAIN';
   const out = t.evaluate();
