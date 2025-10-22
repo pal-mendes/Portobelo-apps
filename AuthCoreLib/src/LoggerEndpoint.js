@@ -5,7 +5,7 @@
 
 function getLoggerJs_() {
   // Lê o conteúdo cru do ficheiro logger_js.html (apenas JS, sem <script> tags)
-  return HtmlService.createTemplateFromFile('Logger_js').getRawContent();
+  return HtmlService.createTemplateFromFile('logger_js').getRawContent();
 }
 
 function doGet(e) {
