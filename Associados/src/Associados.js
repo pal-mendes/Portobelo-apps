@@ -100,7 +100,13 @@ function acceptRgpdForMe(ticket, decision){
   return AuthCoreLib.acceptRgpdForMe(ticket, decision, gatesCfg_());
 }
 // ===== DEBUG infra =====
-function isDebug_(e){ return e && e.parameter && e.parameter.debug === "1"; }
+function isDebug_(e){
+  // true se o parâmetro existir (quer seja ?debug, ?debug=1, ?debug=true, etc.)
+  const DBG = !!(e && e.parameter && Object.prototype.hasOwnProperty.call(e.parameter, 'debug'));
+  console.log("isDebug_() => DBG=", DBG);
+
+  return DBG;
+}
 
 function makeLogger_(DBG) {
   const start = new Date();
@@ -606,6 +612,7 @@ function fetchTransacoesByPhones_(phones){
 // ===== doGet router =====
 function doGet(e){
   const DBG = isDebug_(e);
+  console.log("doGet() starg => DBG=", DBG);
   const L = makeLogger_(DBG);
   L("doGet start");
   const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
@@ -696,12 +703,32 @@ function doGet(e){
 
   // --- pós-RGPD: página “ponte” com conteúdo/trace e fallback em navegação robusta + logs
   if (action === 'postrgpd') {
+    console.log("postrgpd início! DBG=", DBG);
+    //As linhas comentaadas abaixo já estão feitas no início do doGet()
+    //const DBG    = isDebug_(e);
+    //const L      = makeLogger_(DBG);    
     L("L => action postrgpd");
     dbgLog("dbgLog => action postrgpd");
+
     const ticket = (e && e.parameter && e.parameter.ticket) || '';
-    const isEmbed = String(e.parameter.embed || '') === '1';
 	  // CSV de linhas aceites vindo do RGPD.html
-    const rowsCsv = String((e && e.parameter && e.parameter.rows) || '').trim();
+    const rowsQS = String((e && e.parameter && e.parameter.rows) || '').trim();
+    const rows   = rowsQS
+        ? rowsQS.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n))
+        : [];
+
+    let saveRes = null, saveErr = null;
+    try {
+      saveRes = setRgpdRowsFor(ticket, rows); // <-- grava no servidor
+      L(`RGPD save: rows=[${rows.join(',')}] touched=${saveRes && saveRes.touched | 0}`);
+      console.log(`RGPD save: rows=[${rows.join(',')}] touched=${saveRes && saveRes.touched | 0}`);
+    } catch (err) {
+      saveErr = err;
+      L('RGPD save FAIL: ' + (err && err.message));
+    }
+
+    //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros'); //Já é feito no início do doGet()
+    const isEmbed = String(e.parameter.embed || '') === '1';
     const next   = canon
       + (ticket ? ('?ticket=' + encodeURIComponent(ticket)) : '')
       + (DBG ? (ticket ? '&' : '?') + 'debug=1' : '')
@@ -710,78 +737,104 @@ function doGet(e){
       + '&from=postrgpd' 
       + '&ts=' + Date.now();
 
-    L("route: postrgpd → next=" + next + " | rowsCsv=" + rowsCsv);
+    L("route: postrgpd → next=" + next + " | rowsQS=" + rowsQS);
+
+    const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
+
+    console.log("postrgpd Aqui! isEmbed=", isEmbed);
 
     const html = `
       <!doctype html><html><head><meta charset="utf-8">
-      <title>RGPD · a voltar…</title>
-      <!-- meta refresh como último fallback -->
-      <meta http-equiv="refresh" content="12;url=${next}">
+      <title>RGPD a voltar…</title>
+      <meta http-equiv="refresh" content="7;url=${next}">
       <style>
         body{font-family:system-ui,sans-serif;padding:12px}
             font:12px/1.35 monospace;border-top:2px solid #444;padding:8px;overflow:auto}
         a.btn{display:inline-block;margin-top:10px;padding:8px 12px;border:1px solid #999;border-radius:8px;background:#fff;text-decoration:none}
       </style>
+      <script>
+        console.log("postrgpd script");
+        (window.SERVER_LOG = ${SVLOG}).forEach(l => { try{ console.debug("[SV]", l); }catch(_){} });
+        window.RGPD_SAVE = ${JSON.stringify({ ok: !saveErr, touched: saveRes && saveRes.touched | 0, err: saveErr && (saveErr.message || String(saveErr)) })};
+        console.debug("[SV] rgpd-save:", window.RGPD_SAVE);
+
+        (function(){
+          console.log('postrgpd html');
+
+          var NEXT   = ${JSON.stringify(next)};
+
+          function isAppsScript(o){
+            return /^(https:\\/\\/[-\\w.]*script\\.googleusercontent\\.com|https:\\/\\/script\\.google\\.com)$/i.test(o);
+          }
+
+          var EXTERNAL_EMBED   = ${JSON.stringify(isEmbed)};
+
+          function go(where){
+            try{ location.replace(where); return; }catch(_){}
+            try{ location.assign(where);  return; }catch(_){}
+            location.href = where;
+          }
+
+          <!-- go(NEXT); //funciona bem para não embed --> 
+
+          <!--
+          var ACCEPTED = [];
+          if (ROWS_CSV) {
+            ACCEPTED = ROWS_CSV.split(',').map(function(s){ return parseInt(s, 10); })
+                        .filter(function(n){ return !isNaN(n); });
+          }
+          -->
+
+          function goTop(){
+            try{ window.top.location =N; console.log('top.location=N ok'); return true; }
+            catch(e){ console.log('top.location=N blocked: '+(e && e.message || e)); return false; }
+          }
+          function goSelf(){
+            try{ location.assign(N); console.log('self.assign ok'); return true; }
+            catch(e){ console.log('self.assign blocked: '+(e && e.message || e)); return false; }
+          }      
+          <!-- // Ordem de navegação: em embed → self primeiro; fora de embed → top primeiro -->
+          if (EXTERNAL_EMBED ? (goSelf() || goTop()) : (go(NEXT))) return;
+
+
+          // watchdog
+          //var watchdog = setTimeout(function(){ log('watchdog → go(NEXT)'); go(NEXT); }, 9000);
+          setTimeout(function(){ if (location.href.indexOf("action=postrgpd") > -1) { EXTERNAL_EMBED ? (goSelf() || goTop()) : (go(NEXT))); } }, 9000);
+
+
+          <!--
+          if (ACCEPTED.length) {
+            log('setRgpdRowsFor ' + JSON.stringify(ACCEPTED));
+            google.script.run
+              .withSuccessHandler(function(res){
+                log('setRgpdRowsFor OK ' + JSON.stringify(res));
+                clearTimeout(watchdog);
+                go(NEXT);
+              })
+              .withFailureHandler(function(err){
+                log('setRgpdRowsFor FAIL ' + (err && err.message || err));
+                clearTimeout(watchdog);
+                go(NEXT);
+              })
+              .setRgpdRowsFor(TICKET, ACCEPTED);
+          } else {
+            log('no ACCEPTED rows → go(NEXT)');
+            clearTimeout(watchdog);
+            go(NEXT);
+            }
+          }
+          -->
+        })();
+      </script>
+
+      </script>      
       </head><body>
       <h3>Atualizando autorização…</h3>
       <div>Aguarde um momento…</div>
       <p><a id="fallback" class="btn" href="${next}" rel="noopener">Se não avançar, clique aqui</a></p>
-      <script>
-      (function(){
-      var TICKET = ${JSON.stringify(ticket)};
-      var NEXT   = ${JSON.stringify(next)};
-      var ROWS_CSV = ${JSON.stringify(rowsCsv)};
-
-      function log(m){ try{console.log('[postRGPD]',m);}catch(_){}}
-
-      log('postrgpd html');
-      log("postrgpd html");
-
-      function go(where){
-        try{ location.replace(where); return; }catch(_){}
-        try{ location.assign(where);  return; }catch(_){}
-        location.href = where;
-      }
-
-      var watchdog = setTimeout(function(){
-        log('watchdog → go(NEXT)');
-        go(NEXT);
-      }, 9000);
-
-      var ACCEPTED = [];
-      if (ROWS_CSV) {
-        ACCEPTED = ROWS_CSV.split(',').map(function(s){ return parseInt(s, 10); })
-                    .filter(function(n){ return !isNaN(n); });
-      }
-
-      // Ordem de navegação: em embed → self primeiro; fora de embed → top primeiro
-      //if (EXTERNAL_EMBED) { if (!goSelf()) goTop(); } else { if (!goTop()) goSelf(); }
-      // ir sempre por self() primeiro evita bloqueios de top.location em alguns envs
-      // if (!goSelf()) goTop();
-
-      if (ACCEPTED.length) {
-        log('setRgpdRowsFor ' + JSON.stringify(ACCEPTED));
-        google.script.run
-          .withSuccessHandler(function(res){
-            log('setRgpdRowsFor OK ' + JSON.stringify(res));
-            clearTimeout(watchdog);
-            go(NEXT);
-          })
-          .withFailureHandler(function(err){
-            log('setRgpdRowsFor FAIL ' + (err && err.message || err));
-            clearTimeout(watchdog);
-            go(NEXT);
-          })
-          .setRgpdRowsFor(TICKET, ACCEPTED);
-      } else {
-        log('no ACCEPTED rows → go(NEXT)');
-        clearTimeout(watchdog);
-        go(NEXT);
-          }
-        }
-      })();
-      </script>
-    </body></html>`;
+      </body>
+    </html>`;
+    console.log('postrgpd antes do return h tml');
     return HtmlService.createHtmlOutput(html)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
