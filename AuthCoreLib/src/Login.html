@@ -146,17 +146,20 @@
             true,
           );
           try {
+            log("Login.html location.replace");
             location.replace(next);
             return;
           } catch (err) {
             log("same-frame replace failed: " + ((err && err.message) || err));
           }
           try {
+            log("Login.html window.open");
             window.open(next, "_blank", "noopener");
             return;
           } catch (_) {}
           try {
             if (window.top && window.top !== window) {
+              log("Login.html window.top.location.assign");
               window.top.location.assign(next);
               return;
             }
@@ -164,6 +167,7 @@
             log("top assign blocked: " + ((err && err.message) || err));
           }
           try {
+            log("Login.html location.href");
             location.href = next;
           } catch (_) {}
         }

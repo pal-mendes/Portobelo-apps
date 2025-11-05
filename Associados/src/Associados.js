@@ -747,7 +747,7 @@ function doGet(e){
     const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
     console.log("postrgpd Aqui! isEmbed=", isEmbed);
-
+    /*
     const html = `
       <!doctype html><html><head><meta charset="utf-8">
       <title>RGPD a voltar…</title>
@@ -842,6 +842,13 @@ function doGet(e){
     console.log('postrgpd antes do return h tml');
     return HtmlService.createHtmlOutput(html)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+    */
+
+    // Em vez de devolver HTML com <script> que navega, devolve já o MAIN.
+    // Reutiliza exatamente o mesmo caminho que usas para ?go=main.
+    //    return renderMainPage_(ticket, DBG, isEmbed, from: 'rgpd-save');
+    return renderMainPage_(ticket, DBG, L.dump());
   }
 
 

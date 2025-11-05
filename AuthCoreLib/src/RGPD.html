@@ -234,7 +234,6 @@
             // Constrói URL para a página-ponte no TOPO, passando as linhas aceites
             u.searchParams.set('action','postrgpd');
 
-    
             if (TICKET) u.searchParams.set('ticket', TICKET);
             if (accepted.length) u.searchParams.set('rows', accepted.join(','));
             if (WANT_DEBUG)    u.searchParams.set("debug","1");
@@ -242,15 +241,33 @@
             u.searchParams.set('from','rgpd-save');
             u.searchParams.set('ts', Date.now());
 
-            // Abre no TOPO dentro do gesto do utilizador (não é bloqueado)
-            const a = document.createElement('a');
-            a.href = u.toString();
-            a.target = '_top';
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            log("[RGPD/multi] opening postrgpd at TOP → " + a.href);
-            a.click();
-            setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 0);
+            const where = u.toString();
+            log("[RGPD] where = " + where);
+            if (EXTERNAL_EMBED) {
+              try { location.replace(where); log("[RGPD] EMBED location.replace"); return true; } catch(err) { log("ERR="+(err && err.message)); }
+              try { location.assign(where);  log("[RGPD] EMBED location.assign");  return true; } catch(err) { log("ERR="+(err && err.message)); }
+              try { location.href = where;   log("[RGPD] EMBED location.href");    return true; } catch(err) { log("ERR="+(err && err.message)); }
+              log("[RGPD] EMBED return false");
+              return false;
+            } else {
+              try {
+                // Abre no TOPO dentro do gesto do utilizador (não é bloqueado)
+                const a = document.createElement('a');
+                a.href = where;
+                a.target = '_top';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                log("[RGPD/multi] opening postrgpd at TOP → " + a.href);
+                a.click();
+                setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 0);
+                return true;
+              } catch(e) {
+                log("ERR TOP nav: " + e.message + " → fallback location.replace");
+                location.replace(where);
+              }
+              log("[RGPD] !EMBED return false");
+              return false;
+            }
 
 
             /*
