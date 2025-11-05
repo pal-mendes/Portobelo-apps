@@ -848,7 +848,10 @@ function doGet(e){
     // Em vez de devolver HTML com <script> que navega, devolve já o MAIN.
     // Reutiliza exatamente o mesmo caminho que usas para ?go=main.
     //    return renderMainPage_(ticket, DBG, isEmbed, from: 'rgpd-save');
-    return renderMainPage_(ticket, DBG, L.dump());
+
+    const out = renderMainPage_(ticket, DBG, L.dump());
+    out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    return out;    
   }
 
 

@@ -160,6 +160,24 @@
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
+        // Helper local: constrói URL base CANON_URL → CANON → atual
+        function buildBaseUrl() {
+          return new URL(CANON, location.href);
+        }
+
+        // Helper de navegação igual ao do Login (mesma semântica)
+        function goWithParams(params) {
+          const u = buildBaseUrl();
+          Object.keys(params).forEach(k => {
+            const v = params[k];
+            if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
+          });
+          const where = u.toString();
+          log("[RGPD] replace → " + where);
+          // EM EMBED: navegar o próprio iframe (SELF). Nada de _top aqui.
+          location.replace(where);
+        }
+
         function renderMulti(rows){
           log("[RGPD/multi] entrada");
           try { log("[RGPD/multi] rows=" + JSON.stringify(rows)); } catch(_){}
@@ -225,7 +243,6 @@
               .filter(b => b.checked).map(b => +b.getAttribute('data-row'));
 
             log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
-            //dbg("[RGPD/multi] dbg"); //não funciona!
 
             // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
             const u = new URL(CANON);
@@ -244,11 +261,17 @@
             const where = u.toString();
             log("[RGPD] where = " + where);
             if (EXTERNAL_EMBED) {
-              try { location.replace(where); log("[RGPD] EMBED location.replace"); return true; } catch(err) { log("ERR="+(err && err.message)); }
-              try { location.assign(where);  log("[RGPD] EMBED location.assign");  return true; } catch(err) { log("ERR="+(err && err.message)); }
-              try { location.href = where;   log("[RGPD] EMBED location.href");    return true; } catch(err) { log("ERR="+(err && err.message)); }
-              log("[RGPD] EMBED return false");
-              return false;
+              // O servidor faz tudo: grava e já devolve MAIN.
+              goWithParams({
+                action: 'postrgpd',
+                ticket: TICKET,
+                rows: accepted.length ? accepted.join(',') : '',
+                debug: WANT_DEBUG ? '1' : '',
+                // 'embed' só para logging/diagnóstico SERVER-SIDE. Não tenta tocar em TOP.
+                embed: EXTERNAL_EMBED ? '1' : '',
+                from: 'rgpd-save',
+                ts: Date.now()
+              });
             } else {
               try {
                 // Abre no TOPO dentro do gesto do utilizador (não é bloqueado)
@@ -268,58 +291,6 @@
               log("[RGPD] !EMBED return false");
               return false;
             }
-
-
-            /*
-            const mainUrl = u.toString();
-
-            // Navegação robusta: top→self (fora de embed) | self→top (embed externo)
-
-            function navigateHard(where) {
-              function goTop() {
-                try { window.top.location = where; log("[RGPD] navigateHard: top.location"); return true; } catch(err) { log("ERR="+(err && err.message)); }
-                try { window.top?.open(where, "_top"); log("[RGPD] navigateHard: top.open(_top)"); return true; } catch(err) { log("ERR="+(err && err.message)); }
-                log("[RGPD/multi] goTop navigatedHard: return false");
-                return false;
-              }
-              function goSelf() {
-                try { location.replace(where); log("[RGPD] navigateHard: self.replace"); return true; } catch(err) { log("ERR="+(err && err.message)); }
-                try { location.assign(where);  log("[RGPD] navigateHard: self.assign");  return true; } catch(err) { log("ERR="+(err && err.message)); }
-                try { location.href = where;   log("[RGPD] navigateHard: self.href");    return true; } catch(err) { log("ERR="+(err && err.message)); }
-                log("[RGPD/multi] goSelf navigatedHard: return false");
-                return false;
-              }
-              // Fora de embed queremos sair da iframe do HTMLService → top primeiro
-              return (EXTERNAL_EMBED ? (goSelf() || goTop()) : (goTop() || goSelf()));
-            }
-
-            log("[RGPD/multi] antes de watchdog"); //!
-            // Watchdog: se o callback não disparar, força a navegação
-            const wd = setTimeout(function(){
-              log("[RGPD/multi] WARN: success handler não chamou em 15s → forçar navegação");
-              navigateHard(mainUrl);
-            }, 15000);
-
-            log("[RGPD/multi] EXTERNAL_EMBED=" + EXTERNAL_EMBED); //!
-            log("[RGPD/multi] antes de google.scrip.run .setRgpdRowsFor"); //!
-            google.script.run
-              .withSuccessHandler(function(res){
-                clearTimeout(wd);
-                log("[RGPD/multi] save ok " + JSON.stringify(res));
-                // ⚠️ Tenta navegar de novo MESMO que o watchdog já tenha tentado.
-                // Se a 1.ª tentativa foi bloqueada (gesto do utilizador vs. assíncrono),
-                // esta costuma passar.
-                navigateHard(mainUrl);
-              })
-              .withFailureHandler(function(err){
-                clearTimeout(wd);
-                const msg = err && err.message ? err.message : String(err);
-                log("[RGPD/multi] save FAIL: " + msg);
-                alert('Erro a guardar: ' + msg);
-              })
-              .setRgpdRowsFor(TICKET, accepted);
-            
-            */
           };
         }
 
