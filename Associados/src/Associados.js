@@ -432,10 +432,13 @@ function parseAllowlist_(){
 
 // E-mails da lista de validação
 function isAllowedEmail_(email){
+  console.log("isAllowedEmail_ =>", email);
   const list = parseAllowlist_();
+  console.log("isAllowedEmail_ => list.length", list.length);
   if (!list.length) return true;// ← limitação OFF quando property vazia
   return list.includes(String(email||"").toLowerCase());
 }
+
 function renderNotAllowed_(email, DBG){
   const sp    = PropertiesService.getScriptProperties();
   const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
@@ -554,12 +557,14 @@ function buildAssociadosView_(loginEmail){
 }
 
 function apiGetAssociados(ticket){
+  console.log("enter apiGetAssociados");
   const sess = AuthCoreLib.requireSession(ticket);
   if (!isAllowedEmail_(sess.email)) throw new Error("Acesso não autorizado");
   const view = buildAssociadosView_(sess.email);
   view.user = view.user || {};
   view.user.name    = sess.name    || "";
   view.user.picture = sess.picture || "";
+  console.log("exit apiGetAssociados");
   return view;
 }
 

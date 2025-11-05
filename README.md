@@ -2,15 +2,18 @@
  → Enable Google Apps Script API.
 Se o clasp clone já funcionou, isso já está ON e não tens de mexer mais.
 
-É preciso fazer login, que expira ao fim de algumas horas:
+
+
+
+É preciso fazer login (admin@titulares-portobelo.pt), que expira ao fim de algumas horas:
 clasp logout
 clasp help login
 clasp login
 
 
 Atualizar o repositório local a partir do Command Prompt:
-cd Portobelo-apps/
-C:\Users\Pal-m\My Drive\Imóveis\Portobelo\Portobelo-apps>powershell .\pull-all.ps1
+cd \dev\Portobelo-apps/
+C:\dev\Portobelo-apps>powershell .\pull-all.ps1
 
 Estrutura:
 Portobelo-apps/
