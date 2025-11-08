@@ -261,6 +261,7 @@
             const where = u.toString();
             log("[RGPD] where = " + where);
             if (EXTERNAL_EMBED) {
+              /*
               // O servidor faz tudo: grava e já devolve MAIN.
               goWithParams({
                 action: 'postrgpd',
@@ -272,6 +273,10 @@
                 from: 'rgpd-save',
                 ts: Date.now()
               });
+              */
+              // Navega **este** frame (não usa top/parent)
+              try { location.replace(where); }
+              catch(_) { try { location.assign(where); } catch(_) { location.href = where; } }
             } else {
               try {
                 // Abre no TOPO dentro do gesto do utilizador (não é bloqueado)

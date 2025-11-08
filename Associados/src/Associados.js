@@ -666,14 +666,26 @@ function doGet(e){
 
 
   if (action === "reset"){
-    const next = canon;
-    const out = HtmlService.createHtmlOutput(
-      '<meta charset="utf-8"><style>body{font-family:system-ui,sans-serif;padding:18px}</style>' +
-      '<script>try{localStorage.removeItem("sessTicket");}catch(_){ }document.cookie="sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure";</script>' +
-      '<h3>Cookies e localStorage apagados.</h3>' +
-      '<p><a id="goNext" href="'+ next +'" target="_top">Clique aqui para continuar</a></p>' +
-      '<script>document.getElementById("goNext").addEventListener("click",function(e){try{if(window.top){window.top.location.href=this.href;e.preventDefault();}}catch(_){}});</script>'
-    );
+    //Já funciona também em EMBED
+    const next = canon + (DBG ? '?debug=1' : '');
+    const html =
+    '<!doctype html><html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:18px}</style>' +
+    "</head><body>" +
+    '<h3>Cookies e armazenamento local limpos.</h3>' +
+    // Fallback sem JS
+    '<p><noscript><a href="' + next.replace(/"/g, "&quot;") + '">Prosseguir</a></noscript></p>' +
+    "<script>(function(){\n" +
+    "  try{ localStorage.removeItem('sessTicket'); }catch(_){}\n" +
+    "  try{ document.cookie = 'sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure'; }catch(_){}\n" +
+    "  var url = " + JSON.stringify(next) + ";\n" +
+    // Navegação no MESMO frame (funciona em EMBED e fora dele)
+    "  try { location.replace(url); }\n" +
+    "  catch(e){ try{ location.assign(url); } catch(e2){ location.href = url; } }\n" +
+    "})();</script>" +
+    "</body></html>";
+    const out = HtmlService.createHtmlOutput(html);
     return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
@@ -731,9 +743,37 @@ function doGet(e){
       saveErr = err;
       L('RGPD save FAIL: ' + (err && err.message));
     }
+    const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
+    // Monta o URL de destino (MAIN) no MESMO frame
+    const goUrl = canon
+      + '?go=main'
+      + (ticket ? '&ticket=' + encodeURIComponent(ticket) : '')
+      + (DBG ? '&debug=1' : '')
+      + '&from=postrgpd';
+    
+    // Página-ponte com nonce (CSP-safe) + ALLOWALL (embed-safe)
+    const tpl = HtmlService.createTemplate(
+      '<!doctype html><html><head><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1"></head>'
+    + '<body>'
+    + '<div style="font:14px system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:16px">'
+    + 'RGPD guardado. A redirecionar… '
+    + '<noscript><a href="<?!= goUrl ?>">Prosseguir</a></noscript>'
+    + '</div>'
+    + '<script>(function(){'
+    + '  var url = <?!= JSON.stringify(goUrl) ?>;'
+    + '  try{ location.replace(url); }'
+    + '  catch(e){ try{ location.assign(url); } catch(e2){ location.href = url; } }'
+    + '})();</script>'
+    + '</body></html>'
+    );
+    tpl.goUrl = goUrl;
+
+    /*
     //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros'); //Já é feito no início do doGet()
     const isEmbed = String(e.parameter.embed || '') === '1';
+    console.log("postrgpd Aqui! isEmbed=", isEmbed);
     const next   = canon
       + (ticket ? ('?ticket=' + encodeURIComponent(ticket)) : '')
       + (DBG ? (ticket ? '&' : '?') + 'debug=1' : '')
@@ -744,10 +784,6 @@ function doGet(e){
 
     L("route: postrgpd → next=" + next + " | rowsQS=" + rowsQS);
 
-    const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
-
-    console.log("postrgpd Aqui! isEmbed=", isEmbed);
-    /*
     const html = `
       <!doctype html><html><head><meta charset="utf-8">
       <title>RGPD a voltar…</title>
@@ -849,7 +885,8 @@ function doGet(e){
     // Reutiliza exatamente o mesmo caminho que usas para ?go=main.
     //    return renderMainPage_(ticket, DBG, isEmbed, from: 'rgpd-save');
 
-    const out = renderMainPage_(ticket, DBG, L.dump());
+    //const out = renderMainPage_(ticket, DBG, L.dump());
+    const out = tpl.evaluate();
     out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     return out;    
   }

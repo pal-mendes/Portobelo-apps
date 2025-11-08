@@ -130,46 +130,71 @@
           return "";
         }
         function goWithTicket(t) {
-          const next =
-            CANON_URL +
-            "?ticket=" +
-            encodeURIComponent(t) +
-            (WANT_DEBUG ? "&debug=1" : "");
+          const base = (function preferHereExec(){
+            // Se estiver embebido em userCodeAppPanel, usa o próprio frame como base
+            try {
+              const here = new URL(location.href);
+              log("Login.html goWithTicket → here=" + here);
+              if (/userCodeAppPanel/.test(here.hostname)) {
+                log("Login.html goWithTicket → here.hostname=" + here.hostname);
+                return here.origin + here.pathname;
+              }
+            } catch(_) {}
+            log("Login.html goWithTicket → return CANON_URL=" + CANON_URL);
+            return CANON_URL;
+          })();
+          const next = base + "?ticket=" + encodeURIComponent(t) + (WANT_DEBUG ? "&debug=1" : "");
           log("Login.html Go with ticket → " + next);
-          try {
-            localStorage.setItem("sessTicket", t);
-          } catch (_) {}
-          setStatus(
-            'A redirecionar… Se não avançar, <a href="' +
-              next +
-              '" target="_self" rel="noopener">clique aqui</a>.',
-            true,
-          );
-          try {
-            log("Login.html location.replace");
-            location.replace(next);
-            return;
-          } catch (err) {
-            log("same-frame replace failed: " + ((err && err.message) || err));
-          }
-          try {
-            log("Login.html window.open");
-            window.open(next, "_blank", "noopener");
-            return;
-          } catch (_) {}
-          try {
-            if (window.top && window.top !== window) {
-              log("Login.html window.top.location.assign");
-              window.top.location.assign(next);
-              return;
+          try { localStorage.setItem("sessTicket", t); } catch (_) {}
+          setStatus( 'A redirecionar…', true);
+
+          // Sinalizamos navegação efetiva
+          let navigated = false;
+          const mark = () => { navigated = true; };
+          window.addEventListener('pagehide', mark, { once:true });
+          document.addEventListener('visibilitychange', function onVis(){
+            if (document.visibilityState === 'hidden') {
+              navigated = true;
+              document.removeEventListener('visibilitychange', onVis);
             }
-          } catch (err) {
-            log("top assign blocked: " + ((err && err.message) || err));
-          }
+          });
+
+          // 1) Tenta substituir no MESMO frame (não fazer return!)
           try {
-            log("Login.html location.href");
-            location.href = next;
-          } catch (_) {}
+            log("Login.html location.replace " + next);
+            location.replace(next);
+          } catch (err) {
+            log("replace threw: " + ((err && err.message) || err));
+          }
+
+          // 2) Watchdog: se não mudou em 1200 ms, tenta fallback seguro em EMBED
+          setTimeout(function () {
+            if (navigated) return;
+
+            // 2a) Anchor click no mesmo frame (alguns embebidos aceitam melhor)
+            try {
+              const a = document.createElement('a');
+              a.href = next;
+              a.target = '_self';
+              a.rel = 'noopener';
+              a.id = 'go-next-auto';
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 0);
+              log("Login.html watchdog: anchor click fallback");
+              return;
+            } catch (err) {
+              log("anchor click failed: " + ((err && err.message) || err));
+            }
+
+            // 2b) Último recurso: location.href (ainda same-frame)
+            try {
+              log("Login.html watchdog: location.href " + next);
+              location.href = next;
+            } catch (err) {
+              log("href failed: " + ((err && err.message) || err));
+            }
+          }, 1200);
         }
 
         // Receber ticket via postMessage
