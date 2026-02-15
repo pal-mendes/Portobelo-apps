@@ -35,7 +35,7 @@
   Emails autorizados para testes => criar a propriedade de script:
   ALLOWLIST_CSV=leonardo.qmendes@gmail.com;jmazevedoadv@gmail.com;pal.mendes23@gmail.com;lopesdossantosrui@gmail.com;mauricio.penacova@gmail.com; lisete.quentalmendes@gmail.com; mmadnascimento@gmail.com;matpct123@gmail.com;pachecogarcia@gmail.com;rnfragoso@gmail.com
 
-
+   .... teste
 
   - A web app deve estar implantada como: Executar como "Eu (admin@…)" e
     Acesso: "Qualquer pessoa com o link".
