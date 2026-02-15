@@ -14,7 +14,7 @@
   exec?action=login&debug=1&noredirect=1
   exec?action=logout&debug=1
   exec?action=resett&debug=1
-  exec?action=who   => endpoint de diagnóstico
+  exec?action=who   => endpoint de diagnóstico.
 
 
   - O download de FT-IPS passa por endpoints da própria app (não expõe Drive).
