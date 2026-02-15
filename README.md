@@ -43,7 +43,7 @@ Para adicionar novos ficheiros ao git:
 git add -A
 
 Quando se quiser mandar para o Git Hub, para o ChatGPT poder consultar e sugerir melhorias:
-git commit -am "comentários" && git show --name-status --oneline -1 && git push
+git add -A && git commit -am "comentários" && git show --name-status --oneline -1 && git push
 
 
 Acesso online para o ChatGPT não pode ser direto, que seria assim:
@@ -68,5 +68,6 @@ Permalink por commit (não muda com futuros commits) com âncoras de linhas, ex.
 Raw (se quiseres que eu veja só o texto):
 https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/<branch ou SHA>/AuthCoreLib/src/RGPD.html
 
+Para ficheiros html, é preciso enviar ?raw=1 no fim do URL, para que o ChatGPT não faça o seu rendering.
 
-https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src
+https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src?raw=1
