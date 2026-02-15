@@ -50,6 +50,17 @@
       // Flags calculadas no cliente
       SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
 
+      // ✅ URL "self" (o que o browser está a usar agora — em embed tende a ser googleusercontent/userCodeAppPanel)
+      const CANON_SELF = (() => {
+        try {
+          return location.origin + location.pathname;
+        } catch (_) {
+          return "";
+        }
+      })();
+
+      SV.canonSelf = CANON_SELF;
+
       // Persistir canónico para navegações subsequentes
       try { localStorage.setItem("appCanonicalUrl", SV.canonUrl || (location.origin + location.pathname)); } catch(_) {}
 
@@ -58,6 +69,7 @@
 
       // Ponte mínima (se quiser eliminar depois, pode)
       window.CANON_URL      = SV.canonUrl;
+      window.CANON_SELF     = SV.canonSelf || SV.canonUrl;  // fallback seguro
       window.SESSION_TICKET = SV.ticket;
       window.SERVER_LOG     = SV.serverLog;
 
