@@ -174,15 +174,7 @@
 
         // Helper local: constrói URL base CANON_URL → CANON → atual
         function buildBaseUrl() {
-          const base =
-            (typeof CANON_SELF !== "undefined" && CANON_SELF) ||
-            (window.CANON_SELF) ||
-            (window.__SERVER_VARS && window.__SERVER_VARS.canonSelf) ||
-            (typeof CANON_URL !== "undefined" && CANON_URL) ||
-            (typeof CANON !== "undefined" && CANON) ||
-            (location.origin + location.pathname);
-
-          return new URL(base, location.href);
+          return new URL((window.CANON_SELF || CANON_SELF || CANON_URL || CANON || location.href), location.href);
         }
 
         // Helper de navegação igual ao do Login (mesma semântica)
