@@ -91,8 +91,11 @@ function setScriptProp_(k, v) {
 
 // ===== URL canónico do deployment =====
 function canonicalAppUrl_() {
-  var url = ScriptApp.getService().getUrl();
-  return url.replace(/\/a\/[^/]+\/macros/, "/macros"); // força .../macros/s/ID/exec
+  //var url = ScriptApp.getService().getUrl();
+  //return url.replace(/\/a\/[^/]+\/macros/, "/macros"); // força .../macros/s/ID/exec
+  // Mantém o URL canónico real do deployment.
+  // Em contas Workspace, isto inclui /a/<domínio>/ e deve ser preservado. !!!
+  return ScriptApp.getService().getUrl();
 }
 
 // Helper para incluir ficheiros HTML (templates parciais)
@@ -466,7 +469,8 @@ function finishAuth_(e, cfg) {
 
   if (nonce) putTicketForNonce_(nonce, ticket);
 
-  var canon = canonicalAppUrl_();
+  //var canon = canonicalAppUrl_(); !!!
+  var canon = redirectUri; // mantém EXACTAMENTE o mesmo /a/<domínio>/... usado no OAuth
   var html = `
 <meta charset="utf-8"><title>Autenticado</title>
 <style>body{font-family:system-ui,sans-serif;padding:1rem}</style>

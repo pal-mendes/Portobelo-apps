@@ -131,47 +131,30 @@
         }
         function goWithTicket(t) {
 
-          const next = CANON_URL + "?ticket=" + encodeURIComponent(t) + (WANT_DEBUG ? "&debug=1" : "");
+          const next =
+            CANON_URL + 
+            "?ticket=" + encodeURIComponent(t) + 
+            (WANT_DEBUG ? "&debug=1" : "") +
+            "&ts=" + Date.now(); // evita cache estranha
           log("Login.html goWithTicket → " + next);
           try { localStorage.setItem("sessTicket", t); } catch (_) {}
+          
+          // Mostra SEMPRE um fallback manual que aponta para o NEXT (não para o OAuth!)
+          setStatus(
+            'Autenticado. <a id="goNext" href="' + next + '" target="_self" rel="noopener">Continuar</a>',
+            true
+          );
 
-          // Estamos embebidos se o top for diferente desta janela (ou inacessível).
-          const EMBEDDED = (function(){ try { return window.top && window.top !== window; } catch(_){ return true; } })();
-
-          log("Login.html goWithTicket: EMBEDDED=" + EMBEDDED);
-
-          if (EMBEDDED){
-            log("Login.html goWithTicket: EMBEDDED!");
-
-            // 1) click num <a target=_top> dentro do gesto do utilizador
-            try{
-              const a = document.createElement('a');
-              a.href = next; a.target = '_top'; a.rel = 'noopener';
-              document.body.appendChild(a);
-              log("Login.html anchor _top click");
-              a.click();
-              setTimeout(()=>{ try{ a.remove(); }catch(_){ } }, 0);
-              return;
-            }catch(e){ log("anchor _top failed: " + (e && e.message)); }
-
-            // 2) fallback: <form target=_top>
-            try{
-              const f = document.createElement('form');
-              f.method = 'GET'; f.action = next; f.target = '_top';
-              document.body.appendChild(f);
-              log("Login.html form _top submit");
-              f.submit();
-              setTimeout(()=>{ try{ f.remove(); }catch(_){ } }, 0);
-              return;
-            }catch(e){ log("form _top failed: " + (e && e.message)); }
+          // Navegação automática (best-effort)
+          try {
+            log("Login.html location.replace " + next);
+            location.replace(next);
+          } catch (err) {
+            log("replace failed: " + ((err && err.message) || err));
           }
-          log("Login.html goWithTicket: !EMBEDDED!");
 
-          // Não embebido (ou últimos fallbacks)
-          try { log("Login.html location.replace " + next); location.replace(next); return; } catch(e){ log("replace failed: " + (e && e.message)); }
-          try { log("Login.html location.assign"); location.assign(next); return; } catch(e){ }
-          try { log("Login.html location.href"); location.href = next; return; } catch(e){ }
-
+          // Sem “auto-click” em setTimeout: não é user gesture e costuma falhar.
+            
         }
 
         // Receber ticket via postMessage

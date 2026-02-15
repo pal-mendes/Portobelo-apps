@@ -955,7 +955,7 @@ function doGet(e){
     */
     DEBUG: DBG,    
     serverLog: [],
-    wipe: true,
+    wipe: false,
   };    
 
   if (action === "login") {
