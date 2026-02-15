@@ -955,7 +955,7 @@ function doGet(e){
     */
     DEBUG: DBG,    
     serverLog: [],
-    WIPE: false,
+    wipe: false,
   };    
 
   if (action === "login") {
@@ -1023,7 +1023,7 @@ function doGet(e){
     } catch(err){
       L("invalid ticket → login(wipe) ERR="+(err && err.message));
       optsLogin.serverLog = ["wipe"];
-      optsLogin.WIPE = true;
+      optsLogin.wipe = true;
       return AuthCoreLib.renderLoginPage(optsLogin);
     }
   }
