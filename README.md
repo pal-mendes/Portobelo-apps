@@ -43,7 +43,7 @@ Para adicionar novos ficheiros ao git:
 git add -A
 
 Quando se quiser mandar para o Git Hub, para o ChatGPT poder consultar e sugerir melhorias:
-git commit -am "comentários" && git push
+git commit -am "comentários" && git show --name-status --oneline -1 && git push
 
 
 Acesso online para o ChatGPT não pode ser direto, que seria assim:
