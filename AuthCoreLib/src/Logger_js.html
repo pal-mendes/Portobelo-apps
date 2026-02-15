@@ -2,6 +2,30 @@
 // =========================
 // File: Logger_js.html - em AuthCoreLib (biblioteca)
 // =========================
+// Logger_js.html (logo no início do script, antes de exportares log/dbg)
+(function () {
+  try {
+    const here = location.origin + location.pathname;
+
+    // Se estamos no host "interno" (googleusercontent), este é o self certo.
+    // (A condição pode ser só hostname; o pathname depende do teu caso.)
+    const isUserCodeHost = /-script\.googleusercontent\.com$/i.test(location.hostname);
+
+    if (isUserCodeHost) {
+      try { localStorage.setItem("appCanonicalUrl", here); } catch (_) {}
+    }
+
+    let self = "";
+    try { self = localStorage.getItem("appCanonicalUrl") || ""; } catch (_) {}
+    if (!self) self = here;
+
+    window.CANON_SELF = self;
+  } catch (_) {
+    // fallback extremo
+    window.CANON_SELF = location.origin + location.pathname;
+  }
+})();
+
 /* PB Logger — 2.º <script> no <head> */
 (function () {
   var SV  = window.__SERVER_VARS || {};

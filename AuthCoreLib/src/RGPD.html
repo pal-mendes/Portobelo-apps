@@ -174,7 +174,15 @@
 
         // Helper local: constrói URL base CANON_URL → CANON → atual
         function buildBaseUrl() {
-          return new URL(CANON, location.href);
+          const base =
+            (typeof CANON_SELF !== "undefined" && CANON_SELF) ||
+            (window.CANON_SELF) ||
+            (window.__SERVER_VARS && window.__SERVER_VARS.canonSelf) ||
+            (typeof CANON_URL !== "undefined" && CANON_URL) ||
+            (typeof CANON !== "undefined" && CANON) ||
+            (location.origin + location.pathname);
+
+          return new URL(base, location.href);
         }
 
         // Helper de navegação igual ao do Login (mesma semântica)
@@ -205,7 +213,8 @@
                 </div>
               </div>`;
             document.getElementById('rgpd-back')?.addEventListener('click', () => {
-              const u = new URL(CANON);
+              const BASE = (window.CANON_SELF || CANON_URL);
+              const u = new URL(BASE);
               if (TICKET) u.searchParams.set("ticket", TICKET);
               if (WANT_DEBUG)    u.searchParams.set("debug", "1");
               u.searchParams.set("ts", Date.now());
@@ -257,7 +266,8 @@
             log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
 
             // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
-            const u = new URL(CANON);
+            const BASE = (window.CANON_SELF || CANON_URL);
+            const u = new URL(BASE);
             // força o servidor a ir direto ao Main (ignora gates)
             //u.searchParams.set('go','main');
             // Constrói URL para a página-ponte no TOPO, passando as linhas aceites
