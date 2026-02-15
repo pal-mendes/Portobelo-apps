@@ -130,71 +130,48 @@
           return "";
         }
         function goWithTicket(t) {
-          const base = (function preferHereExec(){
-            // Se estiver embebido em userCodeAppPanel, usa o próprio frame como base
-            try {
-              const here = new URL(location.href);
-              log("Login.html goWithTicket → here=" + here);
-              if (/userCodeAppPanel/.test(here.hostname)) {
-                log("Login.html goWithTicket → here.hostname=" + here.hostname);
-                return here.origin + here.pathname;
-              }
-            } catch(_) {}
-            log("Login.html goWithTicket → return CANON_URL=" + CANON_URL);
-            return CANON_URL;
-          })();
-          const next = base + "?ticket=" + encodeURIComponent(t) + (WANT_DEBUG ? "&debug=1" : "");
-          log("Login.html Go with ticket → " + next);
+
+          const next = CANON_URL + "?ticket=" + encodeURIComponent(t) + (WANT_DEBUG ? "&debug=1" : "");
+          log("Login.html goWithTicket → " + next);
           try { localStorage.setItem("sessTicket", t); } catch (_) {}
-          setStatus( 'A redirecionar…', true);
 
-          // Sinalizamos navegação efetiva
-          let navigated = false;
-          const mark = () => { navigated = true; };
-          window.addEventListener('pagehide', mark, { once:true });
-          document.addEventListener('visibilitychange', function onVis(){
-            if (document.visibilityState === 'hidden') {
-              navigated = true;
-              document.removeEventListener('visibilitychange', onVis);
-            }
-          });
+          // Estamos embebidos se o top for diferente desta janela (ou inacessível).
+          const EMBEDDED = (function(){ try { return window.top && window.top !== window; } catch(_){ return true; } })();
 
-          // 1) Tenta substituir no MESMO frame (não fazer return!)
-          try {
-            log("Login.html location.replace " + next);
-            location.replace(next);
-          } catch (err) {
-            log("replace threw: " + ((err && err.message) || err));
-          }
+          log("Login.html goWithTicket: EMBEDDED=" + EMBEDDED);
 
-          // 2) Watchdog: se não mudou em 1200 ms, tenta fallback seguro em EMBED
-          setTimeout(function () {
-            if (navigated) return;
+          if (EMBEDDED){
+            log("Login.html goWithTicket: EMBEDDED!");
 
-            // 2a) Anchor click no mesmo frame (alguns embebidos aceitam melhor)
-            try {
+            // 1) click num <a target=_top> dentro do gesto do utilizador
+            try{
               const a = document.createElement('a');
-              a.href = next;
-              a.target = '_self';
-              a.rel = 'noopener';
-              a.id = 'go-next-auto';
+              a.href = next; a.target = '_top'; a.rel = 'noopener';
               document.body.appendChild(a);
+              log("Login.html anchor _top click");
               a.click();
-              setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 0);
-              log("Login.html watchdog: anchor click fallback");
+              setTimeout(()=>{ try{ a.remove(); }catch(_){ } }, 0);
               return;
-            } catch (err) {
-              log("anchor click failed: " + ((err && err.message) || err));
-            }
+            }catch(e){ log("anchor _top failed: " + (e && e.message)); }
 
-            // 2b) Último recurso: location.href (ainda same-frame)
-            try {
-              log("Login.html watchdog: location.href " + next);
-              location.href = next;
-            } catch (err) {
-              log("href failed: " + ((err && err.message) || err));
-            }
-          }, 1200);
+            // 2) fallback: <form target=_top>
+            try{
+              const f = document.createElement('form');
+              f.method = 'GET'; f.action = next; f.target = '_top';
+              document.body.appendChild(f);
+              log("Login.html form _top submit");
+              f.submit();
+              setTimeout(()=>{ try{ f.remove(); }catch(_){ } }, 0);
+              return;
+            }catch(e){ log("form _top failed: " + (e && e.message)); }
+          }
+          log("Login.html goWithTicket: !EMBEDDED!");
+
+          // Não embebido (ou últimos fallbacks)
+          try { log("Login.html location.replace " + next); location.replace(next); return; } catch(e){ log("replace failed: " + (e && e.message)); }
+          try { log("Login.html location.assign"); location.assign(next); return; } catch(e){ }
+          try { log("Login.html location.href"); location.href = next; return; } catch(e){ }
+
         }
 
         // Receber ticket via postMessage

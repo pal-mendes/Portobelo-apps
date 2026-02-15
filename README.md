@@ -3,7 +3,7 @@
 Se o clasp clone já funcionou, isso já está ON e não tens de mexer mais.
 
 
-
+Utilizar o Windows Command Prompt
 
 É preciso fazer login (admin@titulares-portobelo.pt), que expira ao fim de algumas horas:
 clasp logout

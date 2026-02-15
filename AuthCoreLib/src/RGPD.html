@@ -258,22 +258,10 @@
             u.searchParams.set('from','rgpd-save');
             u.searchParams.set('ts', Date.now());
 
+            /*
             const where = u.toString();
             log("[RGPD] where = " + where);
             if (EXTERNAL_EMBED) {
-              /*
-              // O servidor faz tudo: grava e já devolve MAIN.
-              goWithParams({
-                action: 'postrgpd',
-                ticket: TICKET,
-                rows: accepted.length ? accepted.join(',') : '',
-                debug: WANT_DEBUG ? '1' : '',
-                // 'embed' só para logging/diagnóstico SERVER-SIDE. Não tenta tocar em TOP.
-                embed: EXTERNAL_EMBED ? '1' : '',
-                from: 'rgpd-save',
-                ts: Date.now()
-              });
-              */
               // Navega **este** frame (não usa top/parent)
               try { location.replace(where); }
               catch(_) { try { location.assign(where); } catch(_) { location.href = where; } }
@@ -296,6 +284,16 @@
               log("[RGPD] !EMBED return false");
               return false;
             }
+            */
+            // Navegação imediata no topo (gesto do utilizador ainda ativo)
+            const a = document.createElement('a');
+            a.href = u.toString();
+            a.target = '_top';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            log("[RGPD/multi] opening postrgpd at TOP → " + a.href);
+            a.click();
+            setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 0);
           };
         }
 

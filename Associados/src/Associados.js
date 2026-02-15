@@ -752,24 +752,6 @@ function doGet(e){
       + (DBG ? '&debug=1' : '')
       + '&from=postrgpd';
     
-    // Página-ponte com nonce (CSP-safe) + ALLOWALL (embed-safe)
-    const tpl = HtmlService.createTemplate(
-      '<!doctype html><html><head><meta charset="utf-8">'
-    + '<meta name="viewport" content="width=device-width, initial-scale=1"></head>'
-    + '<body>'
-    + '<div style="font:14px system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:16px">'
-    + 'RGPD guardado. A redirecionar… '
-    + '<noscript><a href="<?!= goUrl ?>">Prosseguir</a></noscript>'
-    + '</div>'
-    + '<script>(function(){'
-    + '  var url = <?!= JSON.stringify(goUrl) ?>;'
-    + '  try{ location.replace(url); }'
-    + '  catch(e){ try{ location.assign(url); } catch(e2){ location.href = url; } }'
-    + '})();</script>'
-    + '</body></html>'
-    );
-    tpl.goUrl = goUrl;
-
     /*
     //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros'); //Já é feito no início do doGet()
     const isEmbed = String(e.parameter.embed || '') === '1';
@@ -881,12 +863,16 @@ function doGet(e){
 
     */
 
-    // Em vez de devolver HTML com <script> que navega, devolve já o MAIN.
-    // Reutiliza exatamente o mesmo caminho que usas para ?go=main.
-    //    return renderMainPage_(ticket, DBG, isEmbed, from: 'rgpd-save');
+    var html =
+      '<meta charset="utf-8">' +
+      '<style>body{font-family:system-ui,sans-serif;padding:18px}</style>' +
+      '<p>RGPD atualizado. A avançar…</p>' +
+      '<p><a id="goNext" href="'+ next +'" target="_top" rel="noopener">Continuar</a></p>' +
+      '<script>' +
+      'try{ top.location.replace("'+ next.replace(/"/g,'&quot;') +'"); }catch(_){ try{ location.replace("'+ next.replace(/"/g,'&quot;') +'"); }catch(__){} }' +
+      '</script>';
 
-    //const out = renderMainPage_(ticket, DBG, L.dump());
-    const out = tpl.evaluate();
+    var out = HtmlService.createHtmlOutput(html);
     out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     return out;    
   }
