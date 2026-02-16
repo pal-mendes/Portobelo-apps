@@ -31,6 +31,9 @@ function requireSession(ticket) {
   return JSON.parse(p);
 }
 
+function libBuild(){ return "AuthCoreLib build 2026-02-16 12:34 - development mode"; }
+
+
 // ===== Config / Constantes comuns =====
 const OAUTH_SCOPES = "openid email profile";
 const STATE_MAX_AGE_MS = 15 * 60 * 1000; // 15 min

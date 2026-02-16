@@ -68,14 +68,18 @@
       window.SESSION_TICKET = SV.ticket;
       window.SERVER_LOG     = SV.serverLog;
 
+      //window.CANON_SELF = location.origin + location.pathname;
+      try { localStorage.setItem("appCanonicalUrl", window.CANON_SELF); } catch(_) {}
+
       // --- Stubs anti-erro: garantem que log/dbg existem MESMO antes do logger carregar
       window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
       window.dbg = window.dbg || function(){};
     })();
     </script>
 
-	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib-->
-    <script src="https://script.google.com/macros/s/AKfycbzmNPPHIp35lUmlbl-6P0AmXIXT8sQuoAcjXeDlxKEGfWI7-gg3ncppVe8gtZ8BOvuIrQ/exec"></script>
+	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
+    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
+
 
   </head>
 
@@ -142,8 +146,7 @@
           return "";
         }
         function goWithTicket(t) {
-
-          const base = (window.CANON_SELF || CANON_URL);
+          const base = window.CANON_SELF || (location.origin + location.pathname);
           const next =
             base + 
             "?ticket=" + encodeURIComponent(t) + 

@@ -79,8 +79,8 @@
     })();
     </script>
 
-	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib-->
-    <script src="https://script.google.com/macros/s/AKfycbzmNPPHIp35lUmlbl-6P0AmXIXT8sQuoAcjXeDlxKEGfWI7-gg3ncppVe8gtZ8BOvuIrQ/exec"></script>
+	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
+    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
     
   </head>
   <body>
@@ -172,14 +172,9 @@
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
-        // Helper local: constrói URL base CANON_URL → CANON → atual
-        function buildBaseUrl() {
-          return new URL((window.CANON_SELF || CANON_SELF || CANON_URL || CANON || location.href), location.href);
-        }
-
         // Helper de navegação igual ao do Login (mesma semântica)
         function goWithParams(params) {
-          const u = buildBaseUrl();
+          const u = new URL(location.href); // base = a página atual (userCodeAppPanel)
           Object.keys(params).forEach(k => {
             const v = params[k];
             if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
@@ -258,8 +253,7 @@
             log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
 
             // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
-            const BASE = (window.CANON_SELF || CANON_URL);
-            const u = new URL(BASE);
+            const u = new URL(location.href);
             // força o servidor a ir direto ao Main (ignora gates)
             //u.searchParams.set('go','main');
             // Constrói URL para a página-ponte no TOPO, passando as linhas aceites
@@ -271,6 +265,8 @@
             if (EXTERNAL_EMBED) u.searchParams.set("embed","1"); // só para diagnóstico no server
             u.searchParams.set('from','rgpd-save');
             u.searchParams.set('ts', Date.now());
+
+            goWithParams(u);
 
             /*
             const where = u.toString();

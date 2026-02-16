@@ -619,6 +619,7 @@ function doGet(e){
   console.log("doGet() starg => DBG=", DBG);
   const L = makeLogger_(DBG);
   L("doGet start");
+  Logger.log(AuthCoreLib.libBuild());
   const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
   const action = (e && e.parameter && e.parameter.action) || "";
   L("action=", action || "(none)");
@@ -745,11 +746,12 @@ function doGet(e){
     const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
     // Monta o URL de destino (MAIN) no MESMO frame
-    const goUrl = canon
-      + '?go=main'
-      + (ticket ? '&ticket=' + encodeURIComponent(ticket) : '')
-      + (DBG ? '&debug=1' : '')
-      + '&from=postrgpd';
+    const next =
+      '?go=main' +
+      (ticket ? '&ticket=' + encodeURIComponent(ticket) : '') +
+      (DBG ? '&debug=1' : '') +
+      + '&from=postrgpd' +
+      '&ts=' + Date.now();
     
     /*
     //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros'); //Já é feito no início do doGet()

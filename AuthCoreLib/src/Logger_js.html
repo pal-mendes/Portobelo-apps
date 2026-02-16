@@ -3,12 +3,12 @@
 // File: Logger_js.html - em AuthCoreLib (biblioteca)
 // =========================
 // Logger_js.html (logo no início do script, antes de exportares log/dbg)
-(function () { //CANON_SELF simples e sempre seguro
+(function () {
   try {
-    window.CANON_SELF = location.origin + location.pathname;
-  } catch (_) {
-    window.CANON_SELF = "";
-  }
+    window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
+    window.dbg = window.dbg || function(){};
+    window.CANON_SELF = window.CANON_SELF || (location.origin + location.pathname);
+  } catch (_) {}
 })();
 
 /* PB Logger — 2.º <script> no <head> */
@@ -34,10 +34,8 @@
   }
 
   // API (redeclara por cima dos stubs)
-  window.log  = function(){ out('log',   arguments); };
   window.warn = function(){ out('warn',  arguments); };
   window.err  = function(){ out('error', arguments); };
-  window.dbg  = DEBUG_ENABLED ? window.log : function(){};
 
   // Conveniências
   window.enableDebug  = function(on){ try{ on?localStorage.setItem(LSK,'1'):localStorage.removeItem(LSK); location.reload(); }catch(_){} };

@@ -246,8 +246,9 @@
     })();
     </script>
 
-	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib-->
-    <script src="https://script.google.com/macros/s/AKfycbzmNPPHIp35lUmlbl-6P0AmXIXT8sQuoAcjXeDlxKEGfWI7-gg3ncppVe8gtZ8BOvuIrQ/exec"></script>
+	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
+    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
+
 
     <script>
       // Flag global reutilizável (standalone=false, embed externo=true)
@@ -911,9 +912,6 @@
         const a = ev.target.closest("a.rgpd-open");
         if (!a) return;
 
-        // NÃO faças preventDefault: vamos abrir no topo via gesto do utilizador
-        // ev.preventDefault();
-
         const ticket = (function () {
           try {
             return localStorage.getItem("sessTicket") || "";
@@ -921,6 +919,7 @@
             return "";
           }
         })();
+        /*
         const canon = (function () {
           try {
             return localStorage.getItem("appCanonicalUrl") || CANON_URL;
@@ -928,19 +927,20 @@
             return CANON_URL;
           }
         })();
-
-        const u = new URL(canon);
-        if (ticket) u.searchParams.set("ticket", ticket);
+        */
+        const u = new URL(location.href);
         u.searchParams.set("action", "rgpd");
+        if (ticket) u.searchParams.set("ticket", ticket);
+        
         if (
           /[?&]debug=1\b/i.test(location.search) ||
           typeof log === "function"
         )
-          u.searchParams.set("debug", "1");
-
+        u.searchParams.set("debug", "1");
+        /*
         const isExternal = !!window.EXTERNAL_EMBED;
         if (isExternal) u.searchParams.set("embed", "1"); // só p/ diagnóstico no servidor
-
+        */
         u.searchParams.set("ts", Date.now());
         log?.("[RGPD] abrir via card → " + u.toString());
 
@@ -949,7 +949,7 @@
         catch(_) { try { location.assign(u.toString()); }
         catch(__) { location.href = u.toString(); } }
         */
-
+        /*
         const href = u.toString();
         // abre no topo (sai da frame userCodeAppPanel)
         // Em embed: navega NA MESMA FRAME; fora: abre no topo
@@ -969,6 +969,8 @@
         }
         // impede que o href antigo "#" seja seguido
         ev.preventDefault();
+        */
+        location.assign(u.toString()); // <-- SELF
       });
     </script>
   </body>
