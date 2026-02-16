@@ -37,7 +37,7 @@
     /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
     (function () {
       // Defensivo: usar typeof para evitar ReferenceError no template
-      var SV = {
+      var SV = { //usar como __SERVER_VARS. no código
         canonUrl:   "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
         ticket:     "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
         autostart:  "<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>",   // '1' | ''
@@ -50,26 +50,30 @@
       // Flags calculadas no cliente
       SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
 
-      // ✅ URL "self" (o que o browser está a usar agora — em embed tende a ser googleusercontent/userCodeAppPanel)
       const CANON_SELF = (() => {
+        const sv = window.__SERVER_VARS || {};
+        const fromSv = (sv.canonUrl || "").trim();
+        if (fromSv) return fromSv;
+
         try {
-          return location.origin + location.pathname;
-        } catch (_) {
-          return "";
-        }
+          const ls = (localStorage.getItem("appCanonicalUrl") || "").trim();
+          if (ls) return ls;
+        } catch(_) {}
+
+        try { return location.origin + location.pathname; } catch(_) { return ""; }
       })();
 
       SV.canonSelf = CANON_SELF;
+      window.CANON_SELF = CANON_SELF;
 
-      // Persistir canónico para navegações subsequentes
-      try { localStorage.setItem("appCanonicalUrl", SV.canonUrl || (location.origin + location.pathname)); } catch(_) {}
+      // Persistir o que faz sentido (o /exec), não o userCodeAppPanel
+      try { localStorage.setItem("appCanonicalUrl", CANON_SELF); } catch(_) {}
 
       // Expor de forma limpa
       window.__SERVER_VARS = Object.freeze(SV);
 
       // Ponte mínima (se quiser eliminar depois, pode)
       window.CANON_URL      = SV.canonUrl;
-      window.CANON_SELF     = SV.canonSelf || SV.canonUrl;  // fallback seguro
       window.SESSION_TICKET = SV.ticket;
       window.SERVER_LOG     = SV.serverLog;
 
@@ -243,7 +247,7 @@
           const actions = document.getElementById('rgpd-multi-actions');
           actions.style.display = '';
 
-          document.getElementById('rgpd-save').onclick = function(ev){
+          document.getElementById('rgpd-save').addEventListener("click",  function(ev){
             ev.preventDefault();
             log("[RGPD/multi] save click");
 
@@ -253,7 +257,7 @@
             log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
 
             // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
-            const u = new URL(location.href);
+            const u = new URL(window.CANON_SELF || CANON, location.href);
             // força o servidor a ir direto ao Main (ignora gates)
             //u.searchParams.set('go','main');
             // Constrói URL para a página-ponte no TOPO, passando as linhas aceites
@@ -266,44 +270,9 @@
             u.searchParams.set('from','rgpd-save');
             u.searchParams.set('ts', Date.now());
 
-            goWithParams(u);
-
-            /*
             const where = u.toString();
-            log("[RGPD] where = " + where);
-            if (EXTERNAL_EMBED) {
-              // Navega **este** frame (não usa top/parent)
-              try { location.replace(where); }
-              catch(_) { try { location.assign(where); } catch(_) { location.href = where; } }
-            } else {
-              try {
-                // Abre no TOPO dentro do gesto do utilizador (não é bloqueado)
-                const a = document.createElement('a');
-                a.href = where;
-                a.target = '_top';
-                a.rel = 'noopener';
-                document.body.appendChild(a);
-                log("[RGPD/multi] opening postrgpd at TOP → " + a.href);
-                a.click();
-                setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 0);
-                return true;
-              } catch(e) {
-                log("ERR TOP nav: " + e.message + " → fallback location.replace");
-                location.replace(where);
-              }
-              log("[RGPD] !EMBED return false");
-              return false;
-            }
-            */
-            // Navegação imediata no topo (gesto do utilizador ainda ativo)
-            const a = document.createElement('a');
-            a.href = u.toString();
-            a.target = '_top';
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            log("[RGPD/multi] opening postrgpd at TOP → " + a.href);
-            a.click();
-            setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 0);
+            log("[RGPD] replace → " + where);
+            location.replace(where);
           };
         }
 

@@ -13,50 +13,40 @@
 
 /* PB Logger — 2.º <script> no <head> */
 (function () {
-  var SV  = window.__SERVER_VARS || {};
-  var QK  = 'debug';
-  var LSK = 'pbDebug';
+  try {
+    var SV = window.__SERVER_VARS || {};
+    var tag = (SV.pageTag || SV.PAGE_TAG || "").trim();
 
-  function hasDebugInQuery(){
+    // debug: server var OU ?debug=1 OU localStorage pbDebug=1
+    var DEBUG_ENABLED = SV.debugServer === true;
     try {
-      var qs = new URLSearchParams(location.search);
-      return qs.has(QK) && (qs.get(QK) === null || qs.get(QK) === '' || qs.get(QK) === '1');
-    } catch(_) { return false; }
-  }
-  function hasDebugInLS(){ try { return localStorage.getItem(LSK) === '1'; } catch(_) { return false; } }
+      if (!DEBUG_ENABLED && /[?&]debug=1\b/i.test(location.search)) DEBUG_ENABLED = true;
+      if (!DEBUG_ENABLED && localStorage.getItem("pbDebug") === "1") DEBUG_ENABLED = true;
+    } catch (_) {}
 
-  var DEBUG_ENABLED = !!(SV.debugServer || hasDebugInQuery() || hasDebugInLS());
-  window.DEBUG = DEBUG_ENABLED;
+    function out(kind) {
+      try {
+        var c = (console && console[kind]) ? console[kind] : console.log;
+        var args = Array.prototype.slice.call(arguments, 1);
 
-  function out(kind, args){
-    var tag = SV.pageTag ? ('['+SV.pageTag+']') : '[PB]';
-    try { console[kind].apply(console, [tag].concat([].slice.call(args))); } catch(_) {}
-  }
+        // prefixo com tag, se existir
+        if (tag) args.unshift("[" + tag + "]");
+        c.apply(console, args);
+      } catch (_) {}
+    }
 
-  // API (redeclara por cima dos stubs)
-  window.warn = function(){ out('warn',  arguments); };
-  window.err  = function(){ out('error', arguments); };
+    // Define SEM "||" (para não ficar preso ao stub)
+    window.log  = function () { out.apply(null, ["log"  ].concat([].slice.call(arguments))); };
+    window.warn = function () { out.apply(null, ["warn" ].concat([].slice.call(arguments))); };
+    window.err  = function () { out.apply(null, ["error"].concat([].slice.call(arguments))); };
+    window.dbg  = DEBUG_ENABLED
+      ? function () { out.apply(null, ["debug"].concat([].slice.call(arguments))); }
+      : function () {};
 
-  // Conveniências
-  window.enableDebug  = function(on){ try{ on?localStorage.setItem(LSK,'1'):localStorage.removeItem(LSK); location.reload(); }catch(_){} };
-  window.disableDebug = function(){ window.enableDebug(false); };
+    window.DEBUG = DEBUG_ENABLED;
 
-  // Erros globais (sempre)
-  window.addEventListener('error', e => {
-    var st = (e && e.error && e.error.stack) || '';
-    window.err('JS error:', e && e.message, st);
-  });
-  window.addEventListener('unhandledrejection', e => {
-    var r=e && e.reason; window.err('Promise rejection:', r && r.message || r, r && r.stack || '');
-  });
-
-  // Boot trace
-  document.addEventListener('DOMContentLoaded', function(){
-    var sl = SV.serverLog || '';
-    if (sl) sl.split('\n').forEach(l => l && window.log(l));
-    window.dbg('DOM ready:', location.href);
-    if (document.referrer) window.dbg('Referrer:', document.referrer);
-    try { window.dbg('embedded?', window.top !== window); } catch(_) {}
-    try { if (SV.canonUrl) window.dbg('canon origin=', new URL(SV.canonUrl).origin); } catch(_) {}
-  });
+    // Mostra serverLog, se existir
+    if (SV.serverLog) window.log(String(SV.serverLog));
+  } catch (_) {}
 })();
+
