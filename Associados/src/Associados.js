@@ -725,7 +725,7 @@ function doGet(e){
   }
 
   // --- pós-RGPD: página “ponte” com conteúdo/trace e fallback em navegação robusta + logs
-  if (action === 'postrgpd') {
+  if (action === "postrgpd") {
     console.log("postrgpd início! DBG=", DBG);
     //As linhas comentaadas abaixo já estão feitas no início do doGet()
     //const DBG    = isDebug_(e);
@@ -751,27 +751,33 @@ function doGet(e){
     }
     const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
-    // Monta o URL de destino (MAIN) no MESMO frame
+    const canon = ScriptApp.getService().getUrl();
     const next =
-      '?go=main' +
-      (ticket ? '&ticket=' + encodeURIComponent(ticket) : '') +
-      (DBG ? '&debug=1' : '') +
-      '&from=postrgpd' +
-      '&ts=' + Date.now();
+      canon +
+      "?ticket=" +
+      encodeURIComponent(ticket) +
+      (DBG ? "&debug=1" : "") +
+      "&ts=" +
+      Date.now();
 
+    const nextHtml = String(next)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
 
-    var html =
+    const out = HtmlService.createHtmlOutput(
       '<meta charset="utf-8">' +
-      '<style>body{font-family:system-ui,sans-serif;padding:18px}</style>' +
-      '<p>RGPD atualizado. A avançar…</p>' +
-      '<p><a id="goNext" href="'+ next +'" target="_top" rel="noopener">Continuar</a></p>' +
-      '<script>' +
-      'try{ top.location.replace("'+ next.replace(/"/g,'&quot;') +'"); }catch(_){ try{ location.replace("'+ next.replace(/"/g,'&quot;') +'"); }catch(__){} }' +
-      '</script>';
+        '<style>body{font-family:system-ui,sans-serif;padding:18px}</style>' +
+        "<h3>RGPD atualizado.</h3>" +
+        '<p>A avançar… Se não avançar, <a href="' +
+        nextHtml +
+        '" target="_self" rel="noopener">clique aqui</a></p>' +
+        "<script>(function(){var next=" +
+        JSON.stringify(next) +
+        ";try{location.replace(next);}catch(_){try{location.href=next;}catch(__){}}})();</script>",
+    );
 
-    var out = HtmlService.createHtmlOutput(html);
-    out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    return out;    
+    return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);  
   }
 
 

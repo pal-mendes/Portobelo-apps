@@ -884,31 +884,25 @@
       });
 
       // Abrir RGPD a partir do link em cada cartão
-      document.addEventListener("click", function (ev) {
-        const a = ev.target.closest("a.rgpd-open");
-        if (!a) return;
+      document.querySelectorAll("a.rgpd-open").forEach((a) => {
+        a.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
 
-        const ticket = (function () {
-          try {
-            return localStorage.getItem("sessTicket") || "";
-          } catch (_) {
-            return "";
-          }
-        })();
+          const base =
+            (window.__SERVER_VARS && window.__SERVER_VARS.canonUrl) ||
+            window.CANON_URL ||
+            (location.origin + location.pathname);
 
-        const u = new URL(location.origin + location.pathname);
-        u.searchParams.set("action", "rgpd");
-        u.searchParams.set("ticket", ticket || "");
-        
-        if (
-          /[?&]debug=1\b/i.test(location.search) ||
-          typeof log === "function"
-        )
-        u.searchParams.set("debug", "1");
-        u.searchParams.set("ts", Date.now());
-        log?.("[RGPD] abrir via card → " + u.toString());
+          const u = new URL(base, location.href);
+          u.searchParams.set("action", "rgpd");
+          if (TICKET) u.searchParams.set("ticket", TICKET);
+          if (WANT_DEBUG) u.searchParams.set("debug", "1");
+          u.searchParams.set("ts", Date.now());
 
-        location.assign(u.toString()); // <-- SELF
+          log("[RGPD] abrir via card → " + u.toString());
+          location.assign(u.toString());
+        });
       });
     </script>
   </body>
