@@ -33,6 +33,9 @@
       }
     </style>
 
+	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
+    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
+
     <script>
     /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
     (function () {
@@ -50,18 +53,14 @@
       // Flags calculadas no cliente
       SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
 
-      const CANON_SELF = (() => {
-        const fromSv = (SV.canonUrl || "").trim();
-        if (fromSv) return fromSv;
-        try { const stored = localStorage.getItem("appCanonicalUrl"); if (stored) return stored; } catch(_){}
-        return location.origin + location.pathname;
-      })();
+      const CANON_SELF = location.origin + location.pathname;
 
       SV.canonSelf = CANON_SELF;
       window.CANON_SELF = CANON_SELF;
 
-      // Persistir o que faz sentido (o /exec), não o userCodeAppPanel
-      try { localStorage.setItem("appCanonicalUrl", CANON_SELF); } catch(_) {}
+      // Persistir: self (embed) e canon (/exec) se existir
+      try { localStorage.setItem("appSelfUrl", CANON_SELF); } catch(_) {}
+      try { if ((SV.canonUrl || "").trim()) localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim()); } catch(_) {}
 
       // Expor de forma limpa
       window.__SERVER_VARS = Object.freeze(SV);
@@ -74,11 +73,8 @@
       // --- Stubs anti-erro: garantem que log/dbg existem MESMO antes do logger carregar
       window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
       window.dbg = window.dbg || function(){};
-    })();
-    </script>
-
-	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
-    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
+  })();
+  </script>
     
   </head>
   <body>

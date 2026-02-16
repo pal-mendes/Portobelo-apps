@@ -30,7 +30,17 @@
   muda a Script Property SESSION_HMAC_SECRET_B64 (ou apaga-a para o código gerar outra).
   Todos os tickets existentes deixam de validar e toda a gente tem de relogar.
 
+  Para obrigar a login, colar isto na consola do browser:
 
+    try { localStorage.removeItem("sessTicket"); } catch (e) {}
+    try { localStorage.removeItem("appSelfUrl"); } catch (e) {}
+    // opcional: manter appCanonicalUrl
+
+    // apaga cookie (se existir neste host)
+    document.cookie = "sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure";
+
+    // remove ticket/action do URL e recarrega “limpo”
+    location.replace(location.origin + location.pathname + "?action=reset&ts=" + Date.now());
 
   Emails autorizados para testes => criar a propriedade de script:
   ALLOWLIST_CSV=leonardo.qmendes@gmail.com;jmazevedoadv@gmail.com;pal.mendes23@gmail.com;lopesdossantosrui@gmail.com;mauricio.penacova@gmail.com; lisete.quentalmendes@gmail.com; mmadnascimento@gmail.com;matpct123@gmail.com;pachecogarcia@gmail.com;rnfragoso@gmail.com
@@ -751,9 +761,7 @@ function doGet(e){
     }
     const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
-    const canon = ScriptApp.getService().getUrl();
     const next =
-      canon +
       "?ticket=" +
       encodeURIComponent(ticket) +
       (DBG ? "&debug=1" : "") +
