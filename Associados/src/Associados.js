@@ -750,7 +750,7 @@ function doGet(e){
       '?go=main' +
       (ticket ? '&ticket=' + encodeURIComponent(ticket) : '') +
       (DBG ? '&debug=1' : '') +
-      + '&from=postrgpd' +
+      '&from=postrgpd' +
       '&ts=' + Date.now();
     
     /*

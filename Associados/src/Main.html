@@ -218,16 +218,10 @@
       SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
 
       const CANON_SELF = (() => {
-        const sv = window.__SERVER_VARS || {};
-        const fromSv = (sv.canonUrl || "").trim();
+        const fromSv = (SV.canonUrl || "").trim();
         if (fromSv) return fromSv;
-
-        try {
-          const ls = (localStorage.getItem("appCanonicalUrl") || "").trim();
-          if (ls) return ls;
-        } catch(_) {}
-
-        try { return location.origin + location.pathname; } catch(_) { return ""; }
+        try { const stored = localStorage.getItem("appCanonicalUrl"); if (stored) return stored; } catch(_){}
+        return location.origin + location.pathname;
       })();
 
       SV.canonSelf = CANON_SELF;
@@ -924,7 +918,7 @@
           }
         })();
 
-        const base = (window.CANON_SELF || CANON).trim();
+        const base = (CANON_URL || CANON || window.CANON_SELF || "").trim();
         const u = new URL(base, location.href);
         u.searchParams.set("action", "rgpd");
         if (ticket) u.searchParams.set("ticket", ticket);
