@@ -7,7 +7,6 @@
   try {
     window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
     window.dbg = window.dbg || function(){};
-    window.CANON_SELF = window.CANON_SELF || (location.origin + location.pathname);
   } catch (_) {}
 })();
 

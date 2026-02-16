@@ -147,30 +147,45 @@
           return "";
         }
         function goWithTicket(t) {
-          const base = (window.CANON_SELF || CANON_URL || "").trim() || (location.origin + location.pathname);
+          const base =
+            (window.__SERVER_VARS && window.__SERVER_VARS.canonUrl) ||
+            window.CANON_URL ||
+            "";
           const next =
-            base + 
-            "?ticket=" + encodeURIComponent(t) + 
+            base +
+            "?ticket=" +
+            encodeURIComponent(t) +
             (WANT_DEBUG ? "&debug=1" : "") +
-            "&ts=" + Date.now(); // evita cache estranha
+            "&ts=" +
+            Date.now(); // evita cache estranha
+
           log("Login.html goWithTicket → " + next);
           try { localStorage.setItem("sessTicket", t); } catch (_) {}
           
           // Mostra SEMPRE um fallback manual que aponta para o NEXT (não para o OAuth!)
           setStatus(
-            'Autenticado. <a id="goNext" href="' + next + '" target="_self" rel="noopener">Continuar</a>',
+            'A redirecionar... Se não avançar <a href="' + next + '" target="_self" rel="noopener">clique aqui</a>',
             true
           );
 
-          // Navegação automática (best-effort)
           try {
             log("Login.html location.replace " + next);
             location.replace(next);
+            return;
           } catch (err) {
-            log("replace failed: " + ((err && err.message) || err));
+            log("same-frame replace failed: " + ((err && err.message) || err));
           }
 
-          // Sem “auto-click” em setTimeout: não é user gesture e costuma falhar.
+          // fallback: gesto do utilizador (link)
+          try {
+            const a = document.createElement("a");
+            a.href = next;
+            a.target = "_self";
+            a.rel = "noopener";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          } catch (_) {}
             
         }
 
@@ -245,7 +260,6 @@
 
         function beginAuthFlow(manualClick) {
           log("Login.html beginAuthFlow");
-          //const EMBEDDED = window.top !== window;
           const nonce =
             crypto && crypto.randomUUID
               ? crypto.randomUUID()

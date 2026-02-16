@@ -178,14 +178,14 @@
 
         // Helper de navegação igual ao do Login (mesma semântica)
         function goWithParams(params) {
-          const u = new URL(location.href); // base = a página atual (userCodeAppPanel)
+          //const u = new URL(location.href); // base = a página atual
+          const u = (window.__SERVER_VARS && window.__SERVER_VARS.canonUrl) || window.CANON_URL;
           Object.keys(params).forEach(k => {
             const v = params[k];
             if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
           });
           const where = u.toString();
           log("[RGPD] replace → " + where);
-          // EM EMBED: navegar o próprio iframe (SELF). Nada de _top aqui.
           location.replace(where);
         }
 
