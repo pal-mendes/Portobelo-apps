@@ -84,7 +84,8 @@ const COL_ANUNCIOS_TEL_IDX = 3;
 // Lê as Script Properties do host e constrói a cfg
 function authCfg_() {
   const sp = PropertiesService.getScriptProperties();
-  const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  const canon = ScriptApp.getService().getUrl();
   return {
     clientId:     sp.getProperty("CLIENT_ID"),
     clientSecret: sp.getProperty("CLIENT_SECRET"),
@@ -127,7 +128,8 @@ function dbgLog() {
 }
 
 function gatesCfg_(){
-  const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
+  //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
+  const canon = ScriptApp.getService().getUrl();
   return {
     ssTitularesId: SS_TITULARES_ID,
     ranges: { titulares: RANGES.titulares },
@@ -138,7 +140,8 @@ function gatesCfg_(){
 }
 
 function renderRgpdPage_(ticket, DBG) {
-  const canonHost = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
+  //const canonHost = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
+  const canonHost = ScriptApp.getService().getUrl();
   return AuthCoreLib.renderRgpdPage(DBG, ticket, canonHost); // << passa o CANON do host
 }
 
@@ -155,7 +158,8 @@ function isRgpdAllAccepted(ticket){
 
 function renderMainPage_(ticket, DBG, serverLogLines){
   const t = HtmlService.createTemplateFromFile("Main");
-  t.CANON_URL  = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  //t.CANON_URL  = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  t.CANON_URL  = ScriptApp.getService().getUrl();
   t.DEBUG      = DBG ? "1" : ""; // '1' se quiseres forçar debug visual
   t.TICKET     = ticket || "";
   t.SERVER_LOG = (serverLogLines || []).join("\n");
@@ -440,7 +444,8 @@ function isAllowedEmail_(email){
 
 function renderNotAllowed_(email, DBG){
   const sp    = PropertiesService.getScriptProperties();
-  const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  const canon = ScriptApp.getService().getUrl();
   const dbgBlock = DBG ? (function(){
     const raw = sp.getProperty("ALLOWLIST_CSV") || "(vazio)";
     const parsed = parseAllowlist_().join(", ");
@@ -620,7 +625,8 @@ function doGet(e){
   const L = makeLogger_(DBG);
   L("doGet start");
   Logger.log(AuthCoreLib.libBuild());
-  const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
+  const canon = ScriptApp.getService().getUrl();
   const action = (e && e.parameter && e.parameter.action) || "";
   L("action=", action || "(none)");
   //L("code=", (e && e.parameter && e.parameter.code) || "(none)");
@@ -752,117 +758,7 @@ function doGet(e){
       (DBG ? '&debug=1' : '') +
       '&from=postrgpd' +
       '&ts=' + Date.now();
-    
-    /*
-    //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros'); //Já é feito no início do doGet()
-    const isEmbed = String(e.parameter.embed || '') === '1';
-    console.log("postrgpd Aqui! isEmbed=", isEmbed);
-    const next   = canon
-      + (ticket ? ('?ticket=' + encodeURIComponent(ticket)) : '')
-      + (DBG ? (ticket ? '&' : '?') + 'debug=1' : '')
-      + (isEmbed ? '&embed=1' : '')
-      + '&go=main'
-      + '&from=postrgpd' 
-      + '&ts=' + Date.now();
 
-    L("route: postrgpd → next=" + next + " | rowsQS=" + rowsQS);
-
-    const html = `
-      <!doctype html><html><head><meta charset="utf-8">
-      <title>RGPD a voltar…</title>
-      <meta http-equiv="refresh" content="7;url=${next}">
-      <style>
-        body{font-family:system-ui,sans-serif;padding:12px}
-            font:12px/1.35 monospace;border-top:2px solid #444;padding:8px;overflow:auto}
-        a.btn{display:inline-block;margin-top:10px;padding:8px 12px;border:1px solid #999;border-radius:8px;background:#fff;text-decoration:none}
-      </style>
-      <script>
-        console.log("postrgpd script");
-        (window.SERVER_LOG = ${SVLOG}).forEach(l => { try{ console.debug("[SV]", l); }catch(_){} });
-        window.RGPD_SAVE = ${JSON.stringify({ ok: !saveErr, touched: saveRes && saveRes.touched | 0, err: saveErr && (saveErr.message || String(saveErr)) })};
-        console.debug("[SV] rgpd-save:", window.RGPD_SAVE);
-
-        (function(){
-          console.log('postrgpd html');
-
-          var NEXT   = ${JSON.stringify(next)};
-
-          function isAppsScript(o){
-            return /^(https:\\/\\/[-\\w.]*script\\.googleusercontent\\.com|https:\\/\\/script\\.google\\.com)$/i.test(o);
-          }
-
-          var EXTERNAL_EMBED   = ${JSON.stringify(isEmbed)};
-
-          function go(where){
-            try{ location.replace(where); return; }catch(_){}
-            try{ location.assign(where);  return; }catch(_){}
-            location.href = where;
-          }
-
-          <!-- go(NEXT); //funciona bem para não embed --> 
-
-          <!--
-          var ACCEPTED = [];
-          if (ROWS_CSV) {
-            ACCEPTED = ROWS_CSV.split(',').map(function(s){ return parseInt(s, 10); })
-                        .filter(function(n){ return !isNaN(n); });
-          }
-          -->
-
-          function goTop(){
-            try{ window.top.location =N; console.log('top.location=N ok'); return true; }
-            catch(e){ console.log('top.location=N blocked: '+(e && e.message || e)); return false; }
-          }
-          function goSelf(){
-            try{ location.assign(N); console.log('self.assign ok'); return true; }
-            catch(e){ console.log('self.assign blocked: '+(e && e.message || e)); return false; }
-          }      
-          <!-- // Ordem de navegação: em embed → self primeiro; fora de embed → top primeiro -->
-          if (EXTERNAL_EMBED ? (goSelf() || goTop()) : (go(NEXT))) return;
-
-
-          // watchdog
-          //var watchdog = setTimeout(function(){ log('watchdog → go(NEXT)'); go(NEXT); }, 9000);
-          setTimeout(function(){ if (location.href.indexOf("action=postrgpd") > -1) { EXTERNAL_EMBED ? (goSelf() || goTop()) : (go(NEXT))); } }, 9000);
-
-
-          <!--
-          if (ACCEPTED.length) {
-            log('setRgpdRowsFor ' + JSON.stringify(ACCEPTED));
-            google.script.run
-              .withSuccessHandler(function(res){
-                log('setRgpdRowsFor OK ' + JSON.stringify(res));
-                clearTimeout(watchdog);
-                go(NEXT);
-              })
-              .withFailureHandler(function(err){
-                log('setRgpdRowsFor FAIL ' + (err && err.message || err));
-                clearTimeout(watchdog);
-                go(NEXT);
-              })
-              .setRgpdRowsFor(TICKET, ACCEPTED);
-          } else {
-            log('no ACCEPTED rows → go(NEXT)');
-            clearTimeout(watchdog);
-            go(NEXT);
-            }
-          }
-          -->
-        })();
-      </script>
-
-      </script>      
-      </head><body>
-      <h3>Atualizando autorização…</h3>
-      <div>Aguarde um momento…</div>
-      <p><a id="fallback" class="btn" href="${next}" rel="noopener">Se não avançar, clique aqui</a></p>
-      </body>
-    </html>`;
-    console.log('postrgpd antes do return h tml');
-    return HtmlService.createHtmlOutput(html)
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-
-    */
 
     var html =
       '<meta charset="utf-8">' +

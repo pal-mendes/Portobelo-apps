@@ -396,29 +396,7 @@
           u.searchParams.set("ts", Date.now()); // cache-buster
           //if (/\bdebug=1\b/i.test(location.search)) u.searchParams.set("debug", "1");
 
-          /*
-          a.href = u.toString();
-          a.rel = "noopener";
-          a.removeAttribute("target");   // vamos navegar na mesma frame
 
-          log?.("RGPD EXTERNAL_EMBED=" + EXTERNAL_EMBED);
-
-          a.addEventListener("click", function (ev) {
-            try { ev.preventDefault(); } catch (_) {}
-            const href = a.href;
-            log?.(`RGPD via go=rgpd → ${href} | embed=${EXTERNAL_EMBED}`);
-
-            // Em Sites (embed externo) E também em standalone:
-            // usa o MESMO método do login: replace/assign na própria frame
-            try { log?.("location.replace()"); location.replace(href); } catch(_) {
-              try { log?.("location.assign()"); location.assign(href); } catch(__) {
-                try { log?.("location.href()"); location.href = href; } catch(err) { 
-                  log?.("location.href() => err" + (err && err.message)); 
-                }
-              }
-            }			
-          }, { capture:true });
-          */
         })();
 
         const $ = (sel) => document.querySelector(sel);
@@ -918,10 +896,9 @@
           }
         })();
 
-        const base = (CANON_URL || CANON || window.CANON_SELF || "").trim();
-        const u = new URL(base, location.href);
+        const u = new URL(location.origin + location.pathname);
         u.searchParams.set("action", "rgpd");
-        if (ticket) u.searchParams.set("ticket", ticket);
+        u.searchParams.set("ticket", ticket || "");
         
         if (
           /[?&]debug=1\b/i.test(location.search) ||

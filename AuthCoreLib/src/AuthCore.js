@@ -607,7 +607,8 @@ function isAllowedEmail_AuthCore_(email){
 
 function renderNotAllowed_AuthCore_(email, DBG){
   const sp = PropertiesService.getScriptProperties();
-  const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
+  //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
+  const canon = ScriptApp.getService().getUrl();
   const dbgBlock = DBG ? (function(){
     const raw = sp.getProperty('ALLOWLIST_CSV') || '(vazio)';
     const parsed = raw.split(/[,\s;]+/).map(s=>s.trim()).filter(Boolean).join(', ');
