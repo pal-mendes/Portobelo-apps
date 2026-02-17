@@ -200,9 +200,6 @@
       }
     </style>
 
-	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
-    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
-
     <script>
     /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
     (function () {
@@ -243,36 +240,38 @@
   })();
   </script>
 
+  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
+  <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
 
-    <script>
-      // Flag global reutilizável (standalone=false, embed externo=true)
-      (function () {
-        function isAppsScript(o) {
-          return /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
-            o,
-          );
+  <script>
+    // Flag global reutilizável (standalone=false, embed externo=true)
+    (function () {
+      function isAppsScript(o) {
+        return /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
+          o,
+        );
+      }
+      function computeExternalEmbed() {
+        var inFrame = true;
+        try {
+          inFrame = window.top !== window.self;
+        } catch (_) {
+          inFrame = true;
         }
-        function computeExternalEmbed() {
-          var inFrame = true;
-          try {
-            inFrame = window.top !== window.self;
-          } catch (_) {
-            inFrame = true;
-          }
-          var ao =
-            (location.ancestorOrigins &&
-              Array.from(location.ancestorOrigins)) ||
-            [];
-          return (
-            inFrame &&
-            ao.some(function (o) {
-              return !isAppsScript(o);
-            })
-          );
-        }
-        window.EXTERNAL_EMBED = computeExternalEmbed(); // ← fica disponível globalmente
-      })();
-    </script>
+        var ao =
+          (location.ancestorOrigins &&
+            Array.from(location.ancestorOrigins)) ||
+          [];
+        return (
+          inFrame &&
+          ao.some(function (o) {
+            return !isAppsScript(o);
+          })
+        );
+      }
+      window.EXTERNAL_EMBED = computeExternalEmbed(); // ← fica disponível globalmente
+    })();
+  </script>
   </head>
 
   <body>
@@ -390,7 +389,7 @@
 
           if (window.DEBUG) u.searchParams.set("debug", "1");
           if (EXTERNAL_EMBED) u.searchParams.set("embed", "1"); // só para logging/diagnóstico no server
-          u.searchParams.set("ts", Date.now()); // cache-buster
+          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
           //if (/\bdebug=1\b/i.test(location.search)) u.searchParams.set("debug", "1");
 
 
@@ -905,7 +904,7 @@
           const qs = new URLSearchParams(location.search);
           if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
         
-          u.searchParams.set("ts", String(Date.now()));
+          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
           log("[MAIN] [RGPD] navegar (self) → " + u.toString());
           location.assign(u.toString()); // ou replace; assign é OK aqui
         });

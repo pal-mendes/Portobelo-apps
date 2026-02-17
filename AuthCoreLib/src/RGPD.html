@@ -33,9 +33,6 @@
       }
     </style>
 
-	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
-    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
-
     <script>
     /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
     (function () {
@@ -58,7 +55,7 @@
       SV.canonSelf = CANON_SELF;
       window.CANON_SELF = CANON_SELF;
 
-      // Persistir: self (embed) e canon (/exec) se existir
+      // Persistir
       try { localStorage.setItem("appSelfUrl", CANON_SELF); } catch(_) {}
       try { if ((SV.canonUrl || "").trim()) localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim()); } catch(_) {}
 
@@ -75,6 +72,9 @@
       window.dbg = window.dbg || function(){};
   })();
   </script>
+
+  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
+  <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
     
   </head>
   <body>
@@ -111,37 +111,9 @@
     <script>
       (function () {
 
-        /*
-        const EMBED = (function(){
-          // estamos dentro de um <iframe> (top !== self) e viemos do teu site/Sites
-          if (window.top === window.self) return false;
-          const ref = document.referrer || '';
-          return /titulares-portobelo\.pt|sites\.google\.com/i.test(ref);
-        })();
-        */
-
         log(`RGPD page`);
 
-        function detectEnv(){
-          const IN_IFRAME = (function(){ try { return window.top !== window.self; } catch(_) { return true; } })();
-          const AO = (location.ancestorOrigins && Array.from(location.ancestorOrigins)) || [];
-
-          // Qualquer origem Apps Script wrapper
-          const isAppsScript = (o) => /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(o);
-
-          // Estamos “externamente embebidos” se houver PELO MENOS um ancestor que NÃO seja Apps Script
-          const HAS_NON_APPS_ANCESTOR = AO.some(o => !isAppsScript(o));
-
-          const EXTERNAL_EMBED = IN_IFRAME && HAS_NON_APPS_ANCESTOR;
-          //return { IN_IFRAME, EXTERNAL_EMBED, AO };
-          return { EXTERNAL_EMBED };
-        }
-
         const WANT_DEBUG  = window.DEBUG;
-
-        // ✅ EMBED robusto
-        const { EXTERNAL_EMBED } = detectEnv();
-        const EMBED = /\bembed=1\b/i.test(location.search) || EXTERNAL_EMBED;  // só é true em iframe EXTERNO
 
         let CANON  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
         if (!CANON) {
@@ -160,27 +132,43 @@
         }
 
 
-        log(`RGPD page ready; CANON=${CANON}; have TICKET=${!!TICKET}; EMBED=${EMBED}; EXTERNAL_EMBED=${EXTERNAL_EMBED}`);
+        log(`RGPD page ready; CANON=${CANON}; have TICKET=${!!TICKET}`);
 
         function spanChip(txt){
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
-        function goWithParams(params) {
-          const base =
-            (typeof window.CANON_SELF === "string" && window.CANON_SELF)
-              ? window.CANON_SELF
-              : (location.origin + location.pathname);
+        // Base URL: preferir SELF (fica no iframe), fallback para CANON_URL (/exec)
+        function buildBaseUrl() {
+          const SV = window.__SERVER_VARS || {};
+          const canonUrl  = (typeof SV.canonUrl  === "string" && SV.canonUrl)  || window.CANON_URL || window.CANON || "";
+          const canonSelf = (typeof SV.canonSelf === "string" && SV.canonSelf) || window.CANON_SELF || "";
+
+          // SELF primeiro (Google Sites), senão CANON (/exec), senão a própria página
+          const base = canonSelf || canonUrl || (location.origin + location.pathname);
           const u = new URL(base, location.href);
+
+          // Importantíssimo: começar "limpo" (não herdar params velhos do userCodeAppPanel)
+          u.search = "";
+          u.hash = "";
+          return u;
+        }
+
+        function goWithParams(params) {
+          const u = buildBaseUrl();
           Object.entries(params || {}).forEach(([k, v]) => {
             if (v === null || v === undefined || v === "") u.searchParams.delete(k);
             else u.searchParams.set(k, String(v));
           });
-          //if (DBG) u.searchParams.set("debug", "1");
-          u.searchParams.set("ts", String(Date.now()));
+          
+          // anti-cache e para debugging no server
+          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
           const where = u.toString();
           log("[RGPD] replace → " + where);
-          location.replace(where);
+          // tentar replace, depois assign/href como fallback
+          try { location.replace(where); return; } catch (err) { log("[RGPD] replace failed: " + (err?.message || err)); }
+          try { location.assign(where);  return; } catch (err) { log("[RGPD] assign failed: "  + (err?.message || err)); }
+          try { location.href = where; } catch (_) {}
         }
 
         function renderMulti(rows){
@@ -202,7 +190,7 @@
               const u = new URL(BASE);
               if (TICKET) u.searchParams.set("ticket", TICKET);
               if (WANT_DEBUG)    u.searchParams.set("debug", "1");
-              u.searchParams.set("ts", Date.now());
+              if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
               location.replace(u.toString());
             });
             return;
@@ -263,7 +251,13 @@
                 status.textContent = "RGPD atualizado.\nA avançar… Se não avançar, clique aqui.";
                 //document.getElementById("continue").href = buildBaseUrl().toString();
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
-                goWithParams({ ticket: TICKET, from: "rgpd-save" });
+                goWithParams({
+                  action: "postrgpd",
+                  ticket: TICKET,
+                  rows: accepted.length ? accepted.join(",") : "", // opcional
+                  from: "rgpd-save",
+                  debug: WANT_DEBUG ? "1" : ""
+                });
               })
               .withFailureHandler(function(err){
                 alert("RGPD Erro a atualizar: " + (err && err.message ? err.message : String(err)));

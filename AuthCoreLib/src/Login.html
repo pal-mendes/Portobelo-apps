@@ -28,9 +28,6 @@
       }
     </style>
 
-	  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
-    <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
-
     <script>
     /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
     (function () {
@@ -70,6 +67,9 @@
       window.dbg = window.dbg || function(){};
   })();
   </script>
+
+  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
+  <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
 
   </head>
 
@@ -163,7 +163,7 @@
           const qs = new URLSearchParams(location.search);
           if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
 
-          u.searchParams.set("ts", String(Date.now()));
+          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));;
           log("[LOGIN] goWithTicket → " + u.toString());
           // em Sites: navegar SEMPRE o próprio iframe
           location.replace(u.toString());
