@@ -382,7 +382,8 @@
           //if (t) u.searchParams.set("ticket", t);
 
           // 👉 replica o caminho do login: ?ticket=… + go=rgpd
-          const BASE = (window.CANON_SELF || CANON_URL);
+          //const BASE = (CANON_URL || window.CANON_SELF);
+          const BASE = CANON_URL;
           const u = new URL(BASE);
           if (t) u.searchParams.set("ticket", t);
           u.searchParams.set("go", "rgpd"); // <— forçar render RGPD no ramo do ticket

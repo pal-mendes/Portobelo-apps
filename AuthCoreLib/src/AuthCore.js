@@ -94,11 +94,11 @@ function setScriptProp_(k, v) {
 
 // ===== URL canónico do deployment =====
 function canonicalAppUrl_() {
-  //var url = ScriptApp.getService().getUrl();
-  //return url.replace(/\/a\/[^/]+\/macros/, "/macros"); // força .../macros/s/ID/exec
+  var url = ScriptApp.getService().getUrl();
   // Mantém o URL canónico real do deployment.
   // Em contas Workspace, isto inclui /a/<domínio>/ e deve ser preservado. !!!
-  return ScriptApp.getService().getUrl();
+  //return url.replace(/\/a\/[^/]+\/macros/, "/macros"); // força .../macros/s/ID/exec
+  return url;
 }
 
 // Helper para incluir ficheiros HTML (templates parciais)

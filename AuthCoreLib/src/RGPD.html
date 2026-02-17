@@ -166,15 +166,9 @@
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
-        function buildSelfUrl_() {
-          const u = new URL(location.href);
-          ["ticket","action","go","rows","from","ts","wipe"].forEach(k => u.searchParams.delete(k));
-          if (!DBG) u.searchParams.delete("debug");
-          return u;
-        }
-
         function goWithParams(params) {
-          const u = buildSelfUrl_();
+          //const u = new URL((CANON || window.CANON_URL || (location.origin + location.pathname)), location.href);
+          const u = new URL(CANON, location.href);
           Object.entries(params || {}).forEach(([k, v]) => {
             if (v === null || v === undefined || v === "") u.searchParams.delete(k);
             else u.searchParams.set(k, String(v));

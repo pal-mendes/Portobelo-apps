@@ -30,11 +30,14 @@
   muda a Script Property SESSION_HMAC_SECRET_B64 (ou apaga-a para o código gerar outra).
   Todos os tickets existentes deixam de validar e toda a gente tem de relogar.
 
-  Para obrigar a login, colar isto na consola do browser:
+  Para obrigar a fazer login:
+    1 - No navegador, Abre DevTools (F12) → tab Console
+    2 - No topo da consola, muda o frame (dropdown) para o iframe do script.googleusercontent.com / script.google.com
+    3 - Executa: location.href = (window.__SERVER_VARS?.CANON_URL || window.__SERVER_VARS?.canonUrl || window.CANON_URL) + "?action=reset";
 
-    try { localStorage.removeItem("sessTicket"); } catch(e) {}
-    document.cookie = "sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure";
-    location.reload();
+  Para mandar para o ChatGPT, filtrar a consola F12 do browser:
+    goWithTicket|userCodeAppPanel|/exec\?|action=rgpd|action=postrgpd|\[LOGIN\]|\[MAIN\]|\[RGPD\]
+
 
   Emails autorizados para testes => criar a propriedade de script:
   ALLOWLIST_CSV=leonardo.qmendes@gmail.com;jmazevedoadv@gmail.com;pal.mendes23@gmail.com;lopesdossantosrui@gmail.com;mauricio.penacova@gmail.com; lisete.quentalmendes@gmail.com; mmadnascimento@gmail.com;matpct123@gmail.com;pachecogarcia@gmail.com;rnfragoso@gmail.com
@@ -756,11 +759,10 @@ function doGet(e){
     const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
     const next =
-      "?ticket=" +
-      encodeURIComponent(ticket) +
+      canon +
+      "?ticket=" + encodeURIComponent(ticket) +
       (DBG ? "&debug=1" : "") +
-      "&ts=" +
-      Date.now();
+      "&ts=" + Date.now();
 
     const nextHtml = String(next)
       .replace(/&/g, "&amp;")

@@ -135,15 +135,10 @@
           } catch (_) {}
           return "";
         }
-        function buildSelfUrl_() {
-          const u = new URL(location.href);
-          // Remove params que nós controlamos; mantém os params que o Google Sites injeta no iframe.
-          ["ticket","action","go","rows","from","ts","wipe"].forEach(k => u.searchParams.delete(k));
-          if (!WANT_DEBUG) u.searchParams.delete("debug");
-          return u;
-        }
+
         function goWithTicket(t) {
-          const u = buildSelfUrl_();
+          //const u = new URL((CANON || CANON_URL || buildSelfUrl_()), location.href);
+          const u = new URL(CANON_URL, location.href);
           u.searchParams.set("ticket", String(t));
           if (WANT_DEBUG) u.searchParams.set("debug", "1");
           u.searchParams.set("ts", String(Date.now()));

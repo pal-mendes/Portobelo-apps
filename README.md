@@ -68,6 +68,6 @@ Permalink por commit (não muda com futuros commits) com âncoras de linhas, ex.
 Raw (se quiseres que eu veja só o texto):
 https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/<branch ou SHA>/AuthCoreLib/src/RGPD.html
 
-Para ficheiros html, é preciso enviar ?raw=1 no fim do URL, para que o ChatGPT não faça o seu rendering.
+Para ficheiros html, é preciso enviar ?raw=1 no fim do URL, e dizer ao ChatGPT que leia o source RAW para que o ChatGPT não faça o seu rendering.
 
 https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src?raw=1
