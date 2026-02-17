@@ -176,10 +176,9 @@
             if (v === null || v === undefined || v === "") u.searchParams.delete(k);
             else u.searchParams.set(k, String(v));
           });
-          if (DBG) u.searchParams.set("debug", "1");
+          //if (DBG) u.searchParams.set("debug", "1");
           u.searchParams.set("ts", String(Date.now()));
           const where = u.toString();
-          dbg("[RGPD] replace → " + where);
           log("[RGPD] replace → " + where);
           location.replace(where);
         }
@@ -252,9 +251,7 @@
               .filter(el => el.checked)
               .map(el => Number(el.dataset.row))
               .filter(n => Number.isFinite(n));
-            dbg("[RGPD/multi] save click");
             log("[RGPD/multi] save click");
-            dbg("[RGPD/multi] accepted rows = " + JSON.stringify(accepted));
             log("[RGPD/multi] accepted rows = " + JSON.stringify(accepted));
             //if (!accepted.length) return;
 
@@ -264,7 +261,7 @@
             google.script.run
               .withSuccessHandler(function () {
                 status.textContent = "RGPD atualizado.\nA avançar… Se não avançar, clique aqui.";
-                document.getElementById("continue").href = buildBaseUrl().toString();
+                //document.getElementById("continue").href = buildBaseUrl().toString();
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
                 goWithParams({ ticket: TICKET, from: "rgpd-save" });
               })
