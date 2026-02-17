@@ -166,16 +166,23 @@
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
-        // Helper de navegação igual ao do Login (mesma semântica)
+        function buildSelfUrl_() {
+          const u = new URL(location.href);
+          ["ticket","action","go","rows","from","ts","wipe"].forEach(k => u.searchParams.delete(k));
+          if (!DBG) u.searchParams.delete("debug");
+          return u;
+        }
+
         function goWithParams(params) {
-          //const u = new URL(location.href); // base = a página atual
-          const u = (window.__SERVER_VARS && window.__SERVER_VARS.canonUrl) || window.CANON_URL;
-          Object.keys(params).forEach(k => {
-            const v = params[k];
-            if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
+          const u = buildSelfUrl_();
+          Object.entries(params || {}).forEach(([k, v]) => {
+            if (v === null || v === undefined || v === "") u.searchParams.delete(k);
+            else u.searchParams.set(k, String(v));
           });
+          if (DBG) u.searchParams.set("debug", "1");
+          u.searchParams.set("ts", String(Date.now()));
           const where = u.toString();
-          log("[RGPD] replace → " + where);
+          dbg("[RGPD] replace → " + where);
           location.replace(where);
         }
 
@@ -237,33 +244,21 @@
           const actions = document.getElementById('rgpd-multi-actions');
           actions.style.display = '';
 
-          document.getElementById('rgpd-save').addEventListener("click",  function(ev){
-            ev.preventDefault();
-            log("[RGPD/multi] save click");
+          const btn = document.getElementById("rgpd-save");
+          if (btn) { btn.disabled = true; btn.textContent = "A gravar…"; }
 
-            const accepted = Array.from(document.querySelectorAll('#rgpd-multi input[type="checkbox"][data-row]'))
-              .filter(b => b.checked).map(b => +b.getAttribute('data-row'));
+          google.script.run
+            .withSuccessHandler(() => {
+              if (btn) btn.textContent = "Guardado ✔";
+              // Voltar ao fluxo normal (Main), mantendo o iframe “encaixado”
+              goWithParams({ ticket: TICKET, from: "rgpd-save" });
+            })
+            .withFailureHandler((err) => {
+              if (btn) { btn.disabled = false; btn.textContent = "Guardar"; }
+              alert("Erro ao gravar RGPD: " + (err && (err.message || err)));
+            })
+            .setRgpdRowsFor(TICKET, accepted);
 
-            log("[RGPD/multi] accepted rows = [" + accepted.join(",") + "]");
-
-            // Monta já o destino pós-RGPD (para usar no sucesso e no watchdog)
-            const u = new URL(window.CANON_SELF || CANON, location.href);
-            // força o servidor a ir direto ao Main (ignora gates)
-            //u.searchParams.set('go','main');
-            // Constrói URL para a página-ponte no TOPO, passando as linhas aceites
-            u.searchParams.set('action','postrgpd');
-
-            if (TICKET) u.searchParams.set('ticket', TICKET);
-            if (accepted.length) u.searchParams.set('rows', accepted.join(','));
-            if (WANT_DEBUG)    u.searchParams.set("debug","1");
-            if (EXTERNAL_EMBED) u.searchParams.set("embed","1"); // só para diagnóstico no server
-            u.searchParams.set('from','rgpd-save');
-            u.searchParams.set('ts', Date.now());
-
-            const where = u.toString();
-            log("[RGPD] replace → " + where);
-            location.replace(where);
-          });
         }
 
         log("about to call listRgpdRowsFor (host)"); //!

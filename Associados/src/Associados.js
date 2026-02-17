@@ -32,15 +32,9 @@
 
   Para obrigar a login, colar isto na consola do browser:
 
-    try { localStorage.removeItem("sessTicket"); } catch (e) {}
-    try { localStorage.removeItem("appSelfUrl"); } catch (e) {}
-    // opcional: manter appCanonicalUrl
-
-    // apaga cookie (se existir neste host)
+    try { localStorage.removeItem("sessTicket"); } catch(e) {}
     document.cookie = "sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure";
-
-    // remove ticket/action do URL e recarrega “limpo”
-    location.replace(location.origin + location.pathname + "?action=reset&ts=" + Date.now());
+    location.reload();
 
   Emails autorizados para testes => criar a propriedade de script:
   ALLOWLIST_CSV=leonardo.qmendes@gmail.com;jmazevedoadv@gmail.com;pal.mendes23@gmail.com;lopesdossantosrui@gmail.com;mauricio.penacova@gmail.com; lisete.quentalmendes@gmail.com; mmadnascimento@gmail.com;matpct123@gmail.com;pachecogarcia@gmail.com;rnfragoso@gmail.com
