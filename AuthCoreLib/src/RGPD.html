@@ -243,28 +243,15 @@
           actions.style.display = '';
 
           const btn = document.getElementById("rgpd-save");
-          /*
-          // calcula as linhas aceites a partir dos checkboxes criados
-          function getAcceptedRows() {
-            return Array.from(mount.querySelectorAll('input[type="checkbox"][data-row]'))
+
+          btn.disabled = false;
+          btn.textContent = "Guardar";
+          btn.addEventListener("click", function () {
+
+            const accepted = Array.from(box.querySelectorAll('input[type="checkbox"][data-row]'))
               .filter(el => el.checked)
               .map(el => Number(el.dataset.row))
               .filter(n => Number.isFinite(n));
-          }
-
-          function refreshSaveState() {
-            const acc = getAcceptedRows();
-            btn.disabled = (acc.length === 0);
-            btn.textContent = acc.length ? "Guardar" : "Selecione e guarde";
-          }
-
-          // estado inicial + reatividade
-          refreshSaveState();
-          mount.addEventListener("change", refreshSaveState);
-          */
-          btn.disabled = false;
-          btn.addEventListener("click", function () {
-            const accepted = getAcceptedRows();
             dbg("[RGPD/multi] save click");
             log("[RGPD/multi] save click");
             dbg("[RGPD/multi] accepted rows = " + JSON.stringify(accepted));
@@ -281,7 +268,9 @@
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
                 goWithParams({ ticket: TICKET, from: "rgpd-save" });
               })
-              .withFailureHandler(handleErr)
+              .withFailureHandler(function(err){
+                alert("RGPD Erro a atualizar: " + (err && err.message ? err.message : String(err)));
+              })
               .setRgpdRowsFor(TICKET, accepted);
           });
 

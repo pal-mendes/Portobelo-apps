@@ -122,6 +122,25 @@
           if (asHTML) ST.innerHTML = s;
           else ST.textContent = s;
         }
+
+        function canonExec() {
+          const sv = window.__SERVER_VARS || {};
+          // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
+          return (
+            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || "").trim() ||
+            (location.origin + location.pathname)
+          );
+        }
+
+        function persistTicket(t) {
+          try { localStorage.setItem("sessTicket", t); } catch (e) {}
+          try {
+            document.cookie =
+              "sessTicket=" + encodeURIComponent(t) +
+              "; Path=/; Max-Age=2592000; SameSite=Lax; Secure";
+          } catch (e) {}
+        }
+
         function bestLocalTicket() {
           try {
             const t = localStorage.getItem("sessTicket") || "";
@@ -136,19 +155,18 @@
           return "";
         }
 
-        function goWithTicket(t) {
-          const base =
-            (typeof window.CANON_SELF === "string" && window.CANON_SELF)
-              ? window.CANON_SELF
-              : (location.origin + location.pathname);
-          const u = new URL(base, location.href);
-          u.searchParams.set("ticket", String(t));
-          if (WANT_DEBUG) u.searchParams.set("debug", "1");
+        function goWithTicket(ticket) {
+          persistTicket(ticket); // IMPORTANTÍSSIMO: antes de mexer no location
+          const u = new URL(canonExec());
+          u.searchParams.set("ticket", ticket);
+
+          const qs = new URLSearchParams(location.search);
+          if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
+
           u.searchParams.set("ts", String(Date.now()));
-          const next = u.toString();
-          dbg("Login.html goWithTicket → " + next);
-          try { location.replace(next); dbg("Login.html location.replace " + next); }
-          catch (err) { log("Login.html location.replace failed: " + err); location.href = next; }            
+          log("[LOGIN] goWithTicket → " + u.toString());
+          // em Sites: navegar SEMPRE o próprio iframe
+          location.replace(u.toString());
         }
 
         // Receber ticket via postMessage

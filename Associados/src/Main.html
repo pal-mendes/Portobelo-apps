@@ -303,7 +303,7 @@
     </div>
 
     <script>
-      (function () {
+      (function () {        
         // 1) persistir ticket e limpar o query ?ticket=
         (function () {
           try {
@@ -880,27 +880,34 @@
           .apiGetWeekIpsBase64(ticket, week);
       });
 
+      function canonExec() {
+        const sv = window.__SERVER_VARS || {};
+        // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
+        return (
+          (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || "").trim() ||
+          (location.origin + location.pathname)
+        );
+      }
+
       // Abrir RGPD a partir do link em cada cartão
       document.querySelectorAll("a.rgpd-open").forEach((a) => {
         a.addEventListener("click", (ev) => {
           ev.preventDefault();
 
-          const base =
-            (typeof window.CANON_SELF === "string" && window.CANON_SELF)
-              ? window.CANON_SELF
-              : (location.origin + location.pathname);
-
           const ticket = (typeof getSessTicket === "function") ? getSessTicket() : "";
           const wantDebug = !!window.DEBUG;
 
-          const u = new URL(base, location.href);
+          const u = new URL(canonExec());
           u.searchParams.set("go", "rgpd");
-          if (ticket) u.searchParams.set("ticket", ticket);
-          if (wantDebug) u.searchParams.set("debug", "1"); else u.searchParams.delete("debug");
+          u.searchParams.set("ticket", ticket);
+          
+          //if (wantDebug) u.searchParams.set("debug", "1"); else u.searchParams.delete("debug");
+          const qs = new URLSearchParams(location.search);
+          if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
+        
           u.searchParams.set("ts", String(Date.now()));
-
-          if (typeof log === "function") log("[MAIN] [RGPD] open → " + u.toString());
-          location.href = u.toString();
+          log("[MAIN] [RGPD] navegar (self) → " + u.toString());
+          location.assign(u.toString()); // ou replace; assign é OK aqui
         });
       });
     </script>
