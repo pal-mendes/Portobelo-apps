@@ -167,8 +167,11 @@
         }
 
         function goWithParams(params) {
-          //const u = new URL((CANON || window.CANON_URL || (location.origin + location.pathname)), location.href);
-          const u = new URL(CANON, location.href);
+          const base =
+            (typeof window.CANON_SELF === "string" && window.CANON_SELF)
+              ? window.CANON_SELF
+              : (location.origin + location.pathname);
+          const u = new URL(base, location.href);
           Object.entries(params || {}).forEach(([k, v]) => {
             if (v === null || v === undefined || v === "") u.searchParams.delete(k);
             else u.searchParams.set(k, String(v));
@@ -177,6 +180,7 @@
           u.searchParams.set("ts", String(Date.now()));
           const where = u.toString();
           dbg("[RGPD] replace → " + where);
+          log("[RGPD] replace → " + where);
           location.replace(where);
         }
 
@@ -239,23 +243,52 @@
           actions.style.display = '';
 
           const btn = document.getElementById("rgpd-save");
-          if (btn) { btn.disabled = true; btn.textContent = "A gravar…"; }
+          /*
+          // calcula as linhas aceites a partir dos checkboxes criados
+          function getAcceptedRows() {
+            return Array.from(mount.querySelectorAll('input[type="checkbox"][data-row]'))
+              .filter(el => el.checked)
+              .map(el => Number(el.dataset.row))
+              .filter(n => Number.isFinite(n));
+          }
 
-          google.script.run
-            .withSuccessHandler(() => {
-              if (btn) btn.textContent = "Guardado ✔";
-              // Voltar ao fluxo normal (Main), mantendo o iframe “encaixado”
-              goWithParams({ ticket: TICKET, from: "rgpd-save" });
-            })
-            .withFailureHandler((err) => {
-              if (btn) { btn.disabled = false; btn.textContent = "Guardar"; }
-              alert("Erro ao gravar RGPD: " + (err && (err.message || err)));
-            })
-            .setRgpdRowsFor(TICKET, accepted);
+          function refreshSaveState() {
+            const acc = getAcceptedRows();
+            btn.disabled = (acc.length === 0);
+            btn.textContent = acc.length ? "Guardar" : "Selecione e guarde";
+          }
+
+          // estado inicial + reatividade
+          refreshSaveState();
+          mount.addEventListener("change", refreshSaveState);
+          */
+          btn.disabled = false;
+          btn.addEventListener("click", function () {
+            const accepted = getAcceptedRows();
+            dbg("[RGPD/multi] save click");
+            log("[RGPD/multi] save click");
+            dbg("[RGPD/multi] accepted rows = " + JSON.stringify(accepted));
+            log("[RGPD/multi] accepted rows = " + JSON.stringify(accepted));
+            //if (!accepted.length) return;
+
+            btn.disabled = true;
+            btn.textContent = "A gravar…";
+
+            google.script.run
+              .withSuccessHandler(function () {
+                status.textContent = "RGPD atualizado.\nA avançar… Se não avançar, clique aqui.";
+                document.getElementById("continue").href = buildBaseUrl().toString();
+                try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
+                goWithParams({ ticket: TICKET, from: "rgpd-save" });
+              })
+              .withFailureHandler(handleErr)
+              .setRgpdRowsFor(TICKET, accepted);
+          });
+
 
         }
 
-        log("about to call listRgpdRowsFor (host)"); //!
+        log("RGPD about to call listRgpdRowsFor (host)"); //!
         // Chama o host para obter linhas; se vier vazio, a página da biblioteca fica no modo single padrão
         google.script.run
           .withSuccessHandler(renderMulti)

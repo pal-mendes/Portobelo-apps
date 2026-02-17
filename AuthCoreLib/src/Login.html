@@ -89,16 +89,16 @@
         if (!WIPE) return;
         try {
           localStorage.removeItem("sessTicket");
-          log("wipe: localStorage ok");
+          log("Login.html wipe: localStorage ok");
         } catch (e) {
-          log("wipe ls ERR " + e);
+          log("Login.html wipe ls ERR " + e);
         }
         try {
           document.cookie =
             "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
-          log("wipe: cookie ok");
+          log("Login.html wipe: cookie ok");
         } catch (e) {
-          log("wipe cookie ERR " + e);
+          log("Login.html wipe cookie ERR " + e);
         }
       })();
     </script>
@@ -137,15 +137,18 @@
         }
 
         function goWithTicket(t) {
-          //const u = new URL((CANON || CANON_URL || buildSelfUrl_()), location.href);
-          const u = new URL(CANON_URL, location.href);
+          const base =
+            (typeof window.CANON_SELF === "string" && window.CANON_SELF)
+              ? window.CANON_SELF
+              : (location.origin + location.pathname);
+          const u = new URL(base, location.href);
           u.searchParams.set("ticket", String(t));
           if (WANT_DEBUG) u.searchParams.set("debug", "1");
           u.searchParams.set("ts", String(Date.now()));
           const next = u.toString();
           dbg("Login.html goWithTicket → " + next);
           try { location.replace(next); dbg("Login.html location.replace " + next); }
-          catch (err) { log("location.replace failed: " + err); location.href = next; }            
+          catch (err) { log("Login.html location.replace failed: " + err); location.href = next; }            
         }
 
         // Receber ticket via postMessage
@@ -153,7 +156,7 @@
         window.addEventListener("message", function (ev) {
           const d = (ev && ev.data) || {};
           if (d && d.type === "portobelo_ticket" && d.ticket) {
-            log("ticket via postMessage");
+            log("Login.html ticket via postMessage");
             try {
               if (popupRef && !popupRef.closed) popupRef.close();
             } catch (_) {}
@@ -163,13 +166,14 @@
 
         // Polling de fallback (3 min)
         function startServerPolling(nonce, authUrl) {
-          log("startServerPolling(" + nonce + ")");
+          log("Login.html startServerPolling(" + nonce + ")");
           const t0 = Date.now();
           const MAX = 180000;
           let delay = 1800;
           let done = false;
 
           // UI atrasada (hint) só se nada acontecer
+          log("Login.html#176 hintTimer=setTimeout()");
           const hintTimer = setTimeout(function () {
             if (!done)
               setStatus(
@@ -188,7 +192,7 @@
                 if (ticket) {
                   done = true;
                   clearTimeout(hintTimer);
-                  log("server → ticket (" + String(ticket).slice(0, 12) + "…)");
+                  log("Login.html server → ticket (" + String(ticket).slice(0, 12) + "…)");
                   try {
                     if (popupRef && !popupRef.closed) popupRef.close();
                   } catch (_) {}
@@ -201,6 +205,7 @@
                   return;
                 }
                 delay = Math.min(delay * 1.35, 6500);
+                log("Login.html#208 pollTicket success setTimeout()");
                 setTimeout(tick, delay + Math.random() * 250);
               })
               .withFailureHandler(function () {
@@ -211,6 +216,7 @@
                   return;
                 }
                 delay = Math.min(delay * 1.35, 6500);
+                log("Login.html#219 pollTicket failure setTimeout()");
                 setTimeout(tick, delay);
               })
               .pollTicket(nonce);
@@ -240,7 +246,7 @@
 
               if (!popupRef) {
                 // Se popup bloqueada:
-                log("popup blocked");
+                log("Login.html popup blocked");
                 if (manualClick) {
                   // se foi clique do utilizador, mostra já alternativas
                   setStatus(
@@ -252,6 +258,7 @@
                   if (BTN) BTN.style.display = "";
                 } else {
                   // se foi auto: só mostramos UI após pequenos atrasos
+                  log("Login.html#261 buildAuthUrlFor popup OK setTimeout()");
                   setTimeout(function () {
                     if (BTN) BTN.style.display = "";
                   }, UI_DELAY_BTN);
@@ -271,7 +278,7 @@
               }
 
               // Popup OK
-              log("popup opened OK");
+              log("Login.html popup opened OK");
               setStatus(
                 "A autenticação abriu numa nova janela. Conclua o login nessa janela.",
               );
@@ -279,7 +286,7 @@
             })
             .withFailureHandler(function (err) {
               log(
-                "buildAuthUrlFor fail: " +
+                "Login.html buildAuthUrlFor fail: " +
                   (err && err.message ? err.message : err),
               );
               setStatus(
@@ -312,6 +319,7 @@
               // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
               beginAuthFlow(false);
               // proteção: ao fim de X segundos, garante que pelo menos o botão aparece
+              log("Login.html#318 setTimeout()");
               setTimeout(function () {
                 if (BTN) BTN.style.display = "";
               }, GIVE_UP);
@@ -321,14 +329,14 @@
             return;
           }
 
-          log("bootstrap Found local/cookie ticket — validating…");
+          log("Login.html bootstrap Found local/cookie ticket — validating…");
           google.script.run
             .withSuccessHandler(function (valid) {
               if (valid) {
                 goWithTicket(t);
                 return;
               }
-              log("Ticket inválido → wipe");
+              log("Login.html ticket inválido → wipe");
               try {
                 localStorage.removeItem("sessTicket");
               } catch (_) {}
@@ -342,7 +350,7 @@
               if (BTN) BTN.style.display = "";
             })
             .withFailureHandler(function (err) {
-              log("validate fail: " + (err && err.message ? err.message : err));
+              log("Login.html validate fail: " + (err && err.message ? err.message : err));
               setStatus(
                 'Não foi possível validar a sessão. Clique em "Entrar com conta Google".',
               );

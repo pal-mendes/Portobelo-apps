@@ -13,7 +13,7 @@
   action=logout: faz o mesmo wipe, mas já vem com um redirect para ?action=login. É um “sair” clássico.
   exec?action=login&debug=1&noredirect=1
   exec?action=logout&debug=1
-  exec?action=resett&debug=1
+  exec?action=reset&debug=1
   exec?action=who   => endpoint de diagnóstico.
 
 
@@ -36,7 +36,7 @@
     3 - Executa: location.href = (window.__SERVER_VARS?.CANON_URL || window.__SERVER_VARS?.canonUrl || window.CANON_URL) + "?action=reset";
 
   Para mandar para o ChatGPT, filtrar a consola F12 do browser:
-    goWithTicket|userCodeAppPanel|/exec\?|action=rgpd|action=postrgpd|\[LOGIN\]|\[MAIN\]|\[RGPD\]
+    Navigated|Login|cookie|ticket|userCodeAppPanel|/exec\?|action=|LOGIN|MAIN|RGPD|Rgpd
 
 
   Emails autorizados para testes => criar a propriedade de script:
@@ -111,7 +111,7 @@ function isDebug_(e){
   // true se o parâmetro existir (quer seja ?debug, ?debug=1, ?debug=true, etc.)
   const DBG = !!(e && e.parameter && Object.prototype.hasOwnProperty.call(e.parameter, 'debug'));
   console.log("isDebug_() => DBG=", DBG);
-
+  dbgLog("Associados: isDebug_() => DBG=", DBG);
   return DBG;
 }
 
@@ -443,6 +443,7 @@ function parseAllowlist_(){
 // E-mails da lista de validação
 function isAllowedEmail_(email){
   console.log("isAllowedEmail_ =>", email);
+  dbgLog("isAllowedEmail_ =>", email);
   const list = parseAllowlist_();
   console.log("isAllowedEmail_ => list.length", list.length);
   if (!list.length) return true;// ← limitação OFF quando property vazia
@@ -631,7 +632,9 @@ function doGet(e){
   console.log("doGet() starg => DBG=", DBG);
   const L = makeLogger_(DBG);
   L("doGet start");
-  Logger.log(AuthCoreLib.libBuild());
+  Logger.log(AuthCoreLib.libBuild()); //Registo de execuções Apps Script
+  L(AuthCoreLib.libBuild());
+
   //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
   const canon = ScriptApp.getService().getUrl();
   const action = (e && e.parameter && e.parameter.action) || "";

@@ -884,15 +884,23 @@
       document.querySelectorAll("a.rgpd-open").forEach((a) => {
         a.addEventListener("click", (ev) => {
           ev.preventDefault();
-          ev.stopPropagation();
+
+          const base =
+            (typeof window.CANON_SELF === "string" && window.CANON_SELF)
+              ? window.CANON_SELF
+              : (location.origin + location.pathname);
+
+          const ticket = (typeof getSessTicket === "function") ? getSessTicket() : "";
+          const wantDebug = !!window.DEBUG;
+
           const u = new URL(base, location.href);
-          ["ticket","action","go","rows","from","ts","wipe"].forEach(k => u.searchParams.delete(k));
-          u.searchParams.set("action", "rgpd");
-          if (TICKET) u.searchParams.set("ticket", TICKET);
-          if (WANT_DEBUG) u.searchParams.set("debug", "1"); else u.searchParams.delete("debug");
+          u.searchParams.set("go", "rgpd");
+          if (ticket) u.searchParams.set("ticket", ticket);
+          if (wantDebug) u.searchParams.set("debug", "1"); else u.searchParams.delete("debug");
           u.searchParams.set("ts", String(Date.now()));
-          log("[RGPD] abrir via card → " + u.toString());
-          location.assign(u.toString());
+
+          if (typeof log === "function") log("[MAIN] [RGPD] open → " + u.toString());
+          location.href = u.toString();
         });
       });
     </script>
