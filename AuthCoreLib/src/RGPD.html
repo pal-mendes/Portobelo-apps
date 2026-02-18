@@ -138,21 +138,34 @@
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
-        function baseSelfUrl() {
-          // Base limpa (sem query) do frame onde o RGPD está a correr
-          return new URL(location.origin + location.pathname);
+        function canonExec() {
+          // 1) vindo do servidor (template)
+          const fromServer = (__SERVER_VARS && (__SERVER_VARS.canonUrl || "")).trim();
+          if (fromServer) return fromServer;
+
+          // 2) persistido (melhor opção quando está em iframe/container)
+          try {
+            const fromLs = (localStorage.getItem("appCanonicalUrl") || "").trim();
+            if (fromLs) return fromLs;
+          } catch (_) {}
+
+          // 3) último recurso: o próprio URL atual (pode ser googleusercontent, mas é fallback)
+          return (location.origin + location.pathname);
+        }
+
+        function navReplace(u) {
+          const url = (typeof u === "string") ? u : u.toString();
+          log("[RGPD] replace → " + url);
+          try { window.top.location.replace(url); }
+          catch (_) { location.replace(url); }
         }
 
         function goWithParams(params) {
-          const u = baseSelfUrl(); // <-- repara: SEMPRE base limpa
-          Object.keys(params || {}).forEach(k => {
-            const v = params[k];
-            if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
+          const u = new URL(canonExec());
+          Object.entries(params || {}).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, String(v));
           });
-
-          const where = u.toString();
-          log("[RGPD] replace → " + where);
-          location.replace(where);
+          navReplace(u);
         }
 
         function renderMulti(rows){
@@ -170,12 +183,11 @@
                 </div>
               </div>`;
             document.getElementById('rgpd-back')?.addEventListener('click', () => {
-              const BASE = (window.CANON_SELF || CANON_URL);
-              const u = new URL(BASE);
+              const u = new URL(canonExec());
               if (TICKET) u.searchParams.set("ticket", TICKET);
               if (WANT_DEBUG)    u.searchParams.set("debug", "1");
               if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
-              location.replace(u.toString());
+              navReplace(u);
             });
             return;
           }
