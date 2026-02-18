@@ -160,8 +160,7 @@
         function navReplace(where) {
           const url = String(where || '');
           log("[RGPD] replace → " + url);
-          try { window.top.location.replace(url); }
-          catch (_) { location.replace(url); }
+          location.replace(url);
         }
 
         function goWithParams(params) {
