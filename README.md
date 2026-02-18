@@ -72,3 +72,31 @@ Para ficheiros html, é preciso enviar ?raw=1 no fim do URL, e dizer ao ChatGPT 
 
 https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src?raw=1
 https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src?plain=1
+
+
+Ao analisar a consola do browser, as mensagens relevantes incluem quase todas "exec:33", MAS NEM TODAS:
+
+Navigated to https://www.titulares-portobelo.pt/associados
+
+exec:33 [LOGIN] 'sem ticket'
+...
+exec:33 [LOGIN] [LOGIN] goWithTicket → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&ts=1771434776551
+exec:33 [RGPD] ''
+...
+exec:33 [RGPD] [RGPD] replace → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?action=postrgpd&ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&rows=137&from=rgpd-save
+
+userCodeAppPanel?createOAuthDialog=true:49  Unsafe attempt to initiate navigation for frame with origin 'https://www.titulares-portobelo.pt' from frame with URL 'https://n-rk6hhqxtj3nw2vyyx7zfxicjysglsvcuaokkl4y-0lu-script.googleusercontent.com/userCodeAppPanel?createOAuthDialog=true'. The frame attempting navigation of the top-level window is sandboxed, but the flag of 'allow-top-navigation' or 'allow-top-navigation-by-user-activation' is not set.
+
+navReplace @ userCodeAppPanel?createOAuthDialog=true:49
+goWithParams @ userCodeAppPanel?createOAuthDialog=true:58
+(anonymous) @ userCodeAppPanel?createOAuthDialog=true:140
+userCodeAppPanel?createOAuthDialog=true:49  Unsafe attempt to initiate navigation for frame with origin 'https://www.titulares-portobelo.pt' from frame with URL 'https://n-rk6hhqxtj3nw2vyyx7zfxicjysglsvcuaokkl4y-0lu-script.googleusercontent.com/userCodeAppPanel?createOAuthDialog=true'. The frame attempting navigation of the top-level window is sandboxed, but the flag of 'allow-top-navigation' or 'allow-top-navigation-by-user-activation' is not set.
+
+Navigated to https://www.titulares-portobelo.pt/associados
+
+VM261 exec:33 [LOGIN] 'sem ticket'
+...
+VM261 exec:33 [LOGIN] [LOGIN] goWithTicket → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&ts=1771434866740
+exec:33 [MAIN] ''
+...
+exec:33 [MAIN] [render] content updated

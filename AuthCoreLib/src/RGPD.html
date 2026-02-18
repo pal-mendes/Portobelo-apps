@@ -74,7 +74,10 @@
   </script>
 
   <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
-  <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
+  <!--  <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>  -->
+  <script>
+    <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
+  </script>
     
   </head>
   <body>
@@ -115,7 +118,8 @@
 
         const WANT_DEBUG  = window.DEBUG;
 
-        let CANON  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
+        //let CANON  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
+        let CANON  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || '');
         if (!CANON) {
           try { CANON = localStorage.getItem('appCanonicalUrl') || ''; } catch(_) {}
           if (!CANON) CANON = location.origin + location.pathname;
@@ -140,7 +144,7 @@
 
         function canonExec() {
           // 1) vindo do servidor (template)
-          const fromServer = (__SERVER_VARS && (__SERVER_VARS.canonUrl || "")).trim();
+          const fromServer = (CANON || '').trim();
           if (fromServer) return fromServer;
 
           // 2) persistido (melhor opção quando está em iframe/container)
@@ -153,8 +157,8 @@
           return (location.origin + location.pathname);
         }
 
-        function navReplace(u) {
-          const url = (typeof u === "string") ? u : u.toString();
+        function navReplace(where) {
+          const url = String(where || '');
           log("[RGPD] replace → " + url);
           try { window.top.location.replace(url); }
           catch (_) { location.replace(url); }
@@ -165,7 +169,9 @@
           Object.entries(params || {}).forEach(([k, v]) => {
             if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, String(v));
           });
-          navReplace(u);
+          if (!u.searchParams.has('ts')) u.searchParams.set('ts', String(Date.now()));
+          const where = u.toString();
+          navReplace(where);
         }
 
         function renderMulti(rows){
@@ -187,7 +193,7 @@
               if (TICKET) u.searchParams.set("ticket", TICKET);
               if (WANT_DEBUG)    u.searchParams.set("debug", "1");
               if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
-              navReplace(u);
+              navReplace(u.toString());
             });
             return;
           }
