@@ -726,7 +726,7 @@ function doGet(e){
         ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
       }
       */
-      return renderRgpdPage_(ticket, DBG);
+      return renderRgpdPage_(ticket, DBG, L.dump());
     } catch (err) {
       L("RGPD render FAIL: " + (err && err.message));
       return HtmlService.createHtmlOutput('<pre>RGPD render FAIL: '
@@ -899,7 +899,7 @@ function doGet(e){
       // 👇 se pedido explícito, render RGPD já aqui (mesmo que já esteja aceite)
       if (String(e.parameter.go || '') === 'rgpd') {
         L("go=rgpd → render RGPD (via ticket-branch)");
-        return renderRgpdPage_(ticket, DBG);
+        return renderRgpdPage_(ticket, DBG, L.dump());
       }
 
       // 👇 override: voltar sempre ao Main, ignorando gates
@@ -913,7 +913,7 @@ function doGet(e){
       L(`RGPD status: total=${st.total} sim=${st.sim} state=${st.state}`);
       if (!(st.total>0 && st.sim===st.total)) {
         L("→ RGPD pendente → render RGPD (LIB)");
-        return renderRgpdPage_(ticket, DBG);
+        return renderRgpdPage_(ticket, DBG, L.dump());
       }
 
       // enforceGates pode voltar a barrar RGPD; loga se acontecer:

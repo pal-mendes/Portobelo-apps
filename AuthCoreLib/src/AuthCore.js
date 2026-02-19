@@ -67,7 +67,10 @@ function resolveCfg_(cfg) {
 
 // ===== (Opcional) Debug helpers reutilizáveis =====
 function isDebug_(e) {
-  return e && e.parameter && e.parameter.debug === "1";
+  const p = e && e.parameter ? e.parameter : {};
+  if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) return false;
+  const v = String(p.debug || "").toLowerCase();
+  return v === "" || v === "1" || v === "true";
 }
 
 function makeLogger_(DBG) {
