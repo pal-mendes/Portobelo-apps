@@ -21,7 +21,7 @@
   - O download de FT-IPS passa por endpoints da própria app (não expõe Drive).
   - Mantemos action=ips (teste) e adicionamos action=ipszip (uso normal).
   
-  ######### NÃO FAZER login quando se chama com reset!!!  #########
+  ######### NÃO FAZER login quando se chama com reset!  #########
   Para testes, entra sempre por …/exec?action=login&debug=1 (ou reset) — evita o logout para não haver corridas com location.replace.
   …/exec?action=reset&debug=1 (limpa storage/cookies sem redirecionar) e depois vai para action=login
   
@@ -112,7 +112,7 @@ function isDebug_(e){
   const p = e && e.parameter ? e.parameter : {};
   // false se o parâmetro existir (quer seja ?debug, ?debug=1, ?debug=true, etc.)
   const dbgF = !p || !Object.prototype.hasOwnProperty.call(p, "debug");
-  const DBG = !dbgF;
+  const DBG = !!dbgF;
   console.log("isDebug_() => DBG=", DBG);
   dbgLog("Associados: isDebug_() => DBG=", DBG);
   return DBG;
@@ -725,19 +725,6 @@ function doGet(e){
     const isEmbed = String(e && e.parameter && e.parameter.embed || '') === '1';
     try {
       L("route: rgpd — via biblioteca");
-      // Mostra sempre a página RGPD (checkbox já reflete o estado via getRgpdStatus)
-      /*
-      const st = AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
-      if (st.total > 0 && st.sim === st.total) {
-        const back = canon
-          + (ticket ? ('?ticket=' + encodeURIComponent(ticket)) : '')
-          + (DBG ? (ticket ? '&' : '?') + 'debug=1' : '')
-          + '&from=rgpd-all';
-        return HtmlService.createHtmlOutput(
-          '<meta charset="utf-8"><script>location.replace(' + JSON.stringify(back) + ');</script>'
-        ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      }
-      */
       return renderRgpdPage_(ticket, DBG, L.dump());
     } catch (err) {
       L("RGPD render FAIL: " + (err && err.message));

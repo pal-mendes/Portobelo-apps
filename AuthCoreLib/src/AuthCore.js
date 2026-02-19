@@ -105,7 +105,7 @@ function setScriptProp_(k, v) {
 function canonicalAppUrl_() {
   var url = ScriptApp.getService().getUrl();
   // Mantém o URL canónico real do deployment.
-  // Em contas Workspace, isto inclui /a/<domínio>/ e deve ser preservado. !!!
+  // Em contas Workspace, isto inclui /a/<domínio>/ e deve ser preservado.
   //return url.replace(/\/a\/[^/]+\/macros/, "/macros"); // força .../macros/s/ID/exec
   return url;
 }
@@ -340,7 +340,8 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
 // ===== Render do Login (comum às apps) =====
 function renderLoginPage_(opts) {
 
-  const L = makeLogger_(opts.debug);
+  //const L = makeLogger_(opts.debug);
+  const L = makeLogger_(1); //parece que opts.debug não está a funcionar?
   L('function renderLoginPage_');
   const t = HtmlService.createTemplateFromFile("Login");
   t.CANON_URL = canonicalAppUrl_();
@@ -353,7 +354,8 @@ function renderLoginPage_(opts) {
         : String(opts.serverLog || "");
   // 🔒 Defesas contra ReferenceError no template
   if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
-  t.WIPE = opts.wipe ? "1" : "";
+  t.WIPE = opts.wipe ? "1" : "";  
+  L('renderLoginPage_: opts.wipe = ' + opts.wipe + ', t.WIPE = ' + t.WIPE);
   t.ticket = "";   // ← mesmo que não uses, evita o erro quando existir <?= ticket ?>
   t.TICKET = "";   // ← alias, caso o HTML use TICKET
   t.SERVER_VARS = "";
@@ -475,7 +477,7 @@ function finishAuth_(e, cfg) {
 
   if (nonce) putTicketForNonce_(nonce, ticket);
 
-  //var canon = canonicalAppUrl_(); !!!
+  //var canon = canonicalAppUrl_(); 
   var canon = redirectUri; // mantém EXACTAMENTE o mesmo /a/<domínio>/... usado no OAuth
   var html = `
 <meta charset="utf-8"><title>Autenticado</title>
