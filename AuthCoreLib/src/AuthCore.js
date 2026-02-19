@@ -71,18 +71,25 @@ function resolveCfg_(cfg) {
 }
 
 // ===== (Opcional) Debug helpers reutilizáveis =====
-function isDebug_(e) {
+function isDebug_(e){
   const p = e && e.parameter ? e.parameter : {};
-  if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) return false;
-  const v = String(p.debug || "").toLowerCase();
-  return v === "" || v === "1" || v === "true";
+  if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) {
+    DBG = false;
+  } else {
+    const v = String(p.debug || "").toLowerCase();
+    //return v === "" || v === "1" || v === "true";
+    DBG = true;
+  }
+  console.log("isDebug_() => DBG=", DBG, "v = ", v);
+  dbgLog("AuthCoreLib: isDebug_() => DBG=", DBG, "v = ", v);
+  return DBG;
 }
 
 function makeLogger_(DBG) {
   const start = new Date(),
     log = [];
   function L() {
-    if (!DBG) return;
+    //if (!DBG) return;
     const dt = new Date() - start;
     const hh = new Date(dt).toISOString().substr(11, 8);
     log.push(hh + " " + [].map.call(arguments, String).join(" "));
@@ -340,8 +347,8 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
 // ===== Render do Login (comum às apps) =====
 function renderLoginPage_(opts) {
 
-  //const L = makeLogger_(opts.debug);
-  const L = makeLogger_(1); //parece que opts.debug não está a funcionar?
+  const L = makeLogger_(opts.debug);
+  //const L = makeLogger_(1); //parece que opts.debug não está a funcionar?
   L('function renderLoginPage_');
   const t = HtmlService.createTemplateFromFile("Login");
   t.CANON_URL = canonicalAppUrl_();
@@ -550,7 +557,9 @@ function enforceGates(email, ticket, DBG, gatesCfg){
   if (!(s.total > 0 && s.sim === s.total)) {
     //return renderRgpdPage_(DBG, ticket, gatesCfg && gatesCfg.canon);
     optsProc.ticket = ticket;
-    optsProc.serverLog = ["enforceGates"];
+    //optsProc.serverLog = ["enforceGates"];
+    optsProc.serverLog = L.dump();
+    optsProc.serverLog.unshift("enforceGates");    
     return renderRgpdPage_(optsProc);
   }
 

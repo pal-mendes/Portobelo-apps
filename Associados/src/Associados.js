@@ -110,11 +110,15 @@ function acceptRgpdForMe(ticket, decision){
 // ===== DEBUG infra =====
 function isDebug_(e){
   const p = e && e.parameter ? e.parameter : {};
-  // false se o parâmetro existir (quer seja ?debug, ?debug=1, ?debug=true, etc.)
-  const dbgF = !p || !Object.prototype.hasOwnProperty.call(p, "debug");
-  const DBG = !!dbgF;
-  console.log("isDebug_() => DBG=", DBG);
-  dbgLog("Associados: isDebug_() => DBG=", DBG);
+  if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) {
+    DBG = false;
+  } else {
+    const v = String(p.debug || "").toLowerCase();
+    //return v === "" || v === "1" || v === "true";
+    DBG = true;
+  }
+  console.log("isDebug_() => DBG=", DBG, "v = ", v);
+  dbgLog("Associados: isDebug_() => DBG=", DBG, "v = ", v);
   return DBG;
 }
 
@@ -122,7 +126,7 @@ function makeLogger_(DBG) {
   const start = new Date();
   const log = [];
   function L() {
-    if (!DBG) return;
+    //if (!DBG) return;
     const ts = new Date();
     const t = new Date(ts - start).toISOString().substr(11, 8); // hh:mm:ss desde início
     log.push(t + " " + Array.prototype.map.call(arguments, String).join(" "));
@@ -150,12 +154,15 @@ function gatesCfg_(){
 }
 
 function renderRgpdPage_(ticket, DBG) {
-  //const canonHost = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
-  //const canonHost = ScriptApp.getService().getUrl();
-  optsProc.ticket = ticket;
-  optsProc.serverLog = ["RGPD"];
-  //return AuthCoreLib.renderRgpdPage(DBG, ticket, canonHost); // << passa o CANON do host
-  return AuthCoreLib.renderRgpdPage(optsProc); // << passa o CANON do host
+  const opts = {
+    ticket: ticket,
+    debug: DBG,    
+    serverLog: L.dump(),
+    wipe: false,
+  };    
+  //opts.serverLog = L.dump();
+  opts.serverLog.unshift("RGPD");
+  return AuthCoreLib.renderRgpdPage(opts);
 }
 
 function getRgpdStatus(ticket){
@@ -837,7 +844,10 @@ function doGet(e){
 
   if (action === "login") {
     L("route: login");
-    optsProc.serverLog = ["login"];
+    //optsProc.serverLog = ["login"];
+    optsProc.serverLog = L.dump();
+    optsProc.serverLog.unshift("login");
+
     return AuthCoreLib.renderLoginPage(optsProc); 
   }
   if (action === "logout"){
@@ -858,56 +868,76 @@ function doGet(e){
     L("have ticket, validating");
     try{
       const sess = AuthCoreLib.requireSession(ticket);
-      L("session ok for", sess.email);
-
-      L("go=", (e && e.parameter && e.parameter.go) || "(none)");
-
-      // 👇 se pedido explícito, render RGPD já aqui (mesmo que já esteja aceite)
-      if (String(e.parameter.go || '') === 'rgpd') {
-        L("go=rgpd → render RGPD (via ticket-branch)");
-        return renderRgpdPage_(ticket, DBG, L.dump());
-      }
-
-      // 👇 override: voltar sempre ao Main, ignorando gates
-      if (String(e.parameter.go || '') === 'main') {
-        L("go=main → render Main (skip gates)");
-        return renderMainPage_(ticket, DBG, L.dump());
-      }
-
-      // LOGA estado RGPD ANTES de decidir
-      const st = AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
-      L(`RGPD status: total=${st.total} sim=${st.sim} state=${st.state}`);
-      if (!(st.total>0 && st.sim===st.total)) {
-        L("→ RGPD pendente → render RGPD (LIB)");
-        return renderRgpdPage_(ticket, DBG, L.dump());
-      }
-
-      // enforceGates pode voltar a barrar RGPD; loga se acontecer:
-      const gate = AuthCoreLib.enforceGates(sess.email, ticket, DBG, gatesCfg_());
-      if (gate){ L("gate returned HTML (provavelmente RGPD ou allowlist)"); return gate; }
-
-      // OK → Main
-      try {
-        L("render Main");
-        return renderMainPage_(ticket, DBG, L.dump());
-      } catch (err) {
-        L("render Main FAIL: " + (err && err.message));
-        return HtmlService.createHtmlOutput(
-          '<pre>render Main FAIL: ' + String(err && err.message || err) + '</pre>'
-        ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      }
-
     } catch(err){
       L("invalid ticket → login(wipe) ERR="+(err && err.message));
-      optsProc.serverLog = ["wipe"];
+      //optsProc.serverLog = ["wipe"];
+      optsProc.serverLog = L.dump();
+      optsProc.serverLog.unshift("wipe");
       optsProc.wipe = true;
       return AuthCoreLib.renderLoginPage(optsProc);
     }
+    L("session ok for", sess.email);
+    L("go=", (e && e.parameter && e.parameter.go) || "(none)");
+
+    // 👇 se pedido explícito, render RGPD já aqui (mesmo que já esteja aceite)
+    if (String(e.parameter.go || '') === 'rgpd') {
+      L("go=rgpd → render RGPD (via ticket-branch)");
+      return renderRgpdPage_(ticket, DBG, L.dump());
+    }
+
+    // 👇 override: voltar sempre ao Main, ignorando gates
+    if (String(e.parameter.go || '') === 'main') {
+      L("go=main → render Main (skip gates)");
+      return renderMainPage_(ticket, DBG, L.dump());
+    }
+
+    try {
+      // LOGA estado RGPD ANTES de decidir
+      const st = AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
+    } catch(err){
+      L("getRgpdStatusFor ERR="+(err && err.message));
+      optsProc.serverLog = L.dump();
+      optsProc.serverLog.unshift("RGPDSTATUS");
+      return AuthCoreLib.renderLoginPage(optsProc);
+    }
+
+    L(`RGPD status: total=${st.total} sim=${st.sim} state=${st.state}`);
+    if (!(st.total>0 && st.sim===st.total)) {
+      L("→ RGPD pendente → render RGPD (LIB)");
+      return renderRgpdPage_(ticket, DBG, L.dump());
+    }
+
+    try {
+      // enforceGates pode voltar a barrar RGPD; loga se acontecer:
+      const gate = AuthCoreLib.enforceGates(sess.email, ticket, DBG, gatesCfg_());
+    } catch(err){
+      L("getRgpdStatusFor ERR="+(err && err.message));
+      optsProc.serverLog = L.dump();
+      optsProc.serverLog.unshift("enforceGates");
+      return AuthCoreLib.renderLoginPage(optsProc);
+    }
+    
+    if (gate){ L("gate returned HTML (provavelmente RGPD ou allowlist)"); return gate; }
+
+    // OK → Main
+    try {
+      L("render Main");
+      return renderMainPage_(ticket, DBG, L.dump());
+    } catch (err) {
+      L("render Main FAIL: " + (err && err.message));
+      return HtmlService.createHtmlOutput(
+        '<pre>render Main FAIL: ' + String(err && err.message || err) + '</pre>'
+      ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
+
   }
 
   // sem ticket → login
   L("no ticket → render login");
-  optsProc.serverLog = ["sem ticket"];
+  //optsProc.serverLog = ["sem ticket"];
+  optsProc.serverLog = L.dump();
+  optsProc.serverLog.unshift("sem ticket");
   return AuthCoreLib.renderLoginPage(optsProc);
 
 }

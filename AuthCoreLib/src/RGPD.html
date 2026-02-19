@@ -134,7 +134,6 @@
           try { TICKET = localStorage.getItem('sessTicket') || ''; } catch(_) {}
         }
 
-
         log(`RGPD page ready; CANON=${CANON}; have TICKET=${!!TICKET}`);
 
         function persistTicket(t) {
@@ -147,7 +146,6 @@
         }
 
         if (TICKET) persistTicket(TICKET);
-
 
         function spanChip(txt){
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
@@ -256,7 +254,7 @@
 
             google.script.run
               .withSuccessHandler(function () {
-                status.textContent = "RGPD atualizado.\nA avançar… Se não avançar, clique aqui.";
+                //xx.textContent = "RGPD atualizado.\nA avançar… Se não avançar, clique aqui.";
                 //document.getElementById("continue").href = buildBaseUrl().toString();
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
                 goWithParams({
@@ -272,7 +270,6 @@
               })
               .setRgpdRowsFor(TICKET, accepted);
           });
-
 
         }
 
