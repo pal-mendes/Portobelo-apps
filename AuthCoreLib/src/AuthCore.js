@@ -76,10 +76,10 @@ function isDebug_(e){
   if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) {
     DBG = false;
   } else {
-    const v = String(p.debug || "").toLowerCase();
     //return v === "" || v === "1" || v === "true";
     DBG = true;
   }
+  const v = String(p.debug || "").toLowerCase();
   console.log("isDebug_() => DBG=", DBG, "v = ", v);
   dbgLog("AuthCoreLib: isDebug_() => DBG=", DBG, "v = ", v);
   return DBG;

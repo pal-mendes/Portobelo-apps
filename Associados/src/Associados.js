@@ -113,10 +113,10 @@ function isDebug_(e){
   if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) {
     DBG = false;
   } else {
-    const v = String(p.debug || "").toLowerCase();
     //return v === "" || v === "1" || v === "true";
     DBG = true;
   }
+  const v = String(p.debug || "").toLowerCase();
   console.log("isDebug_() => DBG=", DBG, "v = ", v);
   dbgLog("Associados: isDebug_() => DBG=", DBG, "v = ", v);
   return DBG;
@@ -153,11 +153,11 @@ function gatesCfg_(){
   };
 }
 
-function renderRgpdPage_(ticket, DBG) {
+function renderRgpdPage_(ticket, DBG, serverLogLines) {
   const opts = {
     ticket: ticket,
     debug: DBG,    
-    serverLog: L.dump(),
+    serverLog: serverLogLines,
     wipe: false,
   };    
   //opts.serverLog = L.dump();
@@ -866,8 +866,9 @@ function doGet(e){
   const ticket = (e && e.parameter && e.parameter.ticket) || "";
   if (ticket){
     L("have ticket, validating");
+    let sess;
     try{
-      const sess = AuthCoreLib.requireSession(ticket);
+      sess = AuthCoreLib.requireSession(ticket);
     } catch(err){
       L("invalid ticket → login(wipe) ERR="+(err && err.message));
       //optsProc.serverLog = ["wipe"];
@@ -891,9 +892,10 @@ function doGet(e){
       return renderMainPage_(ticket, DBG, L.dump());
     }
 
+    let st;
     try {
       // LOGA estado RGPD ANTES de decidir
-      const st = AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
+      st = AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
     } catch(err){
       L("getRgpdStatusFor ERR="+(err && err.message));
       optsProc.serverLog = L.dump();
@@ -907,9 +909,10 @@ function doGet(e){
       return renderRgpdPage_(ticket, DBG, L.dump());
     }
 
+    let gate;
     try {
       // enforceGates pode voltar a barrar RGPD; loga se acontecer:
-      const gate = AuthCoreLib.enforceGates(sess.email, ticket, DBG, gatesCfg_());
+      gate = AuthCoreLib.enforceGates(sess.email, ticket, DBG, gatesCfg_());
     } catch(err){
       L("getRgpdStatusFor ERR="+(err && err.message));
       optsProc.serverLog = L.dump();
