@@ -6,12 +6,16 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Show-RepoLineCounts {
-  Write-Host "`n=== Lines per tracked file (working tree) ==="
-  git ls-files | ForEach-Object {
-    $file = $_
-    $count = (Get-Content -LiteralPath $file -ReadCount 0).Count
-    "{0,6}  {1}" -f $count, $file
-  }
+  Write-Host "`n=== Lines per tracked .js / .html files (working tree) ==="
+  git ls-files |
+    Where-Object {
+      $_ -match '\.(js|html)$' -and $_ -notmatch '(^|[\\/])\.'
+    } |
+    ForEach-Object {
+      $file = $_
+      $count = (Get-Content -LiteralPath $file -ReadCount 0).Count
+      "{0,6}  {1}" -f $count, $file
+    }
 }
 
 git add -A
