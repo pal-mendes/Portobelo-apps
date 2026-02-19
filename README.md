@@ -13,7 +13,7 @@ clasp help login
 clasp login
 
 Atualizar o repositório local a partir da Google (fonte):
-cd \dev\Portobelo-apps/
+cd \dev\Portobelo-apps
 C:\dev\Portobelo-apps>powershell .\pull-all.ps1
 
 Estrutura:
@@ -74,29 +74,25 @@ https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce450
 https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src?plain=1
 
 
+Memorizar no ChatGPT que não deve usar web.run open() para consultar ficheiros HTML no Github usando os permalinks, pois reduz ficheiros de centenas de linhas a apenas 10 linhas, incluíndo “Proteção de dados… Guardar”. É preciso fazer o download direto do RAW (sem extração) de raw.githubusercontent.com, que devolve o HTML completo.
+
+
+# verificar o SHA no Windows Command Prompt:
+git show 00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc:AuthCoreLib/src/RGPD.html | find /c /v ""
+
+c221a1258c07c427b7d0900238c63b97f95727fd
+
+
 Ao analisar a consola do browser, as mensagens relevantes incluem quase todas "exec:33", MAS NEM TODAS:
 
 Navigated to https://www.titulares-portobelo.pt/associados
-
-exec:33 [LOGIN] 'sem ticket'
 ...
-exec:33 [LOGIN] [LOGIN] goWithTicket → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&ts=1771434776551
-exec:33 [RGPD] ''
+exec:33 [LOGIN] [LOGIN] goWithTicket → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&ts=1771438281401
 ...
-exec:33 [RGPD] [RGPD] replace → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?action=postrgpd&ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&rows=137&from=rgpd-save
-
-userCodeAppPanel?createOAuthDialog=true:49  Unsafe attempt to initiate navigation for frame with origin 'https://www.titulares-portobelo.pt' from frame with URL 'https://n-rk6hhqxtj3nw2vyyx7zfxicjysglsvcuaokkl4y-0lu-script.googleusercontent.com/userCodeAppPanel?createOAuthDialog=true'. The frame attempting navigation of the top-level window is sandboxed, but the flag of 'allow-top-navigation' or 'allow-top-navigation-by-user-activation' is not set.
-
-navReplace @ userCodeAppPanel?createOAuthDialog=true:49
-goWithParams @ userCodeAppPanel?createOAuthDialog=true:58
-(anonymous) @ userCodeAppPanel?createOAuthDialog=true:140
-userCodeAppPanel?createOAuthDialog=true:49  Unsafe attempt to initiate navigation for frame with origin 'https://www.titulares-portobelo.pt' from frame with URL 'https://n-rk6hhqxtj3nw2vyyx7zfxicjysglsvcuaokkl4y-0lu-script.googleusercontent.com/userCodeAppPanel?createOAuthDialog=true'. The frame attempting navigation of the top-level window is sandboxed, but the flag of 'allow-top-navigation' or 'allow-top-navigation-by-user-activation' is not set.
-
-Navigated to https://www.titulares-portobelo.pt/associados
-
-VM261 exec:33 [LOGIN] 'sem ticket'
+userCodeAppPanel?createOAuthDialog=true:34 [RGPD] RGPD page ready; CANON=https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec; have TICKET=true
 ...
-VM261 exec:33 [LOGIN] [LOGIN] goWithTicket → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&ts=1771434866740
-exec:33 [MAIN] ''
+userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD] replace → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?action=postrgpd&ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&rows=137&from=rgpd-save&ts=1771438293545
+...
+VM470 exec:33 [LOGIN] [LOGIN] goWithTicket → https://script.google.com/a/titulares-portobelo.pt/macros/s/AKfycbznY5OWGf0uFbO7AFvYIzA-g_9Y0_r5pWBbu9i_OaSikRYKU5GLRacqDh64ZXKeSmge/exec?ticket=eyJlbWFpbCI6InBhbC5tZW5kZXMyM0BnbWFpbC5jb20iLCJleHAiOjE3NzI1NTEzNTk2MTQsInYiOjIsImlhdCI6MTc3MTM0MTc1OTYxNCwibmFtZSI6IlBlZHJvIE1lbmRlcyIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMbU5FT3hCRklMbV9jbXFsZWRwa1pxa3pnbFQzZEdrMHROU2kzeGRmUmUtOXMtbnowWEtnPXM5Ni1jIn0%3D.tu1LgcxLkqKvJgYSBpmMdE5SeeonIZ3NXHMOC-l8jus%3D&ts=1771438353675
 ...
 exec:33 [MAIN] [render] content updated

@@ -73,8 +73,7 @@
   })();
   </script>
 
-  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
-  <!--  <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>  -->
+  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. -->
   <script>
     <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
   </script>
@@ -138,23 +137,29 @@
 
         log(`RGPD page ready; CANON=${CANON}; have TICKET=${!!TICKET}`);
 
+        function persistTicket(t) {
+          try { localStorage.setItem("sessTicket", t); } catch (e) {}
+          try {
+            document.cookie =
+              "sessTicket=" + encodeURIComponent(t) +
+              "; Path=/; Max-Age=2592000; SameSite=Lax; Secure";
+          } catch (e) {}
+        }
+
+        if (TICKET) persistTicket(TICKET);
+
+
         function spanChip(txt){
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
         function canonExec() {
-          // 1) vindo do servidor (template)
-          const fromServer = (CANON || '').trim();
-          if (fromServer) return fromServer;
-
-          // 2) persistido (melhor opção quando está em iframe/container)
-          try {
-            const fromLs = (localStorage.getItem("appCanonicalUrl") || "").trim();
-            if (fromLs) return fromLs;
-          } catch (_) {}
-
-          // 3) último recurso: o próprio URL atual (pode ser googleusercontent, mas é fallback)
-          return (location.origin + location.pathname);
+          const sv = window.__SERVER_VARS || {};
+          // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
+          return (
+            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || CANON || "").trim() ||
+            (location.origin + location.pathname)
+          );
         }
 
         function navReplace(where) {
@@ -168,6 +173,8 @@
           Object.entries(params || {}).forEach(([k, v]) => {
             if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, String(v));
           });
+          const qs = new URLSearchParams(location.search);
+          if (qs.get("debug") === "1") u.searchParams.set("debug", "1");          
           if (!u.searchParams.has('ts')) u.searchParams.set('ts', String(Date.now()));
           const where = u.toString();
           navReplace(where);

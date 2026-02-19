@@ -1,3 +1,4 @@
+
 // =========================
 // File: AuthCore.gs - em AuthCoreLib (biblioteca)
 //

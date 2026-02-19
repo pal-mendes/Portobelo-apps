@@ -1,3 +1,4 @@
+
 <!-- Main.html (Associados) -->
 <html>
   <head>
@@ -240,8 +241,10 @@
   })();
   </script>
 
-  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. Aponta para a implementação B pois tem de ser web App -->
-  <script src="https://script.google.com/macros/s/AKfycbw7CwrEid8YLInikNcmpqz9l9GzGFU40zTLL5mrTokCHiSgXivy4WQK6TbekB18tQ59/exec"></script>
+  <!-- Logger global único (consola apenas) - no head dos html e servido por esta própria web app. -->
+  <script>
+    <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
+  </script>
 
   <script>
     // Flag global reutilizável (standalone=false, embed externo=true)
