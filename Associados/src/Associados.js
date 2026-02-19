@@ -770,7 +770,7 @@ function doGet(e){
       "?ticket=" + encodeURIComponent(ticket) +
       (DBG ? "&debug=1" : "") +
       "&ts=" + Date.now();
-
+    
     const html = `
   <!doctype html>
   <html>

@@ -257,6 +257,7 @@
                 //xx.textContent = "RGPD atualizado.\nA avançar… Se não avançar, clique aqui.";
                 //document.getElementById("continue").href = buildBaseUrl().toString();
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
+                /*
                 goWithParams({
                   action: "postrgpd",
                   ticket: TICKET,
@@ -264,6 +265,8 @@
                   from: "rgpd-save",
                   debug: WANT_DEBUG ? "1" : ""
                 });
+                */
+                goWithParams({ from: "rgpd-save" });
               })
               .withFailureHandler(function(err){
                 alert("RGPD Erro a atualizar: " + (err && err.message ? err.message : String(err)));
