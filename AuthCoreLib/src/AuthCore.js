@@ -20,7 +20,7 @@ function beginAuth(e, cfg) {
 function finishAuth(e, cfg) {
   return finishAuth_(e, cfg);
 }
-function isTicketValid(ticket) {
+function isTicketValid(ticket, dbg) {
   return !!validateSessionToken_(ticket);
 }
 function pollTicket(nonce) {

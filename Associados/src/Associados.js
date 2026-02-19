@@ -102,12 +102,20 @@ function authCfg_() {
 }
 function buildAuthUrlFor(nonce, dbg, embed) { return AuthCoreLib.buildAuthUrlFor(nonce, dbg, embed, authCfg_()); }
 function pollTicket(nonce)                  { return AuthCoreLib.pollTicket(nonce); }
-function isTicketValid(ticket)              { return AuthCoreLib.isTicketValid(ticket); }
+function isTicketValid(ticket, dbg)              { return AuthCoreLib.isTicketValid(ticket, dbg); }
 function acceptRgpdForMe(ticket, decision){
   // decision: 'accept' | 'reject'
   return AuthCoreLib.acceptRgpdForMe(ticket, decision, gatesCfg_());
 }
 // ===== DEBUG infra =====
+
+// Utilitário de logs (cai para Google Apps Script executions logs, se console não existir)  //log em Execuções Apps Script
+function dbgLog() {
+  var msg = Array.prototype.map.call(arguments, String).join(' ');
+  //try { console.log(msg); } catch(_) { try { Logger.log(msg); } catch(__) {} }
+  try { Logger.log(msg); } catch(_) { try { console.log(msg); } catch(__) {} }
+}
+
 function isDebug_(e){
   const p = e && e.parameter ? e.parameter : {};
   if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) {
@@ -133,12 +141,6 @@ function makeLogger_(DBG) {
   }
   L.dump = () => log.slice();
   return L;
-}
-
-// Utilitário de logs (cai para Logger se console não existir)
-function dbgLog() {
-  var msg = Array.prototype.map.call(arguments, String).join(' ');
-  try { console.log(msg); } catch(_) { try { Logger.log(msg); } catch(__) {} }
 }
 
 function gatesCfg_(){
@@ -743,30 +745,25 @@ function doGet(e){
 
   // --- pós-RGPD: página “ponte” com conteúdo/trace e fallback em navegação robusta + logs
   if (action === "postrgpd") {
-    console.log("postrgpd início! DBG=", DBG);
-    //As linhas comentaadas abaixo já estão feitas no início do doGet()
-    //const DBG    = isDebug_(e);
-    //const L      = makeLogger_(DBG);    
+    dbgLog("action postrgpd início! DBG=", DBG); //log em Execuções Apps Script
     L("L => action postrgpd");
-    dbgLog("dbgLog => action postrgpd");
 
     const ticket = (e && e.parameter && e.parameter.ticket) || '';
-	  // CSV de linhas aceites vindo do RGPD.html
+	  
+    // CSV de linhas aceites vindo do RGPD.html
     const rowsQS = String((e && e.parameter && e.parameter.rows) || '').trim();
     const rows   = rowsQS
         ? rowsQS.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n))
         : [];
 
-    let saveRes = null, saveErr = null;
     try {
-      saveRes = setRgpdRowsFor(ticket, rows); // <-- grava no servidor
-      L(`RGPD save: rows=[${rows.join(',')}] touched=${saveRes && saveRes.touched | 0}`);
-      console.log(`RGPD save: rows=[${rows.join(',')}] touched=${saveRes && saveRes.touched | 0}`);
+      const touched = (setRgpdRowsFor(ticket, rows) | 0); // <-- grava no servidor
+      L(`RGPD save: rows=[${rows.join(',')}] touched=${touched}`);
+      //console.log(`RGPD save: rows=[${rows.join(',')}] touched=${touched}`);
     } catch (err) {
-      saveErr = err;
       L('RGPD save FAIL: ' + (err && err.message));
     }
-    const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
+    //const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
     const next =
       canon +
@@ -774,11 +771,33 @@ function doGet(e){
       (DBG ? "&debug=1" : "") +
       "&ts=" + Date.now();
 
-    const out = HtmlService.createHtmlOutput(
-      '<!doctype html><meta charset="utf-8">' +
-          '<script>location.replace(' + JSON.stringify(next) + ');</script>'    );
+    const html = `
+  <!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Portobelo — A avançar…</title>
+      <style>
+        body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:24px}
+        a{word-break:break-all}
+      </style>
+    </head>
+    <body>
+      <p>A avançar para a Área do Associado…</p>
+      <p><a href="${next}">Se não avançar automaticamente, clique aqui</a></p>
+      <script>
+        (function(){
+          var url = ${JSON.stringify(next)};
+          try { location.replace(url); } catch(e) {}
+        })();
+      </script>
+    </body>
+  </html>`;
 
-    return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);  
+    return HtmlService
+      .createHtmlOutput(html)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
 

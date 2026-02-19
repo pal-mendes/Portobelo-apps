@@ -172,7 +172,7 @@
             if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, String(v));
           });
           const qs = new URLSearchParams(location.search);
-          if (qs.get("debug") === "1") u.searchParams.set("debug", "1");          
+          if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1"); 
           if (!u.searchParams.has('ts')) u.searchParams.set('ts', String(Date.now()));
           const where = u.toString();
           navReplace(where);

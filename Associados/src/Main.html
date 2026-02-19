@@ -804,7 +804,7 @@
                 })
                 .apiGetAssociados(ticket);
             })
-            .isTicketValid(ticket);
+            .isTicketValid(ticket, window.DEBUG ? 1 : 0);
         })();
       })();
     </script>
@@ -903,7 +903,7 @@
         if (ticket) u.searchParams.set("ticket", ticket);
 
         const qs = new URLSearchParams(location.search);
-        if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
+        if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
         u.searchParams.set("ts", String(Date.now()));
 
         log("[MAIN] [RGPD] navegar (self) → " + u.toString());

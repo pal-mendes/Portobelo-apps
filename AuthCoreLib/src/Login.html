@@ -163,7 +163,7 @@
           u.searchParams.set("ticket", ticket);
 
           const qs = new URLSearchParams(location.search);
-          if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
+          if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
 
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));;
           log("[LOGIN] goWithTicket → " + u.toString());
@@ -376,7 +376,7 @@
               );
               if (BTN) BTN.style.display = "";
             })
-            .isTicketValid(t);
+            .isTicketValid(t, window.DEBUG ? 1 : 0);
         })();
       })();
     </script>
