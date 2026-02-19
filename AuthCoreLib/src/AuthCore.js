@@ -32,6 +32,11 @@ function requireSession(ticket) {
   return JSON.parse(p);
 }
 
+function renderRgpdPage(opts) {
+  return renderRgpdPage_(opts);
+}
+
+
 function libBuild(){ return "AuthCoreLib build 2026-02-16 12:34 - development mode"; }
 
 
@@ -334,27 +339,21 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
 
 // ===== Render do Login (comum às apps) =====
 function renderLoginPage_(opts) {
-  /*
-  // Segurança: a lib não sabe nada do e.parameter; o host tem de passar SERVER_VARS
-  if (!opts.SERVER_VARS) {
-    throw new Error('AuthCoreLib.renderLoginPage_: SERVER_VARS em falta. O host deve construir e passar estas variáveis.');
-  }
-  */
 
-  //const L = makeLogger_(true);
-  //L('function renderLoginPage_');
+  const L = makeLogger_(opts.debug);
+  L('function renderLoginPage_');
   const t = HtmlService.createTemplateFromFile("Login");
   t.CANON_URL = canonicalAppUrl_();
   //t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
   t.AUTOSTART = "1"; // auto-inicia o popup
-  t.DEBUG = opts.DEBUG ? "1" : "";
+  t.DEBUG = opts.debug ? "1" : "";
   t.SERVER_LOG = 
       opts.serverLog && opts.serverLog.join
         ? opts.serverLog.join("\n")
         : String(opts.serverLog || "");
-  t.WIPE = opts.wipe ? "1" : "";
   // 🔒 Defesas contra ReferenceError no template
   if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
+  t.WIPE = opts.wipe ? "1" : "";
   t.ticket = "";   // ← mesmo que não uses, evita o erro quando existir <?= ticket ?>
   t.TICKET = "";   // ← alias, caso o HTML use TICKET
   t.SERVER_VARS = "";
@@ -540,8 +539,17 @@ function enforceGates(email, ticket, DBG, gatesCfg){
 
   // 3) RGPD (todas as linhas "Sim"?)
   const s = getRgpdStatusFor(ticket, gatesCfg);
+  var optsProc = {
+    ticket: "",
+    debug: DBG,    
+    serverLog: [],
+    wipe: false,
+  };    
   if (!(s.total > 0 && s.sim === s.total)) {
-    return renderRgpdPage(DBG, ticket, gatesCfg && gatesCfg.canon);
+    //return renderRgpdPage_(DBG, ticket, gatesCfg && gatesCfg.canon);
+    optsProc.ticket = ticket;
+    optsProc.serverLog = ["enforceGates"];
+    return renderRgpdPage_(optsProc);
   }
 
   // OK → deixa o host seguir para o Main
@@ -706,15 +714,41 @@ function isRgpdAllAcceptedFor(ticket, cfg){
 }
 
 // usado pelo host em action=rgpd
-function renderRgpdPage(DBG, ticket, canonOverride) {
-  //L('renderRgpdPage');
+//function renderRgpdPage_(DBG, ticket, canonOverride) {
+function renderRgpdPage_(opts) {
+  const L = makeLogger_(opts.debug);
+  L('renderRgpdPage_');
   const t = HtmlService.createTemplateFromFile('RGPD');
-  t.CANON_URL  = canonOverride || canonicalAppUrl_(); // << usa o do HOST se vier
-  t.TICKET = ticket || '';
-  t.DEBUG  = DBG ? '1' : '';
-  t.SERVER_LOG = ''; // evita 'SERVER_LOG is not defined' no RGPD.html
+  //t.CANON_URL  = canonOverride || canonicalAppUrl_(); // << usa o do HOST se vier
+  t.CANON_URL  = canonicalAppUrl_(); // << usa o do HOST se vier
+  t.ticket = opts.ticket || '';
+  t.TICKET = opts.ticket || '';
+  t.DEBUG  = opts.debug ? '1' : '';
+  t.WIPE = opts.wipe ? "1" : "";
+  t.SERVER_LOG = 
+      opts.serverLog && opts.serverLog.join
+        ? opts.serverLog.join("\n")
+        : String(opts.serverLog || "");
+  if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
+  t.ticket = opts.ticket;
+  t.SERVER_VARS = "";
   t.PAGE_TAG = 'RGPD';
-  return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  try {
+    var out = t.evaluate();
+    out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    return out;
+  } catch (err) {
+    const msg =
+      "RGPD.html evaluate() falhou\n" +
+      String(err) +
+      "\n--- SERVER LOG ---\n" +
+      (opts.serverLog && opts.serverLog.join
+        ? opts.serverLog.join("\n")
+        : String(opts.serverLog || ""));
+    return HtmlService.createHtmlOutput(
+      '<pre style="white-space:pre-wrap">' + msg + "</pre>",
+    );
+  }
 }
 
 /*

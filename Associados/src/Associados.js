@@ -109,8 +109,10 @@ function acceptRgpdForMe(ticket, decision){
 }
 // ===== DEBUG infra =====
 function isDebug_(e){
-  // true se o parâmetro existir (quer seja ?debug, ?debug=1, ?debug=true, etc.)
-  const DBG = !!(e && e.parameter && Object.prototype.hasOwnProperty.call(e.parameter, 'debug'));
+  const p = e && e.parameter ? e.parameter : {};
+  // false se o parâmetro existir (quer seja ?debug, ?debug=1, ?debug=true, etc.)
+  const dbgF = !p || !Object.prototype.hasOwnProperty.call(p, "debug");
+  const DBG = !dbgF;
   console.log("isDebug_() => DBG=", DBG);
   dbgLog("Associados: isDebug_() => DBG=", DBG);
   return DBG;
@@ -149,8 +151,11 @@ function gatesCfg_(){
 
 function renderRgpdPage_(ticket, DBG) {
   //const canonHost = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
-  const canonHost = ScriptApp.getService().getUrl();
-  return AuthCoreLib.renderRgpdPage(DBG, ticket, canonHost); // << passa o CANON do host
+  //const canonHost = ScriptApp.getService().getUrl();
+  optsProc.ticket = ticket;
+  optsProc.serverLog = ["RGPD"];
+  //return AuthCoreLib.renderRgpdPage(DBG, ticket, canonHost); // << passa o CANON do host
+  return AuthCoreLib.renderRgpdPage(optsProc); // << passa o CANON do host
 }
 
 function getRgpdStatus(ticket){
@@ -636,6 +641,13 @@ function doGet(e){
   Logger.log(AuthCoreLib.libBuild()); //Registo de execuções Apps Script
   L(AuthCoreLib.libBuild());
 
+  var optsProc = {
+    ticket: "",
+    debug: DBG,    
+    serverLog: [],
+    wipe: false,
+  };    
+
   //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
   const canon = ScriptApp.getService().getUrl();
   const action = (e && e.parameter && e.parameter.action) || "";
@@ -768,22 +780,9 @@ function doGet(e){
       (DBG ? "&debug=1" : "") +
       "&ts=" + Date.now();
 
-    const nextHtml = String(next)
-      .replace(/&/g, "&amp;")
-      .replace(/"/g, "&quot;")
-      .replace(/</g, "&lt;");
-
     const out = HtmlService.createHtmlOutput(
-      '<meta charset="utf-8">' +
-        '<style>body{font-family:system-ui,sans-serif;padding:18px}</style>' +
-        "<h3>RGPD atualizado.</h3>" +
-        '<p>A avançar… Se não avançar, <a href="' +
-        nextHtml +
-        '" target="_self" rel="noopener">clique aqui</a></p>' +
-        "<script>(function(){var next=" +
-        JSON.stringify(next) +
-        ";try{location.replace(next);}catch(_){try{location.href=next;}catch(__){}}})();</script>",
-    );
+      '<!doctype html><meta charset="utf-8">' +
+          '<script>location.replace(' + JSON.stringify(next) + ');</script>'    );
 
     return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);  
   }
@@ -849,30 +848,10 @@ function doGet(e){
     }
   }
 
-  var optsLogin = {
-    /*
-    brand: 'Portobelo',
-    APP_NAME: 'Associados',
-    origin: e?.parameter?.origin || null,
-    ticket: (e && e.parameter && e.parameter.ticket) || "",
-    // Podes ter um helper próprio para isto; senão, usa o do ScriptApp
-    CANON_URL: ScriptApp.getService().getUrl() || '',
-    //OAUTH_CLIENT_ID: props.getProperty('OAUTH_CLIENT_ID'), //props is not defined. Should it be ScriptApp.getProperty?
-    AUTOSTART: "1", // auto-inicia o popup
-    debugQueryKey: 'debug',
-    localStorageKey: 'pbDebug',
-    //userEmail: opts.userEmail || '',
-    SERVER_VARS: null,
-    */
-    DEBUG: DBG,    
-    serverLog: [],
-    wipe: false,
-  };    
-
   if (action === "login") {
     L("route: login");
-    optsLogin.serverLog = ["login"];
-    return AuthCoreLib.renderLoginPage(optsLogin); 
+    optsProc.serverLog = ["login"];
+    return AuthCoreLib.renderLoginPage(optsProc); 
   }
   if (action === "logout"){
     L("route: logout");
@@ -933,16 +912,16 @@ function doGet(e){
 
     } catch(err){
       L("invalid ticket → login(wipe) ERR="+(err && err.message));
-      optsLogin.serverLog = ["wipe"];
-      optsLogin.wipe = true;
-      return AuthCoreLib.renderLoginPage(optsLogin);
+      optsProc.serverLog = ["wipe"];
+      optsProc.wipe = true;
+      return AuthCoreLib.renderLoginPage(optsProc);
     }
   }
 
   // sem ticket → login
   L("no ticket → render login");
-  optsLogin.serverLog = ["sem ticket"];
-  return AuthCoreLib.renderLoginPage(optsLogin);
+  optsProc.serverLog = ["sem ticket"];
+  return AuthCoreLib.renderLoginPage(optsProc);
 
 }
 
