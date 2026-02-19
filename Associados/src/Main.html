@@ -891,26 +891,23 @@
         );
       }
 
-      // Abrir RGPD a partir do link em cada cartão
-      document.querySelectorAll("a.rgpd-open").forEach((a) => {
-        a.addEventListener("click", (ev) => {
-          ev.preventDefault();
+      // Abrir RGPD a partir do link em cada cartão (event delegation — funciona após render async)
+      document.addEventListener("click", (ev) => {
+        const a = ev.target && ev.target.closest ? ev.target.closest("a.rgpd-open") : null;
+        if (!a) return;
+        ev.preventDefault();
 
-          const ticket = (typeof getSessTicket === "function") ? getSessTicket() : "";
-          const wantDebug = !!window.DEBUG;
+        const ticket = (typeof getSessTicket === "function") ? getSessTicket() : "";
+        const u = new URL(canonExec());
+        u.searchParams.set("go", "rgpd");
+        if (ticket) u.searchParams.set("ticket", ticket);
 
-          const u = new URL(canonExec());
-          u.searchParams.set("go", "rgpd");
-          u.searchParams.set("ticket", ticket);
-          
-          //if (wantDebug) u.searchParams.set("debug", "1"); else u.searchParams.delete("debug");
-          const qs = new URLSearchParams(location.search);
-          if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
-        
-          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
-          log("[MAIN] [RGPD] navegar (self) → " + u.toString());
-          location.assign(u.toString()); // ou replace; assign é OK aqui
-        });
+        const qs = new URLSearchParams(location.search);
+        if (qs.get("debug") === "1") u.searchParams.set("debug", "1");
+        u.searchParams.set("ts", String(Date.now()));
+
+        log("[MAIN] [RGPD] navegar (self) → " + u.toString());
+        location.assign(u.toString());
       });
     </script>
   </body>
