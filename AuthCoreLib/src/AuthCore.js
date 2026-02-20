@@ -31,8 +31,8 @@ function requireSession(ticket) {
   if (!p) throw new Error("Sessão inválida/expirada");
   return JSON.parse(p);
 }
-function enforceGates(email, ticket, DBG, gatesCfg) {
-  return enforceGates_(email, ticket, DBG, gatesCfg) || "";
+function enforceGates(email, ticket, DBG, gatesCfg, extLogger) {
+  return enforceGates_(email, ticket, DBG, gatesCfg, extLogger) || "";
 }
 function renderRgpdPage(opts) {
   return renderRgpdPage_(opts);
@@ -533,8 +533,8 @@ setTimeout(function(){ try{ window.close(); }catch(_){} }, 600);
 //   mailTo: "geral@titulares-portobelo.pt"
 // }
 
-function enforceGates_(email, ticket, DBG, gatesCfg){
-  const L = makeLogger_(opts.debug);
+function enforceGates_(email, ticket, DBG, gatesCfg, extLogger){
+  const L = extLogger || makeLogger_(DBG);
   L('function enforceGates_');
 
   gatesCfg = __defCfg(gatesCfg);
@@ -554,7 +554,7 @@ function enforceGates_(email, ticket, DBG, gatesCfg){
     ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
-  // 3) RGPD (pelo menos uma  linha "Sim"?)
+  // 3) RGPD (nenhuma linha pendente de aceitação?)
   const s = getRgpdStatusFor(ticket, gatesCfg);
   var optsProc = {
     ticket: "",
@@ -562,8 +562,9 @@ function enforceGates_(email, ticket, DBG, gatesCfg){
     serverLog: [],
     wipe: false,
   };    
-  if (!(s.total > 0 && s.sim > 0)) {
-  L("enforceGates_: Nenhum dos ",  s.total, " RGPD aceite");
+  
+  if (s.state === 'pendente') {
+    L("enforceGates_: pelo menos uma das ",  s.total, " linhs tem RGPD vazio");
     //return renderRgpdPage_(DBG, ticket, gatesCfg && gatesCfg.canon);
     optsProc.ticket = ticket;
     //optsProc.serverLog = ["enforceGates"];
@@ -573,7 +574,7 @@ function enforceGates_(email, ticket, DBG, gatesCfg){
   }
 
   // OK → deixa o host seguir para o Main
-  L("enforceGates_: ",  s.sim, " RGPD aceites");
+  L("enforceGates_ tudo OK: ", s.total, " linhas, com RGPD aceite para ", s.sim, " e recusado para ",  s.nao);
   return null;
 }
 
@@ -717,22 +718,27 @@ function hasAnyRowMinPayment_AuthCore_(info, gatesCfg, minEUR){
   return false;
 }
 
-
 // Lê estatuto RGPD do email da sessão
+// state:
+//  - pendente - não há linhas, ou há alguma em que RGPD não esteja definido (Sim ou Não)
+//  - parcial - todas as linhas têm o RGPD definido, mas algumas têm Não 
+//  - total - todas as linhas têm o RGPD definido a Sim 
 function getRgpdStatusFor(ticket, cfg){
   const sess = requireSession(ticket);
-  const st = rgpdStats_(sess.email, cfg); // { total, sim }
-  var state = 'none';
-  if (st.total>0 && st.sim===st.total) state = 'all';
-  else if (st.sim>0) state = 'some';
-  return { email: sess.email, total: st.total, sim: st.sim, state };
+  const st = rgpdStats_(sess.email, cfg); // { total, sim, nao }
+  var state = 'pendente';
+  if (st.total>0 && st.sim===st.total) state = 'total';
+  else if (st.total === (st.sim + st.nao)) state = 'parcial';
+  return { email: sess.email, total: st.total, sim: st.sim, nao: st.nao, state };
 }
 
+/*
 // true se TODAS as linhas estão "Sim"
 function isRgpdAllAcceptedFor(ticket, cfg){
   const s = getRgpdStatusFor(ticket, cfg);
   return s.total>0 && s.sim===s.total;
 }
+*/
 
 // usado pelo host em action=rgpd
 //function renderRgpdPage_(DBG, ticket, canonOverride) {
@@ -796,13 +802,13 @@ function rgpdStats_(email, cfg){
   const iEmail = ix[cfg.cols.email], iRGPD=ix[cfg.cols.rgpd];
   if (iEmail==null || iRGPD==null) return {total:0, sim:0};
   const emailLC = String(email||'').trim().toLowerCase();
-  let total=0, sim=0;
+  let total=0, sim=0; nao=0;
   for (let r=1; r<values.length; r++){
     const cell = String(values[r][iEmail]||'');
     const emails = cell.split(/[;,]/).map(s=>s.trim().toLowerCase()).filter(Boolean);
-    if (emails.includes(emailLC)){ total++; if (String(values[r][iRGPD]||'').trim().toLowerCase()==='sim') sim++; }
+    if (emails.includes(emailLC)){ total++; if (String(values[r][iRGPD]||'').trim().toLowerCase()==='sim') sim++; if (String(values[r][iRGPD]||'').trim().toLowerCase()==='não') nao++; }
   }
-  return { total, sim };
+  return { total, sim, nao };
 }
 
 function setRgpdForEmail_(emailLC, accept, cfg){

@@ -150,7 +150,7 @@ function gatesCfg_(){
     ssTitularesId: SS_TITULARES_ID,
     ranges: { titulares: RANGES.titulares },
     cols:   { email: COLS_TITULARES.L_EMAIL, rgpd: COLS_TITULARES.RGPD, pago: COLS_TITULARES.C_PAGO },
-    notify: { to: "pal.mendes23@gmail.com", ccAllRows: true },
+    notify: { to: "secretario-direcao@titulares-portobelo.pt", ccAllRows: true },
     canon: canon,
   };
 }
@@ -170,10 +170,11 @@ function renderRgpdPage_(ticket, DBG, serverLogLines) {
 function getRgpdStatus(ticket){
   return AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
 }
+/*
 function isRgpdAllAccepted(ticket){
   return AuthCoreLib.isRgpdAllAcceptedFor(ticket, gatesCfg_());
 }
-
+*/
 
 
 // ===== Main.html (template da app) =====
@@ -399,7 +400,8 @@ function rgpdStatsForEmail_(email){
   });
   return { total, sim, all: total>0 && sim===total };
 }
-function isRgpdAllAccepted_(email){ return rgpdStatsForEmail_(email).all; }
+
+//function isRgpdAllAccepted_(email){ return rgpdStatsForEmail_(email).all; }
 
 // Marca RGPD="Sim" em todas as linhas desse email — sem tocar noutras colunas
 function setRgpdAcceptedForEmail_(email){
@@ -765,9 +767,11 @@ function doGet(e){
     }
     //const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
+    const from = String(e.parameter.from || "rgpd-save");
     const next =
       canon +
-      "?ticket=" + encodeURIComponent(ticket) +
+      "?from=" + encodeURIComponent(from) +
+      "&ticket=" + encodeURIComponent(ticket) +
       (DBG ? "&debug=1" : "") +
       "&ts=" + Date.now();
     
@@ -911,10 +915,16 @@ function doGet(e){
       return renderMainPage_(ticket, DBG, L.dump());
     }
 
+
+    // Quando se vem do POST-RGPD (guardar RGPD), queremos avançar para Main
+    // mesmo que RGPD ainda não esteja "Sim" (p.ex. guardou "Não").
+    // Mantemos, no entanto, enforceGates (allowlist, saldo, etc), mas desligamos o gate RGPD.
+
+    let gatesCfg = gatesCfg_();
     let st;
     try {
       // LOGA estado RGPD ANTES de decidir
-      st = AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
+      st = AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg);
     } catch(err){
       L("getRgpdStatusFor ERR="+(err && err.message));
       optsProc.serverLog = L.dump();
@@ -922,8 +932,8 @@ function doGet(e){
       return AuthCoreLib.renderLoginPage(optsProc);
     }
 
-    L(`RGPD status: total=${st.total} sim=${st.sim} state=${st.state}`);
-    if (!(st.total>0 && st.sim>0)) {
+    L(`RGPD status: total=${st.total} sim=${st.sim} nao=${st.nao} state=${st.state}`);
+    if (st.state === 'pendente') {
       L("→ RGPD pendente → render RGPD (LIB)");
       return renderRgpdPage_(ticket, DBG, L.dump());
     }
@@ -932,7 +942,7 @@ function doGet(e){
     let gate;
     try {
       // enforceGates pode voltar a barrar RGPD; loga se acontecer:
-      gate = AuthCoreLib.enforceGates(sess.email, ticket, DBG, gatesCfg_());
+      gate = AuthCoreLib.enforceGates(sess.email, ticket, DBG, gatesCfg, L);
     } catch(err){
       L("enforceGates ERR="+(err && err.message));
       optsProc.serverLog = L.dump();
