@@ -29,7 +29,7 @@ function Show-RepoLineCounts {
 function Show-ChatGPTBlock {
   $hash = (git rev-parse HEAD).Trim()
 
-  Write-Host "`n===== TEXT TO COPY INTO CHATGPT (Option 1) =====`n"
+  Write-Host "`n===== TEXT TO COPY INTO CHATGPT =====`n"
   Write-Host "Não responder sem consultar o código no <HASH> do permalink seguinte, e via raw.githubusercontent.com (source integral) - Não usar open()/render:"
   Write-Host ("https://github.com/pal-mendes/Portobelo-apps/blob/{0}/{1}?raw=1" -f $hash, $AnchorFile)
   Write-Host "O comando ""git show"", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os números de linhas seguintes:"
