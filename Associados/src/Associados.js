@@ -923,7 +923,7 @@ function doGet(e){
     }
 
     L(`RGPD status: total=${st.total} sim=${st.sim} state=${st.state}`);
-    if (!(st.total>0 && st.sim===st.total)) {
+    if (!(st.total>0 && st.sim>0)) {
       L("→ RGPD pendente → render RGPD (LIB)");
       return renderRgpdPage_(ticket, DBG, L.dump());
     }
@@ -939,7 +939,7 @@ function doGet(e){
       optsProc.serverLog.unshift("enforceGates");
       return AuthCoreLib.renderLoginPage(optsProc);
     }
-    
+    L("check gate");
     if (gate){ L("gate returned HTML (provavelmente RGPD ou allowlist)"); return gate; }
 
     // OK → Main
