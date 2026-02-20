@@ -258,6 +258,7 @@
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
                 goWithParams({
                   action: "postrgpd",
+                  //from: "rgpd-save", //não serve para nada
                   ticket: TICKET,
                   rows: accepted.length ? accepted.join(",") : "", // opcional
                   debug: WANT_DEBUG ? "1" : ""

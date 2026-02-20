@@ -767,41 +767,22 @@ function doGet(e){
     }
     //const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
-    const from = String(e.parameter.from || "rgpd-save");
+    //const from = String(e.parameter.from || "rgpd-save");
     const next =
       canon +
-      "?from=" + encodeURIComponent(from) +
-      "&ticket=" + encodeURIComponent(ticket) +
+      //"?from=" + encodeURIComponent(from) +
+      "?ticket=" + encodeURIComponent(ticket) +
       (DBG ? "&debug=1" : "") +
       "&ts=" + Date.now();
     
-    const html = `
-  <!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Portobelo — A avançar…</title>
-      <style>
-        body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:24px}
-        a{word-break:break-all}
-      </style>
-    </head>
-    <body>
-      <p>A avançar para a Área do Associado…</p>
-      <p><a href="${next}">Se não avançar automaticamente, clique aqui</a></p>
-      <script>
-        (function(){
-          var url = ${JSON.stringify(next)};
-          try { location.replace(url); } catch(e) {}
-        })();
-      </script>
-    </body>
-  </html>`;
+    const html =
+    '<html><head><script>' +
+    'location.replace(${JSON.stringify(next)});'
+    '</script></head><body></body></html>';
 
     return HtmlService
       .createHtmlOutput(html)
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      //.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
 
