@@ -928,12 +928,13 @@ function doGet(e){
       return renderRgpdPage_(ticket, DBG, L.dump());
     }
 
+    L('check enforceGates');
     let gate;
     try {
       // enforceGates pode voltar a barrar RGPD; loga se acontecer:
       gate = AuthCoreLib.enforceGates(sess.email, ticket, DBG, gatesCfg_());
     } catch(err){
-      L("getRgpdStatusFor ERR="+(err && err.message));
+      L("enforceGates ERR="+(err && err.message));
       optsProc.serverLog = L.dump();
       optsProc.serverLog.unshift("enforceGates");
       return AuthCoreLib.renderLoginPage(optsProc);

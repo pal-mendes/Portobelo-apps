@@ -256,16 +256,12 @@
               .withSuccessHandler(function (resp) {
                 log("[RGPD/multi] save resp=", resp);
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
-                /*
                 goWithParams({
                   action: "postrgpd",
                   ticket: TICKET,
                   rows: accepted.length ? accepted.join(",") : "", // opcional
-                  from: "rgpd-save",
                   debug: WANT_DEBUG ? "1" : ""
                 });
-                */
-                goWithParams({ ticket: TICKET, from: "rgpd-save", debug: WANT_DEBUG ? "1" : "" });
               })
               .withFailureHandler(function(err){
                 log("[RGPD/multi] Erro a atualizar: " + (err && err.message ? err.message : String(err)));

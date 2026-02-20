@@ -31,7 +31,9 @@ function requireSession(ticket) {
   if (!p) throw new Error("Sessão inválida/expirada");
   return JSON.parse(p);
 }
-
+function enforceGates(email, ticket, DBG, gatesCfg) {
+  return enforceGates_(email, ticket, DBG, gatesCfg) || "";
+}
 function renderRgpdPage(opts) {
   return renderRgpdPage_(opts);
 }
@@ -86,17 +88,18 @@ function isDebug_(e){
 }
 
 function makeLogger_(DBG) {
-  const start = new Date(),
-    log = [];
+  const start = new Date();
+  const log = [];
   function L() {
     //if (!DBG) return;
-    const dt = new Date() - start;
-    const hh = new Date(dt).toISOString().substr(11, 8);
-    log.push(hh + " " + [].map.call(arguments, String).join(" "));
+    const ts = new Date();
+    const t = new Date(ts - start).toISOString().substr(11, 8); // hh:mm:ss desde início
+    log.push(t + " " + Array.prototype.map.call(arguments, String).join(" "));
   }
   L.dump = () => log.slice();
   return L;
 }
+
 
 // ===== Script properties helpers =====
 
@@ -530,23 +533,28 @@ setTimeout(function(){ try{ window.close(); }catch(_){} }, 600);
 //   mailTo: "geral@titulares-portobelo.pt"
 // }
 
-function enforceGates(email, ticket, DBG, gatesCfg){
+function enforceGates_(email, ticket, DBG, gatesCfg){
+  const L = makeLogger_(opts.debug);
+  L('function enforceGates_');
+
   gatesCfg = __defCfg(gatesCfg);
 
   // 1) allowlist
   if (!isAllowedEmail_AuthCore_(email)) {
+    L('enforceGates_: email not registered');
     return renderNotAllowed_AuthCore_(email, DBG);
   }
 
   // 2) tem pelo menos uma linha e ≥1€ pago?
   const info = getTitularesRowsByEmail_AuthCore_(email, gatesCfg);
   if (!(info.matches.length && hasAnyRowMinPayment_AuthCore_(info, gatesCfg, 1))) {
+    L("enforceGates_: no payments - lines = ",  info.matches.length);
     return HtmlService.createHtmlOutput(
       '<meta charset="utf-8"><h3>Acesso negado</h3><p>Email não registado ou quotas em atraso.</p>'
     ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
-  // 3) RGPD (todas as linhas "Sim"?)
+  // 3) RGPD (pelo menos uma  linha "Sim"?)
   const s = getRgpdStatusFor(ticket, gatesCfg);
   var optsProc = {
     ticket: "",
@@ -554,7 +562,8 @@ function enforceGates(email, ticket, DBG, gatesCfg){
     serverLog: [],
     wipe: false,
   };    
-  if (!(s.total > 0 && s.sim === s.total)) {
+  if (!(s.total > 0 && s.sim > 0)) {
+  L("enforceGates_: Nenhum dos ",  s.total, " RGPD aceite");
     //return renderRgpdPage_(DBG, ticket, gatesCfg && gatesCfg.canon);
     optsProc.ticket = ticket;
     //optsProc.serverLog = ["enforceGates"];
@@ -564,6 +573,7 @@ function enforceGates(email, ticket, DBG, gatesCfg){
   }
 
   // OK → deixa o host seguir para o Main
+  L("enforceGates_: ",  s.sim, " RGPD aceites");
   return null;
 }
 
