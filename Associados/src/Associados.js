@@ -780,9 +780,10 @@ function doGet(e){
     'location.replace(${JSON.stringify(next)});'
     '</script></head><body></body></html>';
 
+    L('RGPD save: location.replace -> ' + JSON.stringify(next));
     return HtmlService
       .createHtmlOutput(html)
-      //.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
 
