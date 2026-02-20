@@ -253,9 +253,8 @@
             btn.textContent = "A gravar…";
 
             google.script.run
-              .withSuccessHandler(function () {
-                //xx.textContent = "RGPD atualizado.\nA avançar… Se não avançar, clique aqui.";
-                //document.getElementById("continue").href = buildBaseUrl().toString();
+              .withSuccessHandler(function (resp) {
+                log("[RGPD/multi] save resp=", resp);
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
                 /*
                 goWithParams({
@@ -266,10 +265,10 @@
                   debug: WANT_DEBUG ? "1" : ""
                 });
                 */
-                goWithParams({ from: "rgpd-save" });
+                goWithParams({ ticket: TICKET, from: "rgpd-save", debug: WANT_DEBUG ? "1" : "" });
               })
               .withFailureHandler(function(err){
-                alert("RGPD Erro a atualizar: " + (err && err.message ? err.message : String(err)));
+                log("[RGPD/multi] Erro a atualizar: " + (err && err.message ? err.message : String(err)));
               })
               .setRgpdRowsFor(TICKET, accepted);
           });
