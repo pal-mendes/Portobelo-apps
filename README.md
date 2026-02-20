@@ -45,28 +45,23 @@ git add -A
 Quando se quiser mandar para o Git Hub, para o ChatGPT poder consultar e sugerir melhorias:
 git add -A && git commit -m "comentários" && git show --name-status --oneline -1 && git push
 
+O melhor é executar o script:
+C:\dev\Portobelo-apps>powershell .\commit-all.ps1
+
+# verificar o SHA no Windows Command Prompt: diz quantas linhas tem o ficheiro
+git show 00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc:AuthCoreLib/src/RGPD.html | find /c /v ""
+284
 
 
-
-Acesso online para o ChatGPT não pode ser direto, que seria assim:
+Acesso ao GitHub (não para o ChatGPT)
 https://github.com/pal-mendes/Portobelo-apps/tree/main/AuthCoreLib/src
 https://github.com/pal-mendes/Portobelo-apps/blob/main/AuthCoreLib/src/Login.html
 
 
-########## Pedir ao ChatGPT para verificar o código no  - usar em cada mensagem:
-
-~
 
 
 
-
-Acesso online para o ChatGPT não pode ser direto, que seria assim:
-https://github.com/pal-mendes/Portobelo-apps/tree/main/AuthCoreLib/src
-https://github.com/pal-mendes/Portobelo-apps/blob/main/AuthCoreLib/src/Login.html
-
-
-é preciso usar o Permalink:
-O que é <SHA> no URL do GitHub?
+O que é <SHA> ou <HASH> no URL do GitHub?
 <SHA> é o hash do commit (ex.: 2f552bd…). Um link com SHA é um permalink para essa versão exacta do ficheiro: as linhas #L42-L92 nunca se “mexem” porque o conteúdo não muda.
 Para obteres o permalink na UI do GitHub:
 1 - navegar para um dos projetos (URL https://github.com/pal-mendes/Portobelo-apps/tree/main/Anuncios) e escolher "Copy permalink" (Ctrl Shift ,) do botão "..." no canto superior direito.
@@ -82,17 +77,44 @@ Permalink por commit (não muda com futuros commits) com âncoras de linhas, ex.
 Raw (se quiseres que eu veja só o texto):
 https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/<branch ou SHA>/AuthCoreLib/src/RGPD.html
 
-Para ficheiros html, é preciso enviar ?raw=1 no fim do URL, e dizer ao ChatGPT que leia o source RAW para que o ChatGPT não faça o seu rendering. Ele diz para usar plain=1
 
-https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src?raw=1
-https://github.com/pal-mendes/Portobelo-apps/tree/3378b69b4b1c5f2c3e559303fce4507fb7ee73cc/Associados/src?plain=1
+########## Pedir ao ChatGPT para verificar o código no  - usar em cada mensagem:
+Não responder sem consultar o código no <HASH> do permalink seguinte, e via raw.githubusercontent.com (source integral) - Não usar open()/render:
+https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Main.html?raw=1
+O comando "git show", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os números de linhas seguintes:
+git show <HASH>:<FILE> | find /c /v ""
+   774  Anuncios/src/Anuncios.js
+   260  Anuncios/src/App.html
+   238  Anuncios/src/AuthCore.gs.js
+   238  Anuncios/src/AuthCore.js
+    29  Anuncios/src/Form.html
+   269  Anuncios/src/Login.html
+   182  Anuncios/src/Main.html
+   170  Anuncios/src/Styles.html
+  1035  Associados/src/Associados.js
+    51  Associados/src/Logger_js.html
+   914  Associados/src/Main.html
+   907  AuthCoreLib/src/AuthCore.js
+    51  AuthCoreLib/src/Logger_js.html
+   384  AuthCoreLib/src/Login.html
+   286  AuthCoreLib/src/RGPD.html
 
 
-Memorizar no ChatGPT que não deve usar web.run open() para consultar ficheiros HTML no Github usando os permalinks, pois reduz ficheiros de centenas de linhas a apenas 10 linhas, que costumam incluir “Proteção de dados… Guardar”. É preciso fazer o download direto do RAW (sem extração) de raw.githubusercontent.com, que devolve o HTML completo.
 
-
-# verificar o SHA no Windows Command Prompt:
-git show 00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc:AuthCoreLib/src/RGPD.html | find /c /v ""
-
-c221a1258c07c427b7d0900238c63b97f95727fd
-
+Não responder sem consultar o código nos permalinks seguintes, e via raw.githubusercontent.com (source integral) - Não usar open()/render.
+O comando "git show", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os números de linhas seguintes:
+git show <HASH>:<FILE> | find /c /v ""
+   774  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Anuncios.js?raw=1
+   260  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/App.html?raw=1
+   238  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/AuthCore.js?raw=1
+    29  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Form.html?raw=1
+   269  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Login.html?raw=1
+   182  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Main.html?raw=1
+   170  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Styles.html?raw=1
+  1035  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Associados/src/Associados.js?raw=1
+    51  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Associados/src/Logger_js.html?raw=1
+   914  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Associados/src/Main.html?raw=1
+   907  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/AuthCore.js?raw=1
+    51  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/Logger_js.html?raw=1
+   384  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/Login.html?raw=1
+   286  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/RGPD.html?raw=1
