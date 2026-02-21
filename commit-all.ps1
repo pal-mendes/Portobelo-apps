@@ -57,11 +57,12 @@ function Show-ChatGPTBlock {
   #   $count = Get-LineCount $file
   #   "{0,6}  {1}" -f $count, $file
   # }
-  Write-Host "(Checks locais opcionais: linhas por ficheiro via git show)"
-  foreach ($f in $files) {
-    $n = (git show "${hash}:$f" | Measure-Object -Line).Lines
-    Write-Host ("{0,6}  {1}" -f $n, $f)
-  }
+  # Isto abaixo não funciona bem
+  # Write-Host "(Checks locais opcionais: linhas por ficheiro via git show)"
+  # foreach ($f in $files) {
+  #   $n = (git show "${hash}:$f" | Measure-Object -Line).Lines
+  #   Write-Host ("{0,6}  {1}" -f $n, $f)
+  # }
   Write-Host "`n===== END =====`n"
 }
 
