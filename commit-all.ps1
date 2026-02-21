@@ -41,12 +41,12 @@ function Show-ChatGPTBlock {
 
   Write-Host ""
   Write-Host "`n===== TEXT TO COPY INTO CHATGPT =====`n"
-  Write-Host "RULE: Não responder sem usar o conector GitHub (já ligado), e mais nenhum outro método, para ler o código fonte integral neste repo e commit:"
+  Write-Host "RULE: Não responder sem usar o conector GitHub (já ligado) para ler o código fonte integral neste repo e commit. Só se o conector falhar deverá usar RAW como fallback, mas nunca open()/render. Indique sempre se teve sucesso em aceder ao GitHub."
   Write-Host "REPO=$repo"
   Write-Host "REF=$hash"
   Write-Host "FILES (paths no repo, a ler no REF):"
   $files | ForEach-Object { Write-Host "- $_" }
-  Write-Host ""
+  # Write-Host ""
   # Write-Host "RULE: Não responder sem consultar estes ficheiros, apena via conector GitHub no REF indicado (conteúdo integral). Não usar open()/render. Só usar RAW como fallback se o conector falhar."
   # Write-Host ("https://github.com/pal-mendes/Portobelo-apps/blob/{0}/{1}?raw=1" -f $hash, $AnchorFile)
   # Write-Host  ("RAW_BASE=https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/{0}/" -f $hash)
