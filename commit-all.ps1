@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$Message = "comentários",
-  [string]$AnchorFile = "Anuncios/src/Main.html"   # ficheiro "exemplo" para o permalink único
+  [string]$AnchorFile = "AuthCoreLib/src/Login.html"   # ficheiro "exemplo" para o permalink único
 )
 
 $ErrorActionPreference = "Stop"

@@ -116,4 +116,3 @@ Consulte os ficheiros dos permalinks seguintes, via raw.githubusercontent.com (s
 - https://github.com/pal-mendes/Portobelo-apps/blob/b45b130294e15024b6aea59af25c554f4428079c/Associados/src/Associados.js?raw=1 
 
 Mostre-me agora as primeiras 6 linhas de cada um destes ficheiros para que eu tenha a certeza que as leu bem. Quero saber se continua a conseguir aceder ao permalink antigo, ao qual já conseguiu aceder antes. Se tiver um "cache miss" é porque não está a aceder da forma correta, e pode verificar como fez no passado quando conseguiu.
-
