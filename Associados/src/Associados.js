@@ -765,6 +765,8 @@ function doGet(e){
     } catch (err) {
       L('RGPD save FAIL: ' + (err && err.message));
     }
+
+    /*
     //const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
 
     //const from = String(e.parameter.from || "rgpd-save");
@@ -784,6 +786,9 @@ function doGet(e){
     return HtmlService
       .createHtmlOutput(html)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    */
+
+    return renderMainPage_(ticket, DBG, L.dump());
   }
 
 

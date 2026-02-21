@@ -81,11 +81,10 @@ https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/<branch ou SHA>/Auth
 ########## Pedir ao ChatGPT para verificar o código no  - usar em cada mensagem:
 Não responder sem consultar o código no <HASH> do permalink seguinte, e via raw.githubusercontent.com (source integral) - Não usar open()/render:
 https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Main.html?raw=1
-O comando "git show", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os números de linhas seguintes:
+O comando "git show", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os seguintes números de linhas:
 git show <HASH>:<FILE> | find /c /v ""
    774  Anuncios/src/Anuncios.js
    260  Anuncios/src/App.html
-   238  Anuncios/src/AuthCore.gs.js
    238  Anuncios/src/AuthCore.js
     29  Anuncios/src/Form.html
    269  Anuncios/src/Login.html
@@ -101,20 +100,20 @@ git show <HASH>:<FILE> | find /c /v ""
 
 
 
-Não responder sem consultar o código nos permalinks seguintes, e via raw.githubusercontent.com (source integral) - Não usar open()/render.
-O comando "git show", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os números de linhas seguintes:
-git show <HASH>:<FILE> | find /c /v ""
-   774  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Anuncios.js?raw=1
-   260  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/App.html?raw=1
-   238  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/AuthCore.js?raw=1
-    29  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Form.html?raw=1
-   269  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Login.html?raw=1
-   182  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Main.html?raw=1
-   170  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Anuncios/src/Styles.html?raw=1
-  1035  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Associados/src/Associados.js?raw=1
-    51  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Associados/src/Logger_js.html?raw=1
-   914  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/Associados/src/Main.html?raw=1
-   907  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/AuthCore.js?raw=1
-    51  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/Logger_js.html?raw=1
-   384  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/Login.html?raw=1
-   286  https://github.com/pal-mendes/Portobelo-apps/blob/00aa703f2fa6b9cec3ebc4a7aa73e3c878fe9ccc/AuthCoreLib/src/RGPD.html?raw=1
+
+
+Ainda há pouco tempo, houve uma resposta sua que mostra que consegue aceder bem ao github, quando solicitei que acedesse a https://github.com/pal-mendes/Portobelo-apps/blob/b45b130294e15024b6aea59af25c554f4428079c/Associados/src/Associados.js: 
+########## Início de excerto de resposta ChatGPT
+Analisei o commit b45b130294e15024b6aea59af25c554f4428079c pelos RAW (ficheiros completos). Contagens obtidas: Associados/src/Associados.js: 1042 linhas
+AuthCoreLib/src/AuthCore.js: 891 linhas
+ AuthCoreLib/src/Login.html: 384 linhas 
+########## Fim de excerto de resposta ChatGPT
+
+
+Consulte os ficheiros dos permalinks seguintes, via raw.githubusercontent.com (source integral) - Não use open()/render:
+- https://github.com/pal-mendes/Portobelo-apps/blob/0d37d396b5614f8c54077d41fe403c1704b79bac/Associados/src/Associados.js?raw=1
+- https://github.com/pal-mendes/Portobelo-apps/blob/0d37d396b5614f8c54077d41fe403c1704b79bac/Associados/src/Main.html?raw=1
+- https://github.com/pal-mendes/Portobelo-apps/blob/b45b130294e15024b6aea59af25c554f4428079c/Associados/src/Associados.js?raw=1 
+
+Mostre-me agora as primeiras 6 linhas de cada um destes ficheiros para que eu tenha a certeza que as leu bem. Quero saber se continua a conseguir aceder ao permalink antigo, ao qual já conseguiu aceder antes. Se tiver um "cache miss" é porque não está a aceder da forma correta, e pode verificar como fez no passado quando conseguiu.
+
