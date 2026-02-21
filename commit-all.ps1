@@ -60,4 +60,6 @@ if ($LASTEXITCODE -eq 0) {
   git push --force-with-lease origin main
 }
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 Show-ChatGPTBlock
