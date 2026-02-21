@@ -33,7 +33,7 @@ function Show-ChatGPTBlock {
     $count = Get-LineCount $file
     "{0,6}  {1}" -f $count, $file
   }
-  Write-Host "RULE: ler sempre via RAW_BASE + FILE (conteúdo integral). Não usar open()/render."
+  Write-Host "RULE: ler sempre via RAW_BASE + FILE (conteúdo integral), em vez de usar open()/render, e confirmar o número de linhas. "
   Write-Host "`n===== END =====`n"
 }
 
