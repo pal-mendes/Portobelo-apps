@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-  [string]$Message = "comentários",
-  [string]$AnchorFile = "AuthCoreLib/src/Login.html"   # ficheiro "exemplo" para o permalink único
+  [string]$Message = "comentários"
+  # [string]$AnchorFile = "AuthCoreLib/src/Login.html"   # ficheiro "exemplo" para o permalink único
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,8 +22,9 @@ function Show-ChatGPTBlock {
   $hash = (git rev-parse HEAD).Trim()
 
   Write-Host "`n===== TEXT TO COPY INTO CHATGPT =====`n"
-  Write-Host "Nao responder sem consultar o codigo no <HASH> do permalink seguinte, e via raw.githubusercontent.com (source integral) - Nao usar open()/render:"
-  Write-Host ("https://github.com/pal-mendes/Portobelo-apps/blob/{0}/{1}?raw=1" -f $hash, $AnchorFile)
+  Write-Host "Nao responder sem consultar o codigo no <HASH> permalink seguinte:"
+  #Write-Host ("https://github.com/pal-mendes/Portobelo-apps/blob/{0}/{1}?raw=1" -f $hash, $AnchorFile)
+  Write-Host  ("RAW_BASE= https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/{0}/" -f $hash)
   Write-Host "O comando ""git show"", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os seguintes numeros de linhas:"
   Write-Host 'git show <HASH>:<FILE> | find /c /v ""'
   Get-TrackedJsHtmlFiles | ForEach-Object {
@@ -31,6 +32,7 @@ function Show-ChatGPTBlock {
     $count = Get-LineCount $file
     "{0,6}  {1}" -f $count, $file
   }
+  Write-Host "RULE: ler sempre via RAW_BASE + FILE (conteúdo integral). Não usar open()/render."
   Write-Host "`n===== END =====`n"
 }
 
