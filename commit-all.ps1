@@ -22,7 +22,7 @@ function Show-ChatGPTBlock {
   $hash = (git rev-parse HEAD).Trim()
 
   Write-Host "`n===== TEXT TO COPY INTO CHATGPT =====`n"
-  Write-Host "Nao responder sem consultar o codigo no <HASH> permalink seguinte:"
+  Write-Host "Nao responder sem consultar o codigo no <HASH> do permalink base seguinte:"
   #Write-Host ("https://github.com/pal-mendes/Portobelo-apps/blob/{0}/{1}?raw=1" -f $hash, $AnchorFile)
   Write-Host  ("RAW_BASE= https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/{0}/" -f $hash)
   Write-Host "O comando ""git show"", aplicado a cada um dos ficheiros <FILE> do mesmo <HASH>, retorna os seguintes numeros de linhas:"
