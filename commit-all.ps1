@@ -22,7 +22,7 @@ function Show-ChatGPTBlock {
   $hash = (git rev-parse HEAD).Trim()
 
   Write-Host "`n===== TEXT TO COPY INTO CHATGPT =====`n"
-  Write-Host "Não responder sem consultar o código no <HASH> do permalink base seguinte:"
+  Write-Host "Não responder sem consultar o código no <HASH> indicado, usando RAW_BASE + FILE:"
   Write-Host  ("HASH={0}" -f $hash)
   #Write-Host ("https://github.com/pal-mendes/Portobelo-apps/blob/{0}/{1}?raw=1" -f $hash, $AnchorFile)
   Write-Host  ("RAW_BASE=https://raw.githubusercontent.com/pal-mendes/Portobelo-apps/{0}/" -f $hash)
@@ -33,7 +33,7 @@ function Show-ChatGPTBlock {
     $count = Get-LineCount $file
     "{0,6}  {1}" -f $count, $file
   }
-  Write-Host "RULE: ler sempre via RAW_BASE + FILE (conteúdo integral), em vez de usar open()/render, e confirmar o número de linhas. "
+  Write-Host "RULE: não usar usar open()/render mas sim leitura raw (conteúdo integral), e confirmar o número de linhas. "
   Write-Host "`n===== END =====`n"
 }
 
