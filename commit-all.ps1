@@ -41,7 +41,7 @@ function Show-ChatGPTBlock {
 
   Write-Host ""
   Write-Host "`n===== TEXT TO COPY INTO CHATGPT =====`n"
-  Write-Host "RULE: Não responder sem usar o conector GitHub (já ligado) para ler o código fonte integral neste repo e commit. Só se o conector falhar deverá usar RAW como fallback, mas nunca open()/render. Indique sempre se teve sucesso em aceder ao GitHub."
+  Write-Host "RULE: Não responder sem usar o conector GitHub (já ligado) para ler o código fonte integral neste repo e commit. Só se o conector falhar deverá usar RAW como fallback, mas nunca open()/render. Indique sempre explicitamente se conseguiu usar o conetor GitHub nesta sessão."
   Write-Host "REPO=$repo"
   Write-Host "REF=$hash"
   Write-Host "FILES (paths no repo, a ler no REF):"
