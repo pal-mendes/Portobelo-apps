@@ -1,12 +1,10 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
   [string]$Message = "comentários"
   # [string]$AnchorFile = "AuthCoreLib/src/Login.html"   # ficheiro "exemplo" para o permalink único
 )
 
 $ErrorActionPreference = "Stop"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Get-LineCount([string]$file) {
   # Conta linhas de forma rápida
@@ -60,6 +58,6 @@ if ($LASTEXITCODE -eq 0) {
   git push --force-with-lease origin main
 }
 
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
+# [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+# $OutputEncoding = [System.Text.Encoding]::UTF8
 Show-ChatGPTBlock
