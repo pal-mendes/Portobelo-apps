@@ -100,6 +100,7 @@ git show <HASH>:<FILE> | find /c /v ""
 
 
 
+git archive -o "Portobelo-apps-6e401b9.zip" 6e401b91411cdeba4e2f64025d2cd48c58cfe2ac AuthCoreLib/src Associados/src Anuncios/src
 
 
 Ainda há pouco tempo, houve uma resposta sua que mostra que consegue aceder bem ao github, quando solicitei que acedesse a https://github.com/pal-mendes/Portobelo-apps/blob/b45b130294e15024b6aea59af25c554f4428079c/Associados/src/Associados.js: 
