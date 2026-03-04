@@ -897,8 +897,13 @@
 
       function canonExec() {
         const sv = window.__SERVER_VARS || {};
-        // In standalone mode the server injects CANON_URL; avoid falling back to the page's own origin.
-        const url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL  || '').trim();
+        // usar o “self” (domínio userCodeAppPanel) se existir, senão o canónico
+        //log("[Main.html canonExec] sv.canonSelf=" + sv.canonSelf || '' + "sv.canonUrl=" + sv.canonUrl || '' + "window.CANON_URL=" + window.CANON_URL || '' + "sv.CANON_URL=" + sv.CANON_URL || '');
+        log("[Main.html canonExec] sv.canonSelf=" + sv.canonSelf);
+        log("[Main.html canonExec] sv.canonUrl=" + sv.canonUrl);
+        log("[Main.html canonExec] window.CANON_URL=" + window.CANON_URL);
+        log("[Main.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
+        const url = (sv.canonSelf || sv.canonUrl || window.CANON_URL || sv.CANON_URL || '').trim();
         return url || (location.origin + location.pathname);
       }
 

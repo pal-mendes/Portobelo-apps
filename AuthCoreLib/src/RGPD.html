@@ -153,8 +153,13 @@
 
         function canonExec() {
           const sv = window.__SERVER_VARS || {};
-          // In standalone mode the server injects CANON_URL; avoid falling back to the page's own origin.
-          const url = (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim();
+          // usar o “self” (domínio userCodeAppPanel) se existir, senão o canónico
+          //log("[RGPD.html canonExec] sv.canonSelf=" + sv.canonSelf || '' + "sv.canonUrl=" + sv.canonUrl || '' + "window.CANON_URL=" + window.CANON_URL || '' + "sv.CANON_URL=" + sv.CANON_URL || '');
+          log("[RGPD.html canonExec] sv.canonSelf=" + sv.canonSelf);
+          log("[RGPD.html canonExec] sv.canonUrl=" + sv.canonUrl);
+          log("[RGPD.html canonExec] window.CANON_URL=" + window.CANON_URL);
+          log("[RGPD.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
+          const url = (sv.canonSelf || sv.canonUrl || window.CANON_URL || sv.CANON_URL || '').trim();
           return url || (location.origin + location.pathname);
         }
 
@@ -264,10 +269,10 @@
                   debug: WANT_DEBUG ? "1" : ""
                 });
                 */
-                const base = __SERVER_VARS.canonUrl || window.CANON_URL;
+                const base = canonExec();
                 const u = new URL(base);
-                u.searchParams.set("action", "postrgpd");
-                //u.searchParams.set("go", "main");
+                //u.searchParams.set("action", "postrgpd");
+                u.searchParams.set("go", "main");
                 u.searchParams.set("ticket", TICKET);
                 if (accepted.length) u.searchParams.set("rows", accepted.join(","));
                 if (WANT_DEBUG) u.searchParams.set("debug", "1");
