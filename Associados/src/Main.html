@@ -917,8 +917,10 @@
         if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
         u.searchParams.set("ts", String(Date.now()));
 
-        log("[MAIN] [RGPD] navegar (self) → " + u.toString());
-        location.replace(u.toString());
+        log("[RGPD] navegar (location.replace) → " + u.toString());
+        //Tanto location.replace como location.assign vão parar a página vazia!
+        location.replace(u.toString()); // location.replace vai parar a página vazia!
+        //location.assign(u.toString()); // location.replace vai parar a página vazia!
       });
     </script>
   </body>

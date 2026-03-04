@@ -760,7 +760,6 @@ function doGet(e){
 
     try {
       const touched = (setRgpdRowsFor(ticket, rows) | 0); // <-- grava no servidor
-      //L('RGPD save: rows=[${rows.join(',')}] touched=${touched}');
       L(`RGPD save: rows=[${rows.join(',')}] touched=${touched}`);
       //console.log(`RGPD save: rows=[${rows.join(',')}] touched=${touched}`);
     } catch (err) {
