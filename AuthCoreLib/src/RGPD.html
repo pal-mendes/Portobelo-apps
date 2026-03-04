@@ -153,9 +153,11 @@
 
         function canonExec() {
           const sv = window.__SERVER_VARS || {};
-          // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
+          // Prioridade: o caminho da página actual (…userCodeAppPanel…), que mantém
+          // a integração de Apps Script. Só se não existir, recorre ao canónico /exec.
           return (
-            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || CANON || "").trim() ||
+            (sv.canonSelf || sv.canonUrl || sv.CANON_URL ||
+            window.CANON_SELF || window.CANON_URL || "").trim() ||
             (location.origin + location.pathname)
           );
         }
