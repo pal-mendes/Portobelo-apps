@@ -884,10 +884,9 @@
 
       function canonExec() {
         const sv = window.__SERVER_VARS || {};
-        // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
+        // In standalone mode the server injects CANON_URL; avoid falling back to the page's own origin.
         return (
-          (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || "").trim() ||
-          (location.origin + location.pathname)
+          (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim()
         );
       }
 

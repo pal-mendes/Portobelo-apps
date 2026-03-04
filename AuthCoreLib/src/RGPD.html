@@ -153,10 +153,9 @@
 
         function canonExec() {
           const sv = window.__SERVER_VARS || {};
-          // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
+          // Use the canonical /exec URL. Fallback to empty string if not available.
           return (
-            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || "").trim() ||
-            (location.origin + location.pathname)
+            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim()
           );
         }
 
@@ -254,8 +253,8 @@
 
             google.script.run
               .withSuccessHandler(function (resp) {
-                log("[RGPD/multi] save resp=", resp);
-                log("[RGPD/multi] save resp=" + JSON.stringify(resp));
+                //log("[RGPD/multi] save resp=", resp); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp= {ok: true, touched: 1}
+                log("[RGPD/multi] save resp=" + JSON.stringify(resp)); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp={"ok":true,"touched":1}
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
                 /*
                 goWithParams({
@@ -266,9 +265,10 @@
                   debug: WANT_DEBUG ? "1" : ""
                 });
                 */
-                const base = __SERVER_VARS.canonUrl || window.CANON_URL || (location.origin + location.pathname);
+                const base = __SERVER_VARS.canonUrl || window.CANON_URL;
                 const u = new URL(base);
-                u.searchParams.set("action", "postrgpd");
+                //u.searchParams.set("action", "postrgpd");
+                u.searchParams.set("go", "main");
                 u.searchParams.set("ticket", TICKET);
                 if (accepted.length) u.searchParams.set("rows", accepted.join(","));
                 if (WANT_DEBUG) u.searchParams.set("debug", "1");
