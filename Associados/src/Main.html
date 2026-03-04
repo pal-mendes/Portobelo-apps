@@ -903,7 +903,7 @@
         log("[Main.html canonExec] sv.canonUrl=" + sv.canonUrl);
         log("[Main.html canonExec] window.CANON_URL=" + window.CANON_URL);
         log("[Main.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
-        const url = (sv.canonSelf || sv.canonUrl || window.CANON_URL || sv.CANON_URL || '').trim();
+        const url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
         return url || (location.origin + location.pathname);
       }
 

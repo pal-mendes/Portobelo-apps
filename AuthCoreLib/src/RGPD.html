@@ -159,7 +159,7 @@
           log("[RGPD.html canonExec] sv.canonUrl=" + sv.canonUrl);
           log("[RGPD.html canonExec] window.CANON_URL=" + window.CANON_URL);
           log("[RGPD.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
-          const url = (sv.canonSelf || sv.canonUrl || window.CANON_URL || sv.CANON_URL || '').trim();
+          const url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
           return url || (location.origin + location.pathname);
         }
 
@@ -271,8 +271,8 @@
                 */
                 const base = canonExec();
                 const u = new URL(base);
-                //u.searchParams.set("action", "postrgpd");
-                u.searchParams.set("go", "main");
+                u.searchParams.set("action", "postrgpd");
+                //u.searchParams.set("go", "main");
                 u.searchParams.set("ticket", TICKET);
                 if (accepted.length) u.searchParams.set("rows", accepted.join(","));
                 if (WANT_DEBUG) u.searchParams.set("debug", "1");
