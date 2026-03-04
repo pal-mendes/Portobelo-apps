@@ -153,10 +153,9 @@
 
         function canonExec() {
           const sv = window.__SERVER_VARS || {};
-          // Use the canonical /exec URL. Fallback to empty string if not available.
-          return (
-            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim()
-          );
+          // In standalone mode the server injects CANON_URL; avoid falling back to the page's own origin.
+          const url = (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim();
+          return url || (location.origin + location.pathname);
         }
 
         function navReplace(where) {
@@ -267,10 +266,10 @@
                 */
                 const base = __SERVER_VARS.canonUrl || window.CANON_URL;
                 const u = new URL(base);
-                //u.searchParams.set("action", "postrgpd");
-                u.searchParams.set("go", "main");
+                u.searchParams.set("action", "postrgpd");
+                //u.searchParams.set("go", "main");
                 u.searchParams.set("ticket", TICKET);
-                if (accepted.length) u.searchParams.set("rows", accepted.join(","));
+                //if (accepted.length) u.searchParams.set("rows", accepted.join(","));
                 if (WANT_DEBUG) u.searchParams.set("debug", "1");
                 u.searchParams.set("ts", Date.now());
                 location.replace(u.toString());

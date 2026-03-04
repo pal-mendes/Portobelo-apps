@@ -666,8 +666,8 @@ function doGet(e){
   //L("code=", (e && e.parameter && e.parameter.code) || "(none)");
   //if (String(e.parameter.go || '') === 'main') {
   L("go=", (e && e.parameter && e.parameter.go) || "(none)");
-  L("ticket: (e && e.parameter && e.parameter.ticket) || (none)=", (e && e.parameter && e.parameter.ticket) || "(none)");
-  L("ticket: e?.parameter?.ticket || (none)=", e?.parameter?.ticket || "(none)");
+  //L("ticket: (e && e.parameter && e.parameter.ticket) || (none)=", (e && e.parameter && e.parameter.ticket) || "(none)");
+  //L("ticket: e?.parameter?.ticket || (none)=", e?.parameter?.ticket || "(none)");
   L("ticket: e?.parameter?.ticket=", e?.parameter?.ticket);
 
   // 1) OAuth callback
@@ -760,6 +760,7 @@ function doGet(e){
 
     try {
       const touched = (setRgpdRowsFor(ticket, rows) | 0); // <-- grava no servidor
+      //L('RGPD save: rows=[${rows.join(',')}] touched=${touched}');
       L(`RGPD save: rows=[${rows.join(',')}] touched=${touched}`);
       //console.log(`RGPD save: rows=[${rows.join(',')}] touched=${touched}`);
     } catch (err) {

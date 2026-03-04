@@ -830,11 +830,24 @@
 
       // Lê ticket do storage/cookie
       function getSessTicket() {
+        // 1) Ticket injectado no global (SESSION_TICKET)
+        if (window.SESSION_TICKET) return String(window.SESSION_TICKET);
+        // 2) Query string (quando a URL contém ?ticket=…)
         try {
-          return localStorage.getItem("sessTicket") || "";
-        } catch (_) {
-          return "";
-        }
+          const t = new URL(location.href).searchParams.get('ticket');
+          if (t) return t;
+        } catch (_) {}
+        // 3) localStorage (mesmo domínio)
+        try {
+          const t = localStorage.getItem('sessTicket') || '';
+          if (t) return t;
+        } catch (_) {}
+        // 4) cookie (caso a app o tenha definido)
+        try {
+          const m = document.cookie.match(/(?:^|;)\\s*sessTicket=([^;]+)/);
+          if (m) return decodeURIComponent(m[1]);
+        } catch (_) {}
+        return '';
       }
 
       // Clique numa semana => download imediato
@@ -885,9 +898,8 @@
       function canonExec() {
         const sv = window.__SERVER_VARS || {};
         // In standalone mode the server injects CANON_URL; avoid falling back to the page's own origin.
-        return (
-          (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim()
-        );
+        const url = (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim();
+        return url || (location.origin + location.pathname);
       }
 
       // Abrir RGPD a partir do link em cada cartão (event delegation — funciona após render async)
@@ -906,7 +918,7 @@
         u.searchParams.set("ts", String(Date.now()));
 
         log("[MAIN] [RGPD] navegar (self) → " + u.toString());
-        location.assign(u.toString());
+        location.replace(u.toString());
       });
     </script>
   </body>
