@@ -153,11 +153,9 @@
 
         function canonExec() {
           const sv = window.__SERVER_VARS || {};
-          // Prioridade: o caminho da página actual (…userCodeAppPanel…), que mantém
-          // a integração de Apps Script. Só se não existir, recorre ao canónico /exec.
+          // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
           return (
-            (sv.canonSelf || sv.canonUrl || sv.CANON_URL ||
-            window.CANON_SELF || window.CANON_URL || "").trim() ||
+            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || "").trim() ||
             (location.origin + location.pathname)
           );
         }
@@ -257,6 +255,7 @@
             google.script.run
               .withSuccessHandler(function (resp) {
                 log("[RGPD/multi] save resp=", resp);
+                log("[RGPD/multi] save resp=" + JSON.stringify(resp));
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
                 /*
                 goWithParams({
@@ -267,8 +266,14 @@
                   debug: WANT_DEBUG ? "1" : ""
                 });
                 */
-                // após guardar, basta recarregar o painel; o servidor já sabe o estado RGPD
-                location.reload();
+                const base = __SERVER_VARS.canonUrl || window.CANON_URL || (location.origin + location.pathname);
+                const u = new URL(base);
+                u.searchParams.set("action", "postrgpd");
+                u.searchParams.set("ticket", TICKET);
+                if (accepted.length) u.searchParams.set("rows", accepted.join(","));
+                if (WANT_DEBUG) u.searchParams.set("debug", "1");
+                u.searchParams.set("ts", Date.now());
+                location.replace(u.toString());
               })
               .withFailureHandler(function(err){
                 log("[RGPD/multi] Erro a atualizar: " + (err && err.message ? err.message : String(err)));
