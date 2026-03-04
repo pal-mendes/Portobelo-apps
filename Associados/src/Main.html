@@ -898,7 +898,7 @@
       function canonExec() {
         const sv = window.__SERVER_VARS || {};
         // In standalone mode the server injects CANON_URL; avoid falling back to the page's own origin.
-        const url = (sv.canonUrl || sv.CANON_URL || window.CANON_URL || '').trim();
+        const url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL  || '').trim();
         return url || (location.origin + location.pathname);
       }
 
