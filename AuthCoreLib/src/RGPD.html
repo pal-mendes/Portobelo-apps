@@ -258,6 +258,7 @@
               .withSuccessHandler(function (resp) {
                 log("[RGPD/multi] save resp=", resp);
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
+                /*
                 goWithParams({
                   action: "postrgpd",
                   //from: "rgpd-save", //não serve para nada
@@ -265,6 +266,9 @@
                   rows: accepted.length ? accepted.join(",") : "", // opcional
                   debug: WANT_DEBUG ? "1" : ""
                 });
+                */
+                // após guardar, basta recarregar o painel; o servidor já sabe o estado RGPD
+                location.reload();
               })
               .withFailureHandler(function(err){
                 log("[RGPD/multi] Erro a atualizar: " + (err && err.message ? err.message : String(err)));
