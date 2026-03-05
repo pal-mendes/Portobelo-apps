@@ -117,11 +117,18 @@
 
         const WANT_DEBUG  = window.DEBUG;
 
-        //let CANON  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
-        let CANON  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || '');
-        if (!CANON) {
-          try { CANON = localStorage.getItem('appCanonicalUrl') || ''; } catch(_) {}
-          if (!CANON) CANON = location.origin + location.pathname;
+        function canonExec() {
+          const sv = window.__SERVER_VARS || {};
+          let url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
+          
+          if (!url) {
+            try { url = localStorage.getItem('appCanonicalUrl') || ""; } catch(_) {}
+          }
+          if (!url && document.referrer && document.referrer.indexOf('script.google.com/macros/s/') !== -1) {
+            url = document.referrer.split('?')[0];
+          }
+          
+          return url || (location.origin + location.pathname);
         }
 
         let TICKET = (__SERVER_VARS.ticket || (new URL(location.href).searchParams.get('ticket') || (function(){ try{return localStorage.getItem('sessTicket')}catch(_){return ''} })()));
@@ -134,7 +141,7 @@
           try { TICKET = localStorage.getItem('sessTicket') || ''; } catch(_) {}
         }
 
-        log(`RGPD page ready; CANON=${CANON}; have TICKET=${!!TICKET}`);
+        log(`RGPD page ready; CANON=${canonExec()}; have TICKET=${!!TICKET}`);
 
         function persistTicket(t) {
           try { localStorage.setItem("sessTicket", t); } catch (e) {}
@@ -151,22 +158,7 @@
           return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
         }
 
-        function canonExec() {
-          const sv = window.__SERVER_VARS || {};
-          let url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
-          
-          // 1. Tentar ler da cache
-          if (!url) {
-            try { url = localStorage.getItem('appCanonicalUrl') || ""; } catch(_) {}
-          }
-          
-          // 2. Tentar usar o document.referrer da página mãe
-          if (!url && document.referrer && document.referrer.indexOf('script.google.com/macros/s/') !== -1) {
-            url = document.referrer.split('?')[0];
-          }
-          
-          return url || (location.origin + location.pathname);
-        }
+
 
         function navReplace(where) {
           const url = String(where || '');
@@ -181,19 +173,7 @@
             window.open(url, "_top");
           }
         }
-
-        function goWithParams(params) {
-          const u = new URL(canonExec());
-          Object.entries(params || {}).forEach(([k, v]) => {
-            if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, String(v));
-          });
-          const qs = new URLSearchParams(location.search);
-          if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1"); 
-          if (!u.searchParams.has('ts')) u.searchParams.set('ts', String(Date.now()));
-          const where = u.toString();
-          navReplace(where);
-        }
-
+		
         function renderMulti(rows){
           log("[RGPD/multi] entrada");
           try { log("[RGPD/multi] rows=" + JSON.stringify(rows)); } catch(_){}
@@ -211,7 +191,7 @@
             document.getElementById('rgpd-back')?.addEventListener('click', () => {
               const u = new URL(canonExec());
               if (TICKET) u.searchParams.set("ticket", TICKET);
-              if (WANT_DEBUG)    u.searchParams.set("debug", "1");
+              if (WANT_DEBUG) u.searchParams.set("debug", "1");
               if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
               navReplace(u.toString());
             });
@@ -255,49 +235,34 @@
 
           btn.disabled = false;
           btn.textContent = "Guardar";
+          // O SEGREDO ESTÁ AQUI: Navegação imediata ao clicar (síncrona)
           btn.addEventListener("click", function () {
 
             const accepted = Array.from(box.querySelectorAll('input[type="checkbox"][data-row]'))
               .filter(el => el.checked)
               .map(el => Number(el.dataset.row))
               .filter(n => Number.isFinite(n));
-            log("[RGPD/multi] save click");
-            log("[RGPD/multi] accepted rows = " + JSON.stringify(accepted));
+            log("[RGPD/multi] save click: accepted rows = " + JSON.stringify(accepted));
             //if (!accepted.length) return;
 
             btn.disabled = true;
             btn.textContent = "A gravar…";
 
-            google.script.run
-              .withSuccessHandler(function (resp) {
-																																																		  
-                //log("[RGPD/multi] save resp=", resp); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp= {ok: true, touched: 1}
-                log("[RGPD/multi] save resp=" + JSON.stringify(resp)); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp={"ok":true,"touched":1}
-                try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
-                /*
-                goWithParams({
-                  action: "postrgpd",
-                  //from: "rgpd-save", //não serve para nada
-                  ticket: TICKET,
-                  rows: accepted.length ? accepted.join(",") : "", // opcional
-                  debug: WANT_DEBUG ? "1" : ""
-                });
-                */
-                const base = canonExec();
-                const u = new URL(base);
-                u.searchParams.set("action", "postrgpd");
-                //u.searchParams.set("go", "main");
-                u.searchParams.set("ticket", TICKET);
-                if (accepted.length) u.searchParams.set("rows", accepted.join(","));
-                if (WANT_DEBUG) u.searchParams.set("debug", "1");
-                u.searchParams.set("ts", Date.now());
-                log("[RGPD/multi] navegar SÍNCRONO (top) → " + u.toString());
-                navReplace(u.toString());
-              })
-              .withFailureHandler(function(err){
-                log("[RGPD/multi] Erro a atualizar: " + (err && err.message ? err.message : String(err)));
-              })
-              .setRgpdRowsFor(TICKET, accepted);
+            try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
+            const base = canonExec();
+            const u = new URL(base);
+            // Ao enviar action=postrgpd, o servidor Associados.js vai invocar a gravação setRgpdRowsFor(ticket, rows) no Google Sheets!
+            u.searchParams.set("action", "postrgpd");
+            //log("[RGPD/multi] save resp=", resp); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp= {ok: true, touched: 1}
+            //log("[RGPD/multi] save resp=" + JSON.stringify(resp)); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp={"ok":true,"touched":1}
+
+            u.searchParams.set("ticket", TICKET);
+            if (accepted.length) u.searchParams.set("rows", accepted.join(","));
+            if (WANT_DEBUG) u.searchParams.set("debug", "1");
+            u.searchParams.set("ts", Date.now());
+            
+            log("[RGPD/multi] navegar SÍNCRONO (top) → " + u.toString());
+            navReplace(u.toString());
           });
 
         }
