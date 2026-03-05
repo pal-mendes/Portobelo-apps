@@ -126,8 +126,21 @@
         }
 
         function canonExec() {
-          // Usar APENAS o origin e pathname do iframe para evitar bloqueios da Sandbox
-          return location.origin + location.pathname;
+          const sv = window.__SERVER_VARS || {};
+          let url = (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || "").trim();
+          
+          // 1. Tentar ler da cache (Main.html costuma guardar lá)
+          if (!url) {
+            try { url = localStorage.getItem('appCanonicalUrl') || ""; } catch(_) {}
+          }
+          
+          // 2. O iframe herda o referrer do wrapper principal do Google (Solução Definitiva)
+          if (!url && document.referrer && document.referrer.indexOf('script.google.com/macros/s/') !== -1) {
+            url = document.referrer.split('?')[0];
+          }
+
+          // 3. Fallback final
+          return url || (location.origin + location.pathname);
         }
 
         function persistTicket(t) {
@@ -161,10 +174,11 @@
           const qs = new URLSearchParams(location.search);
           if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
-          log("[LOGIN] Sessão recuperada. Aguardando clique do utilizador para -> " + u.toString());
+          log("[LOGIN] goWithTicket preparado -> " + u.toString());
 
-          // O Chrome bloqueia o window.top.location.href em callbacks assíncronos.
-          // Escondemos os botões anteriores e forçamos o clique num link com target="_top"
+          
+          // SOLUÇÃO SANDBOX: O Chrome bloqueia navegações do window.top após callbacks assíncronos.
+          // Em vez de redirecionar automaticamente, mostramos um botão "Entrar" para forçar um clique do utilizador.
           if (BTN) BTN.style.display = "none";
           setStatus(
             'Sessão validada com sucesso.<br><br>' +

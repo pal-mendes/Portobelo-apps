@@ -153,34 +153,33 @@
 
         function canonExec() {
           const sv = window.__SERVER_VARS || {};
-          // usar o “self” (domínio userCodeAppPanel) se existir, senão o canónico
-          //log("[RGPD.html canonExec] sv.canonSelf=" + sv.canonSelf || '' + "sv.canonUrl=" + sv.canonUrl || '' + "window.CANON_URL=" + window.CANON_URL || '' + "sv.CANON_URL=" + sv.CANON_URL || '');
-          log("[RGPD.html canonExec] sv.canonSelf=" + sv.canonSelf);
-          log("[RGPD.html canonExec] sv.canonUrl=" + sv.canonUrl);
-          log("[RGPD.html canonExec] window.CANON_URL=" + window.CANON_URL);
-          log("[RGPD.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
-          const url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
+          let url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
+          
+          // 1. Tentar ler da cache
+          if (!url) {
+            try { url = localStorage.getItem('appCanonicalUrl') || ""; } catch(_) {}
+          }
+          
+          // 2. Tentar usar o document.referrer da página mãe
+          if (!url && document.referrer && document.referrer.indexOf('script.google.com/macros/s/') !== -1) {
+            url = document.referrer.split('?')[0];
+          }
+          
           return url || (location.origin + location.pathname);
         }
 
         function navReplace(where) {
           const url = String(where || '');
           log("[RGPD] navReplace (top) → " + url);
-																		  
-			   
-											 
-											 
-	
-          // NOVO: Navegar no top para evitar limites de iframes aninhados
           try {
             if (window.top !== window.self) {
               window.top.location.href = url;
             } else {
-				location.replace(url);
-			}				
+              location.replace(url);
+            }
           } catch (e) {
             window.open(url, "_top");
-          }		   
+          }
         }
 
         function goWithParams(params) {
