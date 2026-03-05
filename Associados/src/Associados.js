@@ -482,7 +482,7 @@ ALLOWLIST parsed: ${escapeHtml_(parsed)}</pre></details>`;
   const out = HtmlService.createHtmlOutput(
     '<meta charset="utf-8">' +
     "<h3>Acesso não autorizado</h3><p>Este endereço não está na lista da fase de validação.</p>" +
-    `<p><a href="${canon}?action=logout${DBG ? "&debug=1" : ""}">Terminar sessão</a></p>` +
+    `<p><a href="${canon}?action=logout${DBG ? "&debug=1" : ""}" target="_top">Terminar sessão</a></p>` +
     dbgBlock
   );
   return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -711,18 +711,16 @@ function doGet(e){
     const html =
     '<!doctype html><html><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-    '<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:18px}</style>' +
+    '<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:18px} .btn{display:inline-block;padding:10px 16px;background:#000;color:#fff;text-decoration:none;border-radius:6px;}</style>' +
     "</head><body>" +
     '<h3>Cookies e armazenamento local limpos.</h3>' +
-    // Fallback sem JS
-    '<p><noscript><a href="' + next.replace(/"/g, "&quot;") + '">Prosseguir</a></noscript></p>' +
+    '<p><a class="btn" href="' + next.replace(/"/g, "&quot;") + '" target="_top">Ir para o Início</a></p>' +
     "<script>(function(){\n" +
     "  try{ localStorage.removeItem('sessTicket'); }catch(_){}\n" +
     "  try{ document.cookie = 'sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure'; }catch(_){}\n" +
     "  var url = " + JSON.stringify(next) + ";\n" +
-    // Navegação para o TOP para evitar aninhamento de iframes
     "  try { if (window.top !== window.self) window.top.location.href = url; else location.replace(url); }\n" +
-    "  catch(e){ window.open(url, '_top'); }\n" +
+    "  catch(e){ console.warn('Auto-redirect bloqueado na sandbox, clique no botão.'); }\n" +
     "})();</script>" +
     "</body></html>";
     const out = HtmlService.createHtmlOutput(html);
@@ -862,13 +860,18 @@ function doGet(e){
   }
   if (action === "logout"){
     L("route: logout");
+    const next = canon + "?action=login" + (DBG ? "&debug=1" : "");
     const out = HtmlService.createHtmlOutput(
-      '<meta charset="utf-8"><script>' +
+      '<!doctype html><html><head><meta charset="utf-8">' +
+      '<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:18px} .btn{display:inline-block;padding:10px 16px;background:#000;color:#fff;text-decoration:none;border-radius:6px;}</style>' +
+      '</head><body><h3>Sessão terminada.</h3>' +
+      '<p><a class="btn" href="'+next+'" target="_top">Entrar novamente</a></p>' +
+      '<script>' +
       'try{localStorage.removeItem("sessTicket");}catch(_){ }' +
       'document.cookie="sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure";' +
-      'var url = ' + JSON.stringify(canon + "?action=login" + (DBG ? "&debug=1" : "")) + ';' +
-      'try{ if(window.top!==window.self) window.top.location.href=url; else location.replace(url); } catch(e){ window.open(url, "_top"); }' +
-      "</script>"
+      'var url = ' + JSON.stringify(next) + ';' +
+      'try{ if(window.top!==window.self) window.top.location.href=url; else location.replace(url); } catch(e){ }' +
+      "</script></body></html>"
     );
     return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
