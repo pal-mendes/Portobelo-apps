@@ -292,7 +292,7 @@
                 if (accepted.length) u.searchParams.set("rows", accepted.join(","));
                 if (WANT_DEBUG) u.searchParams.set("debug", "1");
                 u.searchParams.set("ts", Date.now());
-                log("[RGPD/multi] navegar (top) → " + u.toString());
+                log("[RGPD/multi] navegar SÍNCRONO (top) → " + u.toString());
                 navReplace(u.toString());
               })
               .withFailureHandler(function(err){

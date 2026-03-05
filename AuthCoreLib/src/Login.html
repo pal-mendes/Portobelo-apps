@@ -126,12 +126,8 @@
         }
 
         function canonExec() {
-          const sv = window.__SERVER_VARS || {};
-          // prioridade: o CANON do servidor (…/exec). Fallback: o que houver.
-          return (
-            (sv.canonUrl || sv.CANON_URL || window.CANON_URL || window.CANON || "").trim() ||
-            (location.origin + location.pathname)
-          );
+          // Usar APENAS o origin e pathname do iframe para evitar bloqueios da Sandbox
+          return location.origin + location.pathname;
         }
 
         function persistTicket(t) {
@@ -164,19 +160,17 @@
 
           const qs = new URLSearchParams(location.search);
           if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
+          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
+          log("[LOGIN] Sessão recuperada. Aguardando clique do utilizador para -> " + u.toString());
 
-          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));;
-          log("[LOGIN] goWithTicket (top) → " + u.toString());
-          // NOVO: Navegar no nível principal (top) para não causar erros de iframes recursivos
-          try {
-            if (window.top !== window.self) {
-              window.top.location.href = u.toString();
-            } else {
-              location.replace(u.toString());
-            }
-          } catch (e) {
-            window.open(u.toString(), "_top");
-          }
+          // O Chrome bloqueia o window.top.location.href em callbacks assíncronos.
+          // Escondemos os botões anteriores e forçamos o clique num link com target="_top"
+          if (BTN) BTN.style.display = "none";
+          setStatus(
+            'Sessão validada com sucesso.<br><br>' +
+            '<a href="' + u.toString() + '" target="_top" class="btn" style="background:#111;color:#fff;font-weight:600;padding:12px 24px;">Entrar na Área do Associado</a>',
+            true
+          );
         }
 
         // Receber ticket via postMessage
