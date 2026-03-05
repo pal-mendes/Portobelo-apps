@@ -112,8 +112,9 @@
         const BTN = document.getElementById("login-link");
         const ST = document.getElementById("status");
 
-        const WANT_DEBUG = window.DEBUG;
-        const CANON_URL  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
+        // Correção do Debug: Avalia de forma segura se o debug foi ativado pelo servidor ou pelo URL atual
+        const qs = new URLSearchParams(location.search);
+        const WANT_DEBUG = (__SERVER_VARS.debugServer === true || qs.get("debug") === "1" || qs.get("Debug") === "1");
 
         const UI_DELAY_BTN = 1200; // só mostramos o botão passado isto (auto)
         const UI_DELAY_HINT = 2500; // só mostramos um hint/fallback passado isto (auto)
@@ -171,8 +172,8 @@
           const u = new URL(canonExec());
           u.searchParams.set("ticket", ticket);
 
-          const qs = new URLSearchParams(location.search);
-          if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
+          // Usar a variável WANT_DEBUG corrigida (impede que debug=1 apareça do nada)
+          if (WANT_DEBUG) u.searchParams.set("debug", "1");
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
           log("[LOGIN] goWithTicket preparado -> " + u.toString());
 
@@ -373,26 +374,19 @@
                 return;
               }
               log("Login.html ticket inválido → wipe");
+              try { localStorage.removeItem("sessTicket"); } catch (_) {}
               try {
-                localStorage.removeItem("sessTicket");
+                document.cookie = "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
               } catch (_) {}
-              try {
-                document.cookie =
-                  "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
-              } catch (_) {}
-              setStatus(
-                'A sua sessão expirou. Clique em "Entrar com conta Google".',
-              );
+              setStatus('A sua sessão expirou. Clique em "Entrar com conta Google".');
               if (BTN) BTN.style.display = "";
             })
             .withFailureHandler(function (err) {
               log("Login.html validate fail: " + (err && err.message ? err.message : err));
-              setStatus(
-                'Não foi possível validar a sessão. Clique em "Entrar com conta Google".',
-              );
+              setStatus('Não foi possível validar a sessão. Clique em "Entrar com conta Google".');
               if (BTN) BTN.style.display = "";
             })
-            .isTicketValid(t, window.DEBUG ? 1 : 0);
+            .isTicketValid(t, WANT_DEBUG ? 1 : 0);
         })();
       })();
     </script>

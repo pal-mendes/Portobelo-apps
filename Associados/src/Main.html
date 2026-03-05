@@ -324,39 +324,14 @@
           } catch (_) {}
         })();
 
-        // depois de persistir o ticket
+        // Avaliação rigorosa do debug
+        const qs_global = new URLSearchParams(location.search);
+        const WANT_DEBUG = (__SERVER_VARS.debugServer === true || qs_global.get("debug") === "1" || qs_global.get("Debug") === "1");
         (function () {
-          function detectEnv() {
-            const IN_IFRAME = (function () {
-              try {
-                return window.top !== window.self;
-              } catch (_) {
-                return true;
-              }
-            })();
-            const AO =
-              (location.ancestorOrigins &&
-                Array.from(location.ancestorOrigins)) ||
-              [];
-
-            // Qualquer origem Apps Script wrapper
-            const isAppsScript = (o) =>
-              /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
-                o,
-              );
-
-            // Estamos “externamente embebidos” se houver PELO MENOS um ancestor que NÃO seja Apps Script
-            const HAS_NON_APPS_ANCESTOR = AO.some((o) => !isAppsScript(o));
-
-            const EXTERNAL_EMBED = IN_IFRAME && HAS_NON_APPS_ANCESTOR;
-            return { IN_IFRAME, EXTERNAL_EMBED, AO };
-          }
-
-          //const { EXTERNAL_EMBED } = detectEnv();
 
           const CANON       = __SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname);
           const TPL_TICKET  = __SERVER_VARS.ticket || ''; // injeta o ticket do servidor
-          const WANT_DEBUG  = window.DEBUG;
+          //const WANT_DEBUG  = window.DEBUG;
           const IN_IFRAME = (function () {
             try {
               return window.top !== window.self;
@@ -390,7 +365,7 @@
           if (t) u.searchParams.set("ticket", t);
           u.searchParams.set("go", "rgpd"); // <— forçar render RGPD no ramo do ticket
 
-          if (window.DEBUG) u.searchParams.set("debug", "1");
+          if (WANT_DEBUG) u.searchParams.set("debug", "1");
           if (EXTERNAL_EMBED) u.searchParams.set("embed", "1"); // só para logging/diagnóstico no server
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
           //if (/\bdebug=1\b/i.test(location.search)) u.searchParams.set("debug", "1");
@@ -407,16 +382,6 @@
             });
           } catch (_) {
             return String(n || 0);
-          }
-        }
-        function wantDbg() {
-          try {
-            return (
-              /[?&]debug=1\b/i.test(location.search) ||
-              localStorage.getItem("pbDebug") === "1"
-            );
-          } catch (_) {
-            return false;
           }
         }
 
@@ -804,7 +769,7 @@
                 })
                 .apiGetAssociados(ticket);
             })
-            .isTicketValid(ticket, window.DEBUG ? 1 : 0);
+            .isTicketValid(ticket, WANT_DEBUG ? 1 : 0);
         })();
       })();
     </script>
@@ -918,8 +883,10 @@
         u.searchParams.set("go", "rgpd");
         if (ticket) u.searchParams.set("ticket", ticket);
 
-        const qs = new URLSearchParams(location.search);
-        if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
+        // Reposicionado para não apanhar lixo inesperado
+        const qs_local = new URLSearchParams(location.search);
+        const isDbg = (__SERVER_VARS.debugServer === true || qs_local.get("debug") === "1" || qs_local.get("Debug") === "1");
+        if (isDbg) u.searchParams.set("debug", "1");
         u.searchParams.set("ts", String(Date.now()));
 
         log("[MAIN] navegar SÍNCRONO (top) → " + u.toString());

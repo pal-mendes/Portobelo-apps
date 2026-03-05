@@ -54,10 +54,10 @@ var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:V
 var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€" };
 var LIB_NOTIFY = { to:"secretario-direcao@titulares-portobelo.pt", ccAllRows:true };
 
-function __defCfg(g){
+function __defCfg(cfgParam){
   //if (g && g.ssTitularesId) return g; // host forneceu cfg
   //return { ssTitularesId: LIB_SS_TITULARES_ID, ranges: LIB_RANGES, cols: LIB_COLS, notify: LIB_NOTIFY };
-  const out = cfg || {};
+  const out = cfgParam || {};
   out.notify = out.notify || {};
   out.notify.to = out.notify.to || LIB_NOTIFY;
   return out;  
@@ -686,7 +686,7 @@ function parsePtNumber_AuthCore_(s){
 function getTitularesRowsByEmail_AuthCore_(email, cfg){
   cfg = __defCfg(cfg);
 
-const ss = SpreadsheetApp.openById(cfg.ssTitularesId);
+  const ss = SpreadsheetApp.openById(cfg.ssTitularesId);
   let range=null; try{ if (cfg.ranges && cfg.ranges.titulares && cfg.ranges.titulares.name) range=ss.getRangeByName(cfg.ranges.titulares.name); }catch(_){}
   if (!range) range = ss.getSheetByName(cfg.ranges.titulares.sheet).getRange(cfg.ranges.titulares.a1);
 

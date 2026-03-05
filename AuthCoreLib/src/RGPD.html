@@ -115,7 +115,9 @@
 
         log(`RGPD page`);
 
-        const WANT_DEBUG  = window.DEBUG;
+        // Avaliação correta de DEBUG
+        const qs = new URLSearchParams(location.search);
+        const WANT_DEBUG = (__SERVER_VARS.debugServer === true || qs.get("debug") === "1" || qs.get("Debug") === "1");
 
         function canonExec() {
           const sv = window.__SERVER_VARS || {};
@@ -267,7 +269,7 @@
 
         }
 
-        log("RGPD about to call listRgpdRowsFor (host)"); //!
+        log("RGPD about to call listRgpdRowsFor (host)");
         // Chama o host para obter linhas; se vier vazio, a página da biblioteca fica no modo single padrão
         google.script.run
           .withSuccessHandler(renderMulti)

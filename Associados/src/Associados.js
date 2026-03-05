@@ -112,19 +112,19 @@ function acceptRgpdForMe(ticket, decision){
 // Utilitário de logs (cai para Google Apps Script executions logs, se console não existir)  //log em Execuções Apps Script
 function dbgLog() {
   var msg = Array.prototype.map.call(arguments, String).join(' ');
-  //try { console.log(msg); } catch(_) { try { Logger.log(msg); } catch(__) {} }
+
   try { Logger.log(msg); } catch(_) { try { console.log(msg); } catch(__) {} }
 }
 
 function isDebug_(e){
   const p = e && e.parameter ? e.parameter : {};
-  if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) {
+  if (!p || (!Object.prototype.hasOwnProperty.call(p, "debug") && !Object.prototype.hasOwnProperty.call(p, "Debug"))) {
     DBG = false;
   } else {
     //return v === "" || v === "1" || v === "true";
     DBG = true;
   }
-  const v = String(p.debug || "").toLowerCase();
+  const v = String(p.debug || p.Debug || "").toLowerCase();
   console.log("isDebug_() => DBG=", DBG, "v = ", v);
   dbgLog("Associados: isDebug_() => DBG=", DBG, "v = ", v);
   return DBG;
@@ -170,11 +170,6 @@ function renderRgpdPage_(ticket, DBG, serverLogLines) {
 function getRgpdStatus(ticket){
   return AuthCoreLib.getRgpdStatusFor(ticket, gatesCfg_());
 }
-/*
-function isRgpdAllAccepted(ticket){
-  return AuthCoreLib.isRgpdAllAcceptedFor(ticket, gatesCfg_());
-}
-*/
 
 
 // ===== Main.html (template da app) =====
@@ -355,16 +350,22 @@ function setRgpdRowsFor(ticket, acceptedRows) {
   const col = {}; header.forEach((h,i)=> col[h]=i);
   const iEmail = col[COLS_TITULARES.L_EMAIL];
   const iRGPD  = col[COLS_TITULARES.RGPD];
-  if (iEmail==null || iRGPD==null) throw new Error('Cabeçalhos "e-mail" ou "RGPD" em falta.');
+  const iSem   = col[COLS_TITULARES.D_SEMANAS]; // Puxar as semanas para formatar no e-mail
+  if (iEmail==null || iRGPD==null || iSem==null) throw new Error('Cabeçalhos "e-mail", "Semanas" ou "RGPD" em falta.');
 
   const bodyRows = nRows - 1;
   const emailRange = sheet.getRange(r0+1, c0+iEmail, bodyRows, 1);
   const rgpdRange  = sheet.getRange(r0+1, c0+iRGPD,  bodyRows, 1);
 
+  const semRange   = sheet.getRange(r0+1, c0+iSem,   bodyRows, 1);
   const emailVals = emailRange.getDisplayValues();
   const rgpdVals  = rgpdRange.getValues();
 
+
+  const semVals   = semRange.getDisplayValues();
+
   let touched = 0;
+  let acceptedSemanas = [];
   for (let i=0; i<bodyRows; i++){
     const sheetRow = r0 + 1 + i;
     const hasEmail = cellHasEmail_(emailVals[i][0], emailLC);
@@ -378,21 +379,35 @@ function setRgpdRowsFor(ticket, acceptedRows) {
       rgpdVals[i][0] = next;
       touched++;
     }
+	
+    // Se o utilizador aceitou esta linha (neste momento ou já antes), guardamos a info para o e-mail
+    if (wantAccept) {
+      const rawSemanas = semVals[i][0] || "";
+      // Formatação exata como na interface (separadas por " · ")
+      const formatted = String(rawSemanas).split(/[+,\s]+/).filter(Boolean).join(" · ");
+      if (formatted) acceptedSemanas.push(formatted);
+    }
   }
   if (touched) {
     rgpdRange.setValues(rgpdVals);
     
-    // NOVO: Notificar por e-mail a mudança do RGPD
+    // NOVO: Notificar por e-mail descritivo com o RGPD das semanas
     try {
-      const toEmail = gatesCfg_().notify.to || "geral@titulares-portobelo.pt";
+      const toEmail = gatesCfg_().notify.to || "secretario-direcao@titulares-portobelo.pt";
       const subject = "[Associados] Atualização de RGPD - " + sess.email;
-      const aceitesStr = acceptedRows.length > 0 ? acceptedRows.join(", ") : "Nenhuma (Rejeitado para todas as semanas)";
-      const body = "O associado " + sess.email + " (" + (sess.name || "Sem Nome") + ") atualizou as suas preferências de RGPD.\n\n" +
-                   "Linhas aceites (nº da linha na folha Google): " + aceitesStr + "\n\n" +
-                   "As restantes linhas deste utilizador foram marcadas como NÃO aceites.\n" +
-                   "Esta mensagem foi gerada automaticamente pela aplicação.";
       
-      MailApp.sendEmail(toEmail, subject, body);
+      let bodyText = "O associado " + sess.email + " (" + (sess.name || "Sem Nome") + ") atualizou as suas preferências de RGPD.\n\n";
+      
+      if (acceptedSemanas.length > 0) {
+        bodyText += acceptedSemanas.map(sem => "Aceitada a linha com as semanas: " + sem).join("\n") + "\n\n";
+      } else {
+        bodyText += "Nenhuma linha aceite (Rejeitado para todas as semanas).\n\n";
+      }
+      
+      bodyText += "As restantes linhas deste utilizador (se aplicável) foram marcadas como NÃO aceites.\n";
+      bodyText += "Esta mensagem foi gerada automaticamente pela aplicação.";
+      
+      MailApp.sendEmail(toEmail, subject, bodyText);
       dbgLog('[RGPD] E-mail enviado para: ' + toEmail);
     } catch (err) {
       dbgLog('[RGPD] Erro ao enviar e-mail: ' + err.message);
@@ -725,7 +740,6 @@ function doGet(e){
 
 
   if (action === "reset"){
-    //Já funciona também em EMBED
     const next = canon + (DBG ? '?debug=1' : '');
     const html =
     '<!doctype html><html><head><meta charset="utf-8">' +
@@ -782,28 +796,6 @@ function doGet(e){
     } catch (err) {
       L('RGPD save FAIL: ' + (err && err.message));
     }
-
-    /*
-    //const SVLOG = JSON.stringify(L.dump()); // Injetar logs do servidor na página
-
-    //const from = String(e.parameter.from || "rgpd-save");
-    const next =
-      canon +
-      //"?from=" + encodeURIComponent(from) +
-      "?ticket=" + encodeURIComponent(ticket) +
-      (DBG ? "&debug=1" : "") +
-      "&ts=" + Date.now();
-    
-    const html =
-    '<html><head><script>' +
-    'location.replace(${JSON.stringify(next)});'
-    '</script></head><body></body></html>';
-
-    L('RGPD save: location.replace -> ' + JSON.stringify(next));
-    return HtmlService
-      .createHtmlOutput(html)
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    */
 
     return renderMainPage_(ticket, DBG, L.dump());
   }
@@ -1061,3 +1053,8 @@ function debugFetchAuth(){
   // UrlFetchApp.fetch('https://www.googleapis.com/discovery/v1/apis?fields=discoveryVersion', {muteHttpExceptions:true});
 
 }
+
+function autorizarEmail() {
+  MailApp.sendEmail(Session.getActiveUser().getEmail(), "Autorização", "O script já pode enviar e-mails!");
+}
+
