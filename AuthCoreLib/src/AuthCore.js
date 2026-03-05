@@ -52,11 +52,15 @@ const NONCE_TTL_SEC = 180; // 3 min para nonce→ticket
 var LIB_SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
 var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:V" } };
 var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€" };
-var LIB_NOTIFY = { to:"geral@titulares-portobelo.pt", ccAllRows:true };
+var LIB_NOTIFY = { to:"secretario-direcao@titulares-portobelo.pt", ccAllRows:true };
 
 function __defCfg(g){
-  if (g && g.ssTitularesId) return g; // host forneceu cfg
-  return { ssTitularesId: LIB_SS_TITULARES_ID, ranges: LIB_RANGES, cols: LIB_COLS, notify: LIB_NOTIFY };
+  //if (g && g.ssTitularesId) return g; // host forneceu cfg
+  //return { ssTitularesId: LIB_SS_TITULARES_ID, ranges: LIB_RANGES, cols: LIB_COLS, notify: LIB_NOTIFY };
+  const out = cfg || {};
+  out.notify = out.notify || {};
+  out.notify.to = out.notify.to || LIB_NOTIFY;
+  return out;  
 }
 
 

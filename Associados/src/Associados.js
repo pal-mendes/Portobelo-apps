@@ -379,7 +379,26 @@ function setRgpdRowsFor(ticket, acceptedRows) {
       touched++;
     }
   }
-  if (touched) rgpdRange.setValues(rgpdVals);
+  if (touched) {
+    rgpdRange.setValues(rgpdVals);
+    
+    // NOVO: Notificar por e-mail a mudança do RGPD
+    try {
+      const toEmail = gatesCfg_().notify.to || "geral@titulares-portobelo.pt";
+      const subject = "[Associados] Atualização de RGPD - " + sess.email;
+      const aceitesStr = acceptedRows.length > 0 ? acceptedRows.join(", ") : "Nenhuma (Rejeitado para todas as semanas)";
+      const body = "O associado " + sess.email + " (" + (sess.name || "Sem Nome") + ") atualizou as suas preferências de RGPD.\n\n" +
+                   "Linhas aceites (nº da linha na folha Google): " + aceitesStr + "\n\n" +
+                   "As restantes linhas deste utilizador foram marcadas como NÃO aceites.\n" +
+                   "Esta mensagem foi gerada automaticamente pela aplicação.";
+      
+      MailApp.sendEmail(toEmail, subject, body);
+      dbgLog('[RGPD] E-mail enviado para: ' + toEmail);
+    } catch (err) {
+      dbgLog('[RGPD] Erro ao enviar e-mail: ' + err.message);
+    }
+  }
+  
   dbgLog('[RGPD] setRgpdRowsFor email=', sess.email, 'accepted=', JSON.stringify(acceptedRows), 'touched=', touched);
   return { ok:true, touched };
 }
