@@ -720,9 +720,9 @@ function doGet(e){
     "  try{ localStorage.removeItem('sessTicket'); }catch(_){}\n" +
     "  try{ document.cookie = 'sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure'; }catch(_){}\n" +
     "  var url = " + JSON.stringify(next) + ";\n" +
-    // Navegação no MESMO frame (funciona em EMBED e fora dele)
-    "  try { location.replace(url); }\n" +
-    "  catch(e){ try{ location.assign(url); } catch(e2){ location.href = url; } }\n" +
+    // Navegação para o TOP para evitar aninhamento de iframes
+    "  try { if (window.top !== window.self) window.top.location.href = url; else location.replace(url); }\n" +
+    "  catch(e){ window.open(url, '_top'); }\n" +
     "})();</script>" +
     "</body></html>";
     const out = HtmlService.createHtmlOutput(html);
@@ -866,7 +866,8 @@ function doGet(e){
       '<meta charset="utf-8"><script>' +
       'try{localStorage.removeItem("sessTicket");}catch(_){ }' +
       'document.cookie="sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure";' +
-      "location.replace(" + JSON.stringify(canon + "?action=login" + (DBG ? "&debug=1" : "")) + ");" +
+      'var url = ' + JSON.stringify(canon + "?action=login" + (DBG ? "&debug=1" : "")) + ';' +
+      'try{ if(window.top!==window.self) window.top.location.href=url; else location.replace(url); } catch(e){ window.open(url, "_top"); }' +
       "</script>"
     );
     return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

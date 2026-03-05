@@ -166,9 +166,17 @@
           if (window.DEBUG || qs.get("debug") === "1") u.searchParams.set("debug", "1");
 
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));;
-          log("[LOGIN] goWithTicket → " + u.toString());
-          // em Sites: navegar SEMPRE o próprio iframe
-          location.replace(u.toString());
+          log("[LOGIN] goWithTicket (top) → " + u.toString());
+          // NOVO: Navegar no nível principal (top) para não causar erros de iframes recursivos
+          try {
+            if (window.top !== window.self) {
+              window.top.location.href = u.toString();
+            } else {
+              location.replace(u.toString());
+            }
+          } catch (e) {
+            window.open(u.toString(), "_top");
+          }
         }
 
         // Receber ticket via postMessage

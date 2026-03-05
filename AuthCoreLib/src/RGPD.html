@@ -165,8 +165,22 @@
 
         function navReplace(where) {
           const url = String(where || '');
-          log("[RGPD] replace → " + url);
-          location.replace(url);
+          log("[RGPD] navReplace (top) → " + url);
+																		  
+			   
+											 
+											 
+	
+          // NOVO: Navegar no top para evitar limites de iframes aninhados
+          try {
+            if (window.top !== window.self) {
+              window.top.location.href = url;
+            } else {
+				location.replace(url);
+			}				
+          } catch (e) {
+            window.open(url, "_top");
+          }		   
         }
 
         function goWithParams(params) {
@@ -257,6 +271,7 @@
 
             google.script.run
               .withSuccessHandler(function (resp) {
+																																																		  
                 //log("[RGPD/multi] save resp=", resp); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp= {ok: true, touched: 1}
                 log("[RGPD/multi] save resp=" + JSON.stringify(resp)); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp={"ok":true,"touched":1}
                 try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
@@ -277,8 +292,8 @@
                 if (accepted.length) u.searchParams.set("rows", accepted.join(","));
                 if (WANT_DEBUG) u.searchParams.set("debug", "1");
                 u.searchParams.set("ts", Date.now());
-                log("[RGPD/multi] navegar (location.replace) → " + u.toString());
-                location.replace(u.toString());
+                log("[RGPD/multi] navegar (top) → " + u.toString());
+                navReplace(u.toString());
               })
               .withFailureHandler(function(err){
                 log("[RGPD/multi] Erro a atualizar: " + (err && err.message ? err.message : String(err)));
