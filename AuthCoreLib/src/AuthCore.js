@@ -8,24 +8,12 @@
 
 
 // API: Funções públicas sem underscore e com nomes limpos:
-function renderLoginPage(opts) {
-  return renderLoginPage_(opts);
-}
-function buildAuthUrlFor(nonce, dbg, embed, cfg) {
-  return buildAuthUrlFor_(nonce, dbg, embed, cfg);
-}
-function beginAuth(e, cfg) {
-  return beginAuth_(e, cfg);
-}
-function finishAuth(e, cfg) {
-  return finishAuth_(e, cfg);
-}
-function isTicketValid(ticket, dbg) {
-  return !!validateSessionToken_(ticket);
-}
-function pollTicket(nonce) {
-  return takeTicketForNonce_(nonce) || "";
-}
+function renderLoginPage(opts) { return renderLoginPage_(opts); }
+function buildAuthUrlFor(nonce, dbg, embed, cfg) { return buildAuthUrlFor_(nonce, dbg, embed, cfg); }
+function beginAuth(e, cfg) { return beginAuth_(e, cfg); }
+function finishAuth(e, cfg) { return finishAuth_(e, cfg); }
+function isTicketValid(ticket, dbg) { return !!validateSessionToken_(ticket); }
+function pollTicket(nonce) { return takeTicketForNonce_(nonce) || ""; }
 function requireSession(ticket) {
   const p = getSession(ticket);
   if (!p) throw new Error("Sessão inválida/expirada");
@@ -34,14 +22,14 @@ function requireSession(ticket) {
 function enforceGates(email, ticket, DBG, gatesCfg, extLogger) {
   return enforceGates_(email, ticket, DBG, gatesCfg, extLogger) || "";
 }
-function renderRgpdPage(opts) {
-  return renderRgpdPage_(opts);
-}
+function renderRgpdPage(opts) { return renderRgpdPage_(opts); }
 
 function getProfileStats(ticket, cfg) { return getProfileStats_(ticket, cfg); }
 function hostListRgpdRowsFor(ticket, cfg) { return hostListRgpdRowsFor_(ticket, cfg); }
 function hostSaveRgpdRowsFor(ticket, acceptedRows, cfg) { return hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg); }
 
+// NOVO: Função para uso das web apps clientes para registar bloqueios personalizados
+function logFailedAccess(ticket, reason, cfg) { return logFailedAccessPublic_(ticket, reason, cfg); }
 function libBuild(){ return "AuthCoreLib build 2026-03-06 15:54 - development mode"; }
 
 
@@ -53,8 +41,8 @@ const NONCE_TTL_SEC = 180; // 3 min para nonce→ticket
 
 // Defaults internos da biblioteca (só para a Associação Portobelo)
 var LIB_SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
-var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", semanas:"Semanas" }; // Adicionado saldo e semanas
-var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€" };
+var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:V" } };
+var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", semanas:"Semanas" };
 var LIB_NOTIFY = { to:"secretario-direcao@titulares-portobelo.pt", ccAllRows:true };
 
 function __defCfg(cfgParam){
@@ -65,7 +53,7 @@ function __defCfg(cfgParam){
   out.ranges = out.ranges || LIB_RANGES;
   out.cols = out.cols || LIB_COLS;
   out.notify = out.notify || {};
-  out.notify.to = out.notify.to || LIB_NOTIFY;
+  out.notify.to = out.notify.to || LIB_NOTIFY.to;
   return out;  
 }
 
@@ -75,9 +63,8 @@ function resolveCfg_(cfg) {
   const sp = PropertiesService.getScriptProperties();
   // usa o que vier do host (cfg) ou, em último caso, as props da própria biblioteca
   const clientId = (cfg && cfg.clientId) || sp.getProperty("CLIENT_ID");
-  const clientSecret =
-    (cfg && cfg.clientSecret) || sp.getProperty("CLIENT_SECRET");
-  const ruProp = (cfg && cfg.redirectUri) || REDIRECT_URI;
+  const clientSecret = (cfg && cfg.clientSecret) || sp.getProperty("CLIENT_SECRET");
+  const ruProp = (cfg && cfg.redirectUri) || sp.getProperty("REDIRECT_URI");
   const redirectUri = (ruProp && ruProp.trim()) || canonicalAppUrl_();
   return { clientId, clientSecret, redirectUri };
 }
@@ -85,15 +72,8 @@ function resolveCfg_(cfg) {
 // ===== (Opcional) Debug helpers reutilizáveis =====
 function isDebug_(e){
   const p = e && e.parameter ? e.parameter : {};
-  if (!p || !Object.prototype.hasOwnProperty.call(p, "debug")) {
-    DBG = false;
-  } else {
-    //return v === "" || v === "1" || v === "true";
-    DBG = true;
-  }
-  const v = String(p.debug || "").toLowerCase();
-  console.log("isDebug_() => DBG=", DBG, "v = ", v);
-  dbgLog("AuthCoreLib: isDebug_() => DBG=", DBG, "v = ", v);
+  let DBG = false;
+  if (p && Object.prototype.hasOwnProperty.call(p, "debug")) DBG = true;
   return DBG;
 }
 
@@ -101,9 +81,7 @@ function makeLogger_(DBG) {
   const start = new Date();
   const log = [];
   function L() {
-    //if (!DBG) return;
-    const ts = new Date();
-    const t = new Date(ts - start).toISOString().substr(11, 8); // hh:mm:ss desde início
+    const t = new Date(new Date() - start).toISOString().substr(11, 8); // hh:mm:ss desde início
     log.push(t + " " + Array.prototype.map.call(arguments, String).join(" "));
   }
   L.dump = () => log.slice();
@@ -113,13 +91,8 @@ function makeLogger_(DBG) {
 
 // ===== Script properties helpers =====
 
-function getScriptProp_(k) {
-  return PropertiesService.getScriptProperties().getProperty(k);
-}
-
-function setScriptProp_(k, v) {
-  return PropertiesService.getScriptProperties().setProperty(k, v);
-}
+function getScriptProp_(k) { return PropertiesService.getScriptProperties().getProperty(k); }
+function setScriptProp_(k, v) { return PropertiesService.getScriptProperties().setProperty(k, v); }
 
 // ===== URL canónico do deployment =====
 function canonicalAppUrl_() {
@@ -131,15 +104,13 @@ function canonicalAppUrl_() {
 }
 
 // Helper para incluir ficheiros HTML (templates parciais)
-function include(name) {
-  return HtmlService.createHtmlOutputFromFile(name).getContent();
-}
+function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
 
 // Preferir REDIRECT_URI definido; fallback para canónico
-function redirectUri_() {
+//function redirectUri_() {
   // Preferir a property se estiver correcta; senão, cair para a canónica deste deployment
-  return (REDIRECT_URI && REDIRECT_URI.trim()) || canonicalAppUrl_();
-}
+//  return (REDIRECT_URI && REDIRECT_URI.trim()) || canonicalAppUrl_();
+//}
 
 // ===== OAuth URL =====
 function toQueryString_(obj) {
@@ -158,8 +129,7 @@ function getSessSecretBytes_() {
   let b64 = p.getProperty("SESSION_HMAC_SECRET_B64");
   if (!b64) {
     // Deriva 32 bytes “random enough” a partir de dois UUIDs (evita depender de RNG externo)
-    const seed =
-      Utilities.getUuid() + ":" + Utilities.getUuid() + ":" + Date.now();
+    const seed = Utilities.getUuid() + ":" + Utilities.getUuid() + ":" + Date.now();
     const bytes = Utilities.computeHmacSha256Signature(seed, seed); // 32 bytes
     b64 = Utilities.base64EncodeWebSafe(bytes);
     p.setProperty("SESSION_HMAC_SECRET_B64", b64);
@@ -192,22 +162,20 @@ function issueSessionToken_(email, days, extra){
 
 
 function validateSessionToken_(tok) {
-  if (!tok || tok.indexOf(".") < 0) return null;
-  const parts = tok.split("."),
-    pB64 = parts[0],
-    sig = parts[1];
+  if (!tok || tok.indexOf(".") < 0) throw new Error("Formato de token inválido");
+  const parts = tok.split("."), pB64 = parts[0], sig = parts[1];
 
   const pB64bytes = Utilities.newBlob(pB64).getBytes(); // bytes da string base64
   const expSig = Utilities.base64EncodeWebSafe(
     Utilities.computeHmacSha256Signature(pB64bytes, getSessSecretBytes_()), // bytes,bytes
   );
-  if (expSig !== sig) return null;
+  if (expSig !== sig) throw new Error("Assinatura HMAC inválida (As propriedades de script das apps são diferentes?)");
 
-  const json = Utilities.newBlob(
-    Utilities.base64DecodeWebSafe(pB64),
-  ).getDataAsString();
-  const data = JSON.parse(json);
-  if (!data || !data.email || !data.exp || Date.now() > data.exp) return null;
+  const data = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(pB64)).getDataAsString());
+  if (!data) throw new Error("Token vazio");
+  if (!data.email) throw new Error("Token sem email");
+  if (!data.exp) throw new Error("Token sem data de expiração");
+  if (Date.now() > data.exp) throw new Error("Sessão expirada");
   return data;
 }
 
@@ -222,9 +190,7 @@ function getStateSecret_() {
   let s = getScriptProp_("STATE_SECRET");
   if (!s) {
     const rand = Utilities.getUuid();
-    s = Utilities.base64EncodeWebSafe(
-      Utilities.computeHmacSha256Signature(rand, rand),
-    );
+    s = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(rand, rand));
     setScriptProp_("STATE_SECRET", s);
   }
   return s;
@@ -233,80 +199,34 @@ function getStateSecret_() {
 // Gera state assinado: base64url(payload) + '.' + base64url( HMAC_SHA256(payload, secret) )
 // aceitar flags no state
 function createStateToken_(dbg, embed, nonceOpt) {
-  const payload = {
-    ts: Date.now(),
-    nonce: nonceOpt || Utilities.getUuid(),
-    dbg: !!dbg,
-    embed: !!embed,
-  };
-  const payloadBytes = Utilities.newBlob(
-    JSON.stringify(payload),
-    "application/json",
-  ).getBytes();
+  const payload = { ts: Date.now(), nonce: nonceOpt || Utilities.getUuid(), dbg: !!dbg, embed: !!embed };
+  const payloadBytes = Utilities.newBlob(JSON.stringify(payload), "application/json").getBytes();
   const secretBytes = Utilities.base64DecodeWebSafe(getStateSecret_());
-  const sigBytes = Utilities.computeHmacSha256Signature(
-    payloadBytes,
-    secretBytes,
-  );
-  return (
-    Utilities.base64EncodeWebSafe(payloadBytes) +
-    "." +
-    Utilities.base64EncodeWebSafe(sigBytes)
-  );
+  const sigBytes = Utilities.computeHmacSha256Signature(payloadBytes,secretBytes);
+  return (Utilities.base64EncodeWebSafe(payloadBytes) + "." + Utilities.base64EncodeWebSafe(sigBytes));
 }
 
 function parseStateToken_(state) {
-  if (!state || state.indexOf(".") < 1)
-    return {
-      ok: false,
-    };
+  if (!state || state.indexOf(".") < 1) return { ok: false };
   const [payloadB64, sigB64] = state.split(".", 2);
   try {
     const payloadBytes = Utilities.base64DecodeWebSafe(payloadB64);
     const secretBytes = Utilities.base64DecodeWebSafe(getStateSecret_());
-    const expSigBytes = Utilities.computeHmacSha256Signature(
-      payloadBytes,
-      secretBytes,
-    );
+    const expSigBytes = Utilities.computeHmacSha256Signature(payloadBytes, secretBytes);
     const gotSigBytes = Utilities.base64DecodeWebSafe(sigB64);
-    if (expSigBytes.length !== gotSigBytes.length)
-      return {
-        ok: false,
-      };
+    if (expSigBytes.length !== gotSigBytes.length) return { ok: false };
     let diff = 0;
     for (let i = 0; i < expSigBytes.length; i++)
       diff |= expSigBytes[i] ^ gotSigBytes[i];
-    if (diff !== 0)
-      return {
-        ok: false,
-      };
-    const payload = JSON.parse(
-      Utilities.newBlob(payloadBytes).getDataAsString(),
-    );
-    if (typeof payload.ts !== "number")
-      return {
-        ok: false,
-      };
-    if (Date.now() - payload.ts > STATE_MAX_AGE_MS)
-      return {
-        ok: false,
-      };
-    return {
-      ok: true,
-      payload: payload,
-    };
-  } catch (e) {
-    return {
-      ok: false,
-    };
-  }
+    if (diff !== 0) return { ok: false };
+    const payload = JSON.parse(Utilities.newBlob(payloadBytes).getDataAsString());
+    if (typeof payload.ts !== "number" || Date.now() - payload.ts > STATE_MAX_AGE_MS) return { ok: false };
+    return { ok: true, payload: payload };
+  } catch (e) { return { ok: false }; }
 }
 
 // nonce → ticket cache (para polling)
-function putTicketForNonce_(nonce, ticket) {
-  if (!nonce || !ticket) return;
-  CacheService.getScriptCache().put("nonce:" + nonce, ticket, NONCE_TTL_SEC);
-}
+function putTicketForNonce_(nonce, ticket) { if (nonce && ticket) CacheService.getScriptCache().put("nonce:" + nonce, ticket, NONCE_TTL_SEC); }
 
 function takeTicketForNonce_(nonce) {
   if (!nonce) return "";
@@ -318,7 +238,7 @@ function takeTicketForNonce_(nonce) {
 }
 
 // ===== OAuth client URL =====
-
+/*
 function getClientId_() {
   return getScriptProp_("CLIENT_ID");
 }
@@ -326,6 +246,7 @@ function getClientId_() {
 function getClientSecret_() {
   return getScriptProp_("CLIENT_SECRET");
 }
+*/
 
 // Nota: tornamos a construção do URL "interna" e expomos via buildAuthUrlFor()
 function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
@@ -347,14 +268,12 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
     response_type: 'code',
     scope: OAUTH_SCOPES,
     access_type: 'offline',
-    prompt: 'select_account consent',   // <<<< AQUI
+    prompt: 'select_account consent',
     include_granted_scopes: 'true',
     state: createStateToken_(!!dbg, !!embed, nonce),
   };
 
-  return (
-    "https://accounts.google.com/o/oauth2/v2/auth?" + toQueryString_(params)
-  );
+  return "https://accounts.google.com/o/oauth2/v2/auth?" + toQueryString_(params);
 }
 
 // ===== Render do Login (comum às apps) =====
@@ -373,7 +292,7 @@ function renderLoginPage_(opts) {
         ? opts.serverLog.join("\n")
         : String(opts.serverLog || "");
   // 🔒 Defesas contra ReferenceError no template
-  if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
+  //if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
   t.WIPE = opts.wipe ? "1" : "";  
   L('renderLoginPage_: opts.wipe = ' + opts.wipe + ', t.WIPE = ' + t.WIPE);
   t.ticket = "";   // ← mesmo que não uses, evita o erro quando existir <?= ticket ?>
@@ -381,9 +300,7 @@ function renderLoginPage_(opts) {
   t.SERVER_VARS = "";
   t.PAGE_TAG = 'LOGIN';
   try {
-    var out = t.evaluate();
-    out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    return out;
+    return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
     const msg =
       "Login.html evaluate() falhou\n" +
@@ -392,8 +309,7 @@ function renderLoginPage_(opts) {
       (opts.serverLog && opts.serverLog.join
         ? opts.serverLog.join("\n")
         : String(opts.serverLog || ""));
-    return HtmlService.createHtmlOutput(
-      '<pre style="white-space:pre-wrap">' + msg + "</pre>",
+    return HtmlService.createHtmlOutput('<pre style="white-space:pre-wrap">' + msg + "</pre>",
     );
   }
 }
@@ -418,7 +334,7 @@ function finishAuth_(e, cfg) {
     );
   }
   var state = (e && e.parameter && e.parameter.state) || "";
-  var code = (e && e.parameter && e.parameter.code) || "";
+  //var code = (e && e.parameter && e.parameter.code) || "";
   var parsed = parseStateToken_(state);
   if (!parsed.ok)
     return HtmlService.createHtmlOutput(
@@ -429,12 +345,13 @@ function finishAuth_(e, cfg) {
 
   // usa cfg do host
   const { clientId, clientSecret, redirectUri } = resolveCfg_(cfg);
+  /*
   if (!clientId || !clientSecret) {
     return HtmlService.createHtmlOutput(
       "<pre>CLIENT_ID/CLIENT_SECRET ausentes no projeto host.</pre>",
     );
   }
-
+  */
   // troca code→token
   var resp = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
     method: "post",
@@ -449,7 +366,8 @@ function finishAuth_(e, cfg) {
   });
   var status = resp.getResponseCode(),
     body = resp.getContentText();
-  if (status < 200 || status >= 300) {
+  //if (status < 200 || status >= 300) {
+  if (status >= 300) {
     return HtmlService.createHtmlOutput(
       "<pre>Falha a trocar o código por token (" +
         status +
@@ -464,34 +382,29 @@ function finishAuth_(e, cfg) {
     tok = JSON.parse(body);
   } catch (_) {}
   var idt = tok.id_token;
-  if (!idt)
-    return HtmlService.createHtmlOutput(
-      "<pre>Sem id_token devolvido pelo Google.</pre>",
-    );
+  if (!idt) return HtmlService.createHtmlOutput("<pre>Sem id_token devolvido pelo Google.</pre>");
 
   // valida id_token (aud/iss)
-  var email = "";
+  var email = "", name = "", picture = "";
   try {
     var parts = idt.split(".");
-    var payloadJson = Utilities.newBlob(
-      Utilities.base64DecodeWebSafe(parts[1]),
-    ).getDataAsString();
+    var payloadJson = Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[1])).getDataAsString();
     var claims = JSON.parse(payloadJson);
     var audOk = claims.aud === clientId;
     var issOk =
       claims.iss === "https://accounts.google.com" ||
       claims.iss === "accounts.google.com";
-    if (!audOk || !issOk) throw new Error("iss/aud inválidos");
-    if (claims.email) email = String(claims.email);
-    var name = claims.name || '';
-    var picture = claims.picture || '';
+    //if (!audOk || !issOk) throw new Error("iss/aud inválidos");
+	if (!audOk) throw new Error("aud inválido");
+    email = String(claims.email || '');
+    name = claims.name || '';
+    picture = claims.picture || '';
   } catch (err) {
     return HtmlService.createHtmlOutput(
       "<pre>id_token inválido: " + String(err) + "</pre>",
     );
   }
-  if (!email)
-    return HtmlService.createHtmlOutput("<pre>id_token sem email.</pre>");
+  if (!email) return HtmlService.createHtmlOutput("<pre>id_token sem email.</pre>");
 
   var ticket = issueSessionToken_(email, 14, { name: name, picture: picture });
 
@@ -502,32 +415,29 @@ function finishAuth_(e, cfg) {
   var html = `
 <meta charset="utf-8"><title>Autenticado</title>
 <style>body{font-family:system-ui,sans-serif;padding:1rem}</style>
-<div>Redirecionando para a área reservada…</div>
-<script>
+<div>A redireciona…</div><script>
 (function(){
   var t = ${JSON.stringify(ticket)};
-  var next = ${JSON.stringify(canon)} + ${dbg ? JSON.stringify('?debug=1') : '""'};
+  //var next = ${JSON.stringify(canon)} + ${dbg ? JSON.stringify('?debug=1') : '""'};
 
-// 0) guardar ticket
-try{ localStorage.setItem('sessTicket', t); }catch(_){}
-try{ document.cookie = 'sessTicket='+encodeURIComponent(t)+'; Path=/; SameSite=Lax; Secure'; }catch(_){}
+  // 0) guardar ticket
+  try{ localStorage.setItem('sessTicket', t); }catch(_){}
+  try{ document.cookie = 'sessTicket='+encodeURIComponent(t)+'; Path=/; SameSite=Lax; Secure'; }catch(_){}
 
-// 1) postMessage com o ticket
-try{ if (window.opener) window.opener.postMessage({type:'portobelo_ticket', ticket:t}, '*'); }catch(_){}
+  // 1) postMessage com o ticket
+  try{ if (window.opener) window.opener.postMessage({type:'portobelo_ticket', ticket:t}, '*'); }catch(_){}
 
-// 2) define cookie (mesma origem script.google.com)
-try{ document.cookie = 'sessTicket='+encodeURIComponent(t)+'; Path=/; SameSite=Lax; Secure'; }catch(_){}
+  // 2) define cookie (mesma origem script.google.com)
+  try{ document.cookie = 'sessTicket='+encodeURIComponent(t)+'; Path=/; SameSite=Lax; Secure'; }catch(_){}
 
-// 3) fecha o popup – quem navega é a janela principal via goWithTicket()
-setTimeout(function(){ try{ window.close(); }catch(_){} }, 200);
+  // 3) fecha o popup – quem navega é a janela principal via goWithTicket()
+  setTimeout(function(){ try{ window.close(); }catch(_){} }, 200);
 
-setTimeout(function(){ try{ window.close(); }catch(_){} }, 600);
+  setTimeout(function(){ try{ window.close(); }catch(_){} }, 600);
 })();
 </script>`;
 
-  var out = HtmlService.createHtmlOutput(html);
-  out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  return out;
+  return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 
@@ -543,15 +453,55 @@ setTimeout(function(){ try{ window.close(); }catch(_){} }, 600);
 //   mailTo: "geral@titulares-portobelo.pt"
 // }
 
+function logFailedAccessToSheet_(email, name, saldo, semanas, reason, cfg) {
+  try {
+    const ss = SpreadsheetApp.openById(cfg.ssTitularesId);
+    let sheet = ss.getSheetByName("Acessos");
+    if (!sheet) {
+      sheet = ss.insertSheet("Acessos");
+      sheet.appendRow(["Data", "Nome", "Email", "€", "Semanas", "Motivo"]);
+    }
+    sheet.appendRow([new Date(), name || "", email || "", saldo !== undefined ? saldo : "", semanas || "", reason || ""]);
+  } catch(e) { console.log("Erro a gravar acessos:", e); }
+}
+
+function extractFinancialInfo_(info, cfg) {
+  let saldo = "", semanas = "";
+  if (info.matches.length > 0) {
+    const iSaldo = info.ix[cfg.cols.saldo || "Saldo"];
+    const iSem = info.ix[cfg.cols.semanas || "Semanas"];
+    let tot = 0; let semArr = [];
+    for(const r of info.matches) {
+      if (iSaldo != null) tot += parsePtNumber_AuthCore_(info.values[r][iSaldo]);
+      if (iSem != null && info.values[r][iSem]) semArr.push(info.values[r][iSem]);
+    }
+    saldo = tot; semanas = semArr.join(" · ");
+  }
+  return { saldo, semanas };
+}
+
+function logFailedAccessPublic_(ticket, reason, cfg) {
+  cfg = __defCfg(cfg);
+  try {
+    const sess = requireSession(ticket);
+    const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
+    const fin = extractFinancialInfo_(info, cfg);
+    logFailedAccessToSheet_(sess.email, sess.name, fin.saldo, fin.semanas, reason, cfg);
+  } catch(e) {
+    logFailedAccessToSheet_("Desconhecido", "Ticket Inválido", "", "", reason, cfg);
+  }
+}
 function enforceGates_(email, ticket, DBG, gatesCfg, extLogger){
   const L = extLogger || makeLogger_(DBG);
   L('function enforceGates_');
 
   gatesCfg = __defCfg(gatesCfg);
-
+  let sess = { name: "", email: email };
+  try { sess = requireSession(ticket); } catch(e){}
   // 1) allowlist
   if (!isAllowedEmail_AuthCore_(email)) {
     L('enforceGates_: email not registered');
+	logFailedAccessToSheet_(email, sess.name, "", "", "Não registado na allowlist", gatesCfg);
     return renderNotAllowed_AuthCore_(email, DBG);
   }
 
@@ -559,27 +509,23 @@ function enforceGates_(email, ticket, DBG, gatesCfg, extLogger){
   const info = getTitularesRowsByEmail_AuthCore_(email, gatesCfg);
   if (!(info.matches.length && hasAnyRowMinPayment_AuthCore_(info, gatesCfg, 1))) {
     L("enforceGates_: no payments - lines = ",  info.matches.length);
-    return HtmlService.createHtmlOutput(
-      '<meta charset="utf-8"><h3>Acesso negado</h3><p>Email não registado ou quotas em atraso.</p>'
-    ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    const fin = extractFinancialInfo_(info, gatesCfg);
+    logFailedAccessToSheet_(email, sess.name, fin.saldo, fin.semanas, "S/ linhas ou quotas atraso", gatesCfg);
+    return HtmlService.createHtmlOutput('<meta charset="utf-8"><h3>Acesso negado</h3><p>Email não registado ou quotas em atraso.</p>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
   // 3) RGPD (nenhuma linha pendente de aceitação?)
   const s = getRgpdStatusFor(ticket, gatesCfg);
-  var optsProc = {
-    ticket: "",
-    debug: DBG,    
-    serverLog: [],
-    wipe: false,
-  };    
+  var optsProc = { ticket: ticket, debug: DBG, serverLog: L.dump(), wipe: false };
+  optsProc.serverLog.unshift("enforceGates");
   
   if (s.state === 'pendente') {
     L("enforceGates_: pelo menos uma das ",  s.total, " linhs tem RGPD vazio");
     //return renderRgpdPage_(DBG, ticket, gatesCfg && gatesCfg.canon);
-    optsProc.ticket = ticket;
+    //optsProc.ticket = ticket;
     //optsProc.serverLog = ["enforceGates"];
-    optsProc.serverLog = L.dump();
-    optsProc.serverLog.unshift("enforceGates");    
+    //optsProc.serverLog = L.dump();
+    //optsProc.serverLog.unshift("enforceGates");    
     return renderRgpdPage_(optsProc);
   }
 
@@ -588,7 +534,7 @@ function enforceGates_(email, ticket, DBG, gatesCfg, extLogger){
   return null;
 }
 
-
+/*
 function notifyRgpdDecision_AuthCore_(info, sess, accept, cfg){
   const to = (cfg.notify && cfg.notify.to) || Session.getActiveUser().getEmail();
   const subj = `RGPD: ${accept ? 'ACEITE' : 'REJEITADO'} — ${sess.name||''} <${sess.email}>`;
@@ -613,13 +559,14 @@ function notifyRgpdDecision_AuthCore_(info, sess, accept, cfg){
 
   MailApp.sendEmail({ to, subject: subj, body, name: 'AT Portobelo' });
 }
-
+*/
 
 /**
  * Chamada a partir do RGPD.html da biblioteca.
  * `gatesCfg` vem do host e deve conter pelo menos:
  *   { titularesId: "...", rangeNameOrA1: "...", notify: { to: "geral@...", ccAllRows: true } }
  */
+/*
 function acceptRgpdForMe(ticket, decision, gatesCfg){
   gatesCfg = __defCfg(gatesCfg);
 
@@ -667,6 +614,9 @@ ALLOWLIST parsed: ${parsed}</pre></details>`;
     `<p><a href="${canon}?action=login${DBG?'&debug=1':''}">Voltar</a></p>`+dbgBlock
   ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+*/
+
+// ... Helpers de RGPD e Fetching
 
 function fetchTable_AuthCore_(ssId, cfg){
   const ss = SpreadsheetApp.openById(ssId);
@@ -678,12 +628,29 @@ function fetchTable_AuthCore_(ssId, cfg){
   return { header: values[0], rows: values.slice(1).filter(r => r.some(v => String(v).trim()!=='') ) };
 }
 
+function isAllowedEmail_AuthCore_(email){
+  const csv = (PropertiesService.getScriptProperties().getProperty('ALLOWLIST_CSV') || '');
+  const list = csv.split(/[,\s;]+/).map(s=>s.trim().toLowerCase()).filter(Boolean);
+  if (!list.length) return true; 
+  return list.includes(String(email||'').toLowerCase());
+}
+
+function renderNotAllowed_AuthCore_(email, DBG){
+  const canon = ScriptApp.getService().getUrl();
+  return HtmlService.createHtmlOutput('<meta charset="utf-8"><h3>Acesso não autorizado</h3><p>Este endereço não está na lista da fase de validação.</p><p><a href="'+canon+'?action=login'+(DBG?'&debug=1':'')+'">Voltar</a></p>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/*
 function indexByHeader_AuthCore_(header){
   const map={}; header.forEach((h,i)=> map[String(h).trim()]=i); return map;
 }
 function cellHasEmail_AuthCore_(cell, emailLC){
   return String(cell||'').split(/[;,]/).map(s=>s.trim().toLowerCase()).filter(Boolean).includes(emailLC);
 }
+*/
+
+
+
 function parsePtNumber_AuthCore_(s){
   const clean = String(s||'').replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^\d.\-]/g,'');
   const n = parseFloat(clean); return isNaN(n)?0:n;
@@ -728,6 +695,17 @@ function hasAnyRowMinPayment_AuthCore_(info, gatesCfg, minEUR){
   return false;
 }
 
+function rgpdStats_(email, cfg){
+  const info = getTitularesRowsByEmail_AuthCore_(email, cfg);
+  let total=0, sim=0, nao=0;
+  for (const r of info.matches) {
+    total++;
+    const v = String(info.values[r][info.iRGPD]||'').trim().toLowerCase();
+    if (v==='sim') sim++; if (v==='não') nao++;
+  }
+  return { total, sim, nao };
+}
+
 // Lê estatuto RGPD do email da sessão
 // state:
 //  - pendente - não há linhas, ou há alguma em que RGPD não esteja definido (Sim ou Não)
@@ -766,14 +744,11 @@ function renderRgpdPage_(opts) {
       opts.serverLog && opts.serverLog.join
         ? opts.serverLog.join("\n")
         : String(opts.serverLog || "");
-  if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
-  t.ticket = opts.ticket;
+  //if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
   t.SERVER_VARS = "";
   t.PAGE_TAG = 'RGPD';
   try {
-    var out = t.evaluate();
-    out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    return out;
+    return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
     const msg =
       "RGPD.html evaluate() falhou\n" +
@@ -788,6 +763,14 @@ function renderRgpdPage_(opts) {
   }
 }
 
+function acceptRgpdForMe(ticket, decision, gatesCfg){
+  gatesCfg = __defCfg(gatesCfg);
+  const sess = requireSession(ticket), accept = (decision === 'accept');
+  const rowsInfo = getTitularesRowsByEmail_AuthCore_(sess.email, gatesCfg);
+  var changed = setRgpdForEmail_AuthCore_(rowsInfo, gatesCfg, accept ? 'Sim' : 'Não');
+  return { ok:true, changed: changed|0 };
+}
+
 /*
 function isRgpdAcceptedForEmail_AuthCore_(rowsInfo, gatesCfg){
   gatesCfg = __defCfg(gatesCfg);
@@ -798,6 +781,8 @@ function isRgpdAcceptedForEmail_AuthCore_(rowsInfo, gatesCfg){
   return rowsInfo.rows.some(r => String(r[iRGPD]||'').trim().toLowerCase().startsWith('s'));
 }
 */
+
+
 
 // --- helpers privados na biblioteca ---
 
@@ -854,6 +839,8 @@ function setRgpdForEmail_(emailLC, accept, cfg){
 }
 
 function setRgpdForEmail_AuthCore_(info, cfg, want){
+  const sheet = info.range.getSheet(), r0 = info.range.getRow(), c0 = info.range.getColumn(), bodyRows = info.range.getNumRows() - 1;
+  /*
   cfg = __defCfg(cfg);
 
   const range   = info.range;                 // A6:V ou equivalente
@@ -862,8 +849,10 @@ function setRgpdForEmail_AuthCore_(info, cfg, want){
   const r0      = range.getRow();
   const c0      = range.getColumn();
   const bodyRows = nRows - 1;
+  */
   if (bodyRows <= 0) return 0;
 
+  /*
   const iEmail  = info.iEmail;
   const iRGPD   = info.iRGPD;
   if (iEmail==null || iRGPD==null) throw new Error('Config/colunas RGPD ou e-mail em falta');
@@ -873,9 +862,13 @@ function setRgpdForEmail_AuthCore_(info, cfg, want){
 
   const emailVals  = emailRange.getDisplayValues();
   const rgpdVals   = rgpdRange.getValues();
-
+  */
+  const emailVals = sheet.getRange(r0+1, c0+info.iEmail, bodyRows, 1).getDisplayValues();
+  const rgpdRange = sheet.getRange(r0+1, c0+info.iRGPD, bodyRows, 1), rgpdVals = rgpdRange.getValues();
+  
   let changed = 0;
   for (let i=0; i<bodyRows; i++){
+	/*
     const emails = String(emailVals[i][0]||'')
       .split(/[;,]/).map(s=>s.trim().toLowerCase()).filter(Boolean);
     if (emails.includes(info.emailLC)){
@@ -885,15 +878,16 @@ function setRgpdForEmail_AuthCore_(info, cfg, want){
         changed++;
       }
     }
+	*/
+	if (String(emailVals[i][0]||'').split(/[;,]/).map(s=>s.trim().toLowerCase()).includes(info.emailLC)){
+      if (String(rgpdVals[i][0]||'').trim() !== want){ rgpdVals[i][0] = want; changed++; }
+	}
   }
-  if (changed) {
-    rgpdRange.setValues(rgpdVals); // <-- só a coluna RGPD
-    SpreadsheetApp.flush(); // garante persistência antes do próximo GET 
-  }
+  if (changed) { rgpdRange.setValues(rgpdVals); SpreadsheetApp.flush(); }
   return changed;
 }
 
-
+/*
 function dedupeEmails_AuthCore_(arr){
   const out=[]; const seen=new Set();
   (arr||[]).forEach(e=>{ const v=String(e||'').trim().toLowerCase(); if (v && !seen.has(v)){ seen.add(v); out.push(v);} });
@@ -915,7 +909,7 @@ function renderRgpdPage_AuthCore_(DBG, email, ticket, gatesCfg){
 }
 
 // --- Expansão para a App Anúncios ---
-
+*/
 function getProfileStats_(ticket, cfg) {
   const sess = requireSession(ticket);
   cfg = __defCfg(cfg);
@@ -938,8 +932,8 @@ function getProfileStats_(ticket, cfg) {
 }
 
 function hostListRgpdRowsFor_(ticket, cfg) {
-  const sess = requireSession(ticket);
-  cfg = __defCfg(cfg);
+  //const sess = requireSession(ticket);
+  //cfg = __defCfg(cfg);
   const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
   const out = [];
   const r0 = info.range.getRow();
@@ -955,7 +949,7 @@ function hostListRgpdRowsFor_(ticket, cfg) {
 }
 
 function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
-  cfg = __defCfg(cfg);
+  //cfg = __defCfg(cfg);
   const sess = requireSession(ticket);
   const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
   const sheet = info.range.getSheet();
@@ -967,8 +961,9 @@ function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
   const rgpdRange = sheet.getRange(r0 + 1, c0 + info.iRGPD, bodyRows, 1);
   const rgpdVals = rgpdRange.getValues();
   let touched = 0;
-  let acceptedSemanas = [];
-  const iSem = info.ix[cfg.cols.semanas || "Semanas"];
+  
+  //let acceptedSemanas = [];
+  //const iSem = info.ix[cfg.cols.semanas || "Semanas"];
   
   for (const r of info.matches) {
     const sheetRow = r0 + r; 
@@ -978,16 +973,19 @@ function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
       rgpdVals[r-1][0] = next;
       touched++;
     }
+	/*
     if (wantAccept && iSem != null) {
       const rawSemanas = info.values[r][iSem] || "";
       const formatted = String(rawSemanas).split(/[+,\s]+/).filter(Boolean).join(" · ");
       if (formatted) acceptedSemanas.push(formatted);
     }
+	*/
   }
   if (touched) {
     rgpdRange.setValues(rgpdVals);
     SpreadsheetApp.flush();
-    try {
+    /*
+	try {
       const toEmail = cfg.notify.to || "secretario-direcao@titulares-portobelo.pt";
       let bodyText = "O associado " + sess.email + " atualizou o RGPD.\n\n";
       bodyText += acceptedSemanas.length > 0 
@@ -995,6 +993,7 @@ function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
         : "Nenhuma linha aceite (Rejeitado).";
       MailApp.sendEmail(toEmail, "[App] Atualização de RGPD - " + sess.email, bodyText);
     } catch (e) {}
+	*/
   }
   return { ok: true, touched };
 }

@@ -152,8 +152,7 @@ function doGet(e) {
   const ticket = (e && e.parameter && e.parameter.ticket) || "";
   if (ticket){
     try { AuthCoreLib.requireSession(ticket); } 
-    catch(err){ optsProc.serverLog = L.dump(); optsProc.serverLog.unshift("wipe"); optsProc.wipe = true; return AuthCoreLib.renderLoginPage(optsProc); }
-
+    catch(err){ optsProc.serverLog = L.dump(); optsProc.serverLog.unshift("wipe (Motivo: " + err.message + ")"); optsProc.wipe = true; return AuthCoreLib.renderLoginPage(optsProc); }
     if (String(e.parameter.go || '') === 'rgpd') { return renderRgpdPage_(ticket, DBG, L.dump()); }
     if (String(e.parameter.go || '') === 'main') { return renderMainPage_(ticket, DBG, L.dump()); }
 
@@ -169,6 +168,8 @@ function doGet(e) {
     // Regra 2: Saldo global deve ser positivo/zero (e deve ser titular)
     if (!profile.hasLines || profile.saldo < 0) {
       L("Acesso Negado: Não tem linhas ou o Saldo é negativo: " + profile.saldo);
+      const motivo = !profile.hasLines ? "Não é titular (0 linhas)" : "Saldo negativo (€" + profile.saldo + ")";
+      AuthCoreLib.logFailedAccess(ticket, motivo, gatesCfg_()); // <-- REGISTA NA FOLHA ACESSOS
       return renderBlocked_("Acesso negado: Para aceder aos anúncios é necessário ser titular registado e não ter quotas em dívida.", DBG);
     }
 
