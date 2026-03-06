@@ -159,8 +159,8 @@
         const CANON_URL  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
 
         const UI_DELAY_BTN = 1200; // só mostramos o botão passado isto (auto)
-        const UI_DELAY_HINT = 2500; // só mostramos um hint/fallback passado isto (auto)
-        const GIVE_UP = 10000; // depois disto mostramos tudo
+        const UI_DELAY_HINT = 20000; // só mostramos um hint/fallback passado isto (auto)
+        const GIVE_UP = 30000; // depois disto mostramos tudo
 
         function setStatus(s, asHTML) {
           if (!ST) return;
@@ -217,9 +217,8 @@
           // Usar a variável WANT_DEBUG corrigida (impede que debug=1 apareça do nada)
           if (WANT_DEBUG) u.searchParams.set("debug", "1");
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
-		  
-          log("[LOGIN] goWithTicket preparado -> " + u.toString());
 
+          log("[LOGIN] goWithTicket preparado -> " + u.toString());
           
           // SOLUÇÃO SANDBOX: O Chrome bloqueia navegações do window.top após callbacks assíncronos.
           // Em vez de redirecionar automaticamente, mostramos um botão "Entrar" para forçar um clique do utilizador.
@@ -259,10 +258,10 @@
           log("Login.html#176 hintTimer=setTimeout()");
           const hintTimer = setTimeout(function () {
             if (!done) {
-              // Substituído link pequeno por um bloco visível e clicável
               setStatus(
                 '<div class="alert-box">' +
                 '<b>Aviso:</b> O processo está a demorar. Se o ecrã do Google não abriu, o seu navegador pode ter bloqueado a janela (muito comum em telemóveis).<br><br>' +
+                '<b>No telemóvel:</b> Se o ecrã ficar branco ou der erro, clique nos 3 pontinhos no canto superior direito e escolha "Abrir no navegador / Chrome / Firefox".<br><br>' +
                 '<a href="' + authUrl + '" target="_top" class="btn btn-primary">Clique aqui para Entrar</a>' +
                 '</div>',
                 true
@@ -315,7 +314,8 @@
             crypto && crypto.randomUUID
               ? crypto.randomUUID()
               : Date.now() + "." + Math.random();
-          setStatus("A preparar autenticação…");
+          if (BTN) BTN.style.display = "none";
+		  setStatus("A preparar autenticação…");
 
           google.script.run
             .withSuccessHandler(function (authUrl) {
@@ -337,6 +337,7 @@
                 setStatus(
                   '<div class="alert-box">' +
                   '<b>Ação necessária:</b> O seu navegador de telemóvel bloqueou a janela de autenticação da Google.<br><br>' +
+                  '<b>No telemóvel:</b> Se, ao prosseguir, o ecrã ficar branco ou der erro, clique nos 3 pontinhos no canto superior direito e escolha "Abrir no navegador / Chrome / Firefox".<br><br>' +
                   '<a href="' + authUrl + '" target="_top" class="btn btn-primary">Prosseguir para a Google</a>' +
                   '</div>',
                   true

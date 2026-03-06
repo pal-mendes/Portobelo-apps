@@ -496,7 +496,7 @@ function finishAuth_(e, cfg) {
   var html = `
 <meta charset="utf-8"><title>Autenticado</title>
 <style>body{font-family:system-ui,sans-serif;padding:1rem}</style>
-<div>Redirecionando para a área reservada… <a id="go" href="${canon}${dbg ? '?debug=1' : ''}" target="_top" rel="noopener">clique aqui se não avançar</a></div>
+<div>Redirecionando para a área reservada…</div>
 <script>
 (function(){
   var t = ${JSON.stringify(ticket)};
