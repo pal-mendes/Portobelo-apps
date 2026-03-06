@@ -3,7 +3,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- NOVO: Garante que a página não fica minúscula no telemóvel -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- NOVO: Garante que a página não fica minúscula no telemóvel -->
 
     <meta
       http-equiv="Cache-Control"
@@ -126,16 +126,16 @@
           log("Login.html document.cookie ERR=" + e);
         }
         
-        // Extrai o redirecionamento (ou usa o site por defeito)
-        const qs = new URLSearchParams(location.search);
-        const redir = qs.get("redirect") || "https://titulares-portobelo.pt";
+        // Obter o URL canónico correto para o botão de reentrar
+        const loginUrl = __SERVER_VARS.canonUrl || (location.origin + location.pathname);
         
         document.addEventListener("DOMContentLoaded", function() {
-            // Substitui toda a página pelo ecrã de saída limpo
+            // Substitui toda a página pelo ecrã de saída limpo, mantendo na mesma aba
             document.body.innerHTML = 
               '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
               '<h2 style="margin-bottom:20px;">Sessão terminada com sucesso.</h2>' +
-              '<a href="' + redir + '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Voltar ao site da Associação</a>' +
+              '<p style="color:#555; margin-bottom: 30px;">Pode fechar esta página ou entrar novamente.</p>' +
+              '<a href="' + loginUrl + '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
               '</div>';
         });
       })();
@@ -153,10 +153,10 @@
         
         const BTN = document.getElementById("login-link");
         const ST = document.getElementById("status");
-
         // Correção do Debug: Avalia de forma segura se o debug foi ativado pelo servidor ou pelo URL atual
         const qs = new URLSearchParams(location.search);
         const WANT_DEBUG = (__SERVER_VARS.debugServer === true || qs.get("debug") === "1" || qs.get("Debug") === "1");
+        const CANON_URL  = (__SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname));
 
         const UI_DELAY_BTN = 1200; // só mostramos o botão passado isto (auto)
         const UI_DELAY_HINT = 2500; // só mostramos um hint/fallback passado isto (auto)
@@ -217,6 +217,7 @@
           // Usar a variável WANT_DEBUG corrigida (impede que debug=1 apareça do nada)
           if (WANT_DEBUG) u.searchParams.set("debug", "1");
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
+		  
           log("[LOGIN] goWithTicket preparado -> " + u.toString());
 
           
@@ -332,7 +333,7 @@
               if (!popupRef) {
                 // Se popup bloqueada:
                 log("Login.html popup blocked");
-				        // A SALVAGUARDA GIGANTE PARA O FIREFOX MOBILE / SAFARI
+                // A SALVAGUARDA GIGANTE PARA O FIREFOX MOBILE / SAFARI
                 setStatus(
                   '<div class="alert-box">' +
                   '<b>Ação necessária:</b> O seu navegador de telemóvel bloqueou a janela de autenticação da Google.<br><br>' +
@@ -349,13 +350,8 @@
               startServerPolling(nonce, authUrl);
             })
             .withFailureHandler(function (err) {
-              log(
-                "Login.html buildAuthUrlFor fail: " +
-                  (err && err.message ? err.message : err),
-              );
-              setStatus(
-                "Não foi possível iniciar a autenticação. Tente novamente.",
-              );
+              log("Login.html buildAuthUrlFor fail: " + (err && err.message ? err.message : err));
+              setStatus("Não foi possível iniciar a autenticação. Tente novamente.");
               if (BTN) BTN.style.display = "";
             })
             .buildAuthUrlFor(nonce, WANT_DEBUG, window.top !== window);
@@ -400,7 +396,7 @@
               try {
                 document.cookie = "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
               } catch (_) {}
-              setStatus('A sua sessão expirou. Clique em "Entrar com conta Google".');
+              setStatus('A sua sessão expirou.');
               if (BTN) BTN.style.display = "";
             })
             .withFailureHandler(function (err) {

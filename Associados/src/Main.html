@@ -427,9 +427,7 @@
 
           const ad = parsePtDate(adesaoStr);
           if (!ad) {
-            try {
-              try { log?.(`[joia] data inválida: ${adesaoStr}`); } catch (_) {}
-            } catch (_) {}
+            try { log?.(`[joia] data inválida: ${adesaoStr}`); } catch (_) {}
             return 0;
           }
 
@@ -646,9 +644,7 @@
 
         function render(data) {
           if (data?.log && Array.isArray(data.log)) {
-            try {
-              data.log.forEach((l) => log("[SV] " + l));
-            } catch (_) {}
+            try { data.log.forEach((l) => log("[SV] " + l)); } catch (_) {}
           }
 
           try {
@@ -890,7 +886,7 @@
         const qs_local = new URLSearchParams(location.search);
         const isDbg = (__SERVER_VARS.debugServer === true || qs_local.get("debug") === "1" || qs_local.get("Debug") === "1");
         if (isDbg) u.searchParams.set("debug", "1");
-		
+
         u.searchParams.set("ts", String(Date.now()));
 
         log("[MAIN] navegar SÍNCRONO (top) → " + u.toString());
@@ -907,7 +903,7 @@
         }
       });
 
-      // NOVO: Ação do botão Sair (Versão com Logout Absoluto)
+      // NOVO: Ação do botão Sair (Mantém-se na app, sem criar novas abas)
       document.getElementById("btn-logout").addEventListener("click", function(ev) {
         ev.preventDefault();
         
@@ -919,7 +915,8 @@
         // para limpar também a cache do wrapper principal da Google!
         const u = new URL(canonExec());
         u.searchParams.set("action", "logout");
-        u.searchParams.set("redirect", "https://titulares-portobelo.pt");
+		// Removemos o parâmetro de redirect para não enviar para o site externo
+        //u.searchParams.set("redirect", "https://titulares-portobelo.pt");
         
         log("[MAIN] Sair clicado -> Passando pelo servidor para Wipe: " + u.toString());
         
@@ -933,7 +930,7 @@
           window.open(u.toString(), "_top");
         }
       });
-      
+
     </script>
   </body>
 </html>
