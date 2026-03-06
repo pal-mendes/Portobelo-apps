@@ -38,8 +38,11 @@ function renderRgpdPage(opts) {
   return renderRgpdPage_(opts);
 }
 
+function getProfileStats(ticket, cfg) { return getProfileStats_(ticket, cfg); }
+function hostListRgpdRowsFor(ticket, cfg) { return hostListRgpdRowsFor_(ticket, cfg); }
+function hostSaveRgpdRowsFor(ticket, acceptedRows, cfg) { return hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg); }
 
-function libBuild(){ return "AuthCoreLib build 2026-02-16 12:34 - development mode"; }
+function libBuild(){ return "AuthCoreLib build 2026-03-06 15:54 - development mode"; }
 
 
 // ===== Config / Constantes comuns =====
@@ -50,7 +53,7 @@ const NONCE_TTL_SEC = 180; // 3 min para nonce→ticket
 
 // Defaults internos da biblioteca (só para a Associação Portobelo)
 var LIB_SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
-var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:V" } };
+var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", semanas:"Semanas" }; // Adicionado saldo e semanas
 var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€" };
 var LIB_NOTIFY = { to:"secretario-direcao@titulares-portobelo.pt", ccAllRows:true };
 
@@ -58,6 +61,9 @@ function __defCfg(cfgParam){
   //if (g && g.ssTitularesId) return g; // host forneceu cfg
   //return { ssTitularesId: LIB_SS_TITULARES_ID, ranges: LIB_RANGES, cols: LIB_COLS, notify: LIB_NOTIFY };
   const out = cfgParam || {};
+  out.ssTitularesId = out.ssTitularesId || LIB_SS_TITULARES_ID;
+  out.ranges = out.ranges || LIB_RANGES;
+  out.cols = out.cols || LIB_COLS;
   out.notify = out.notify || {};
   out.notify.to = out.notify.to || LIB_NOTIFY;
   return out;  
@@ -908,4 +914,87 @@ function renderRgpdPage_AuthCore_(DBG, email, ticket, gatesCfg){
   return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+// --- Expansão para a App Anúncios ---
 
+function getProfileStats_(ticket, cfg) {
+  const sess = requireSession(ticket);
+  cfg = __defCfg(cfg);
+  const st = getRgpdStatusFor(ticket, cfg);
+  const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
+  
+  let totalSaldo = 0;
+  const idxSaldo = info.ix[cfg.cols.saldo || "Saldo"];
+  if (idxSaldo != null) {
+    for (const r of info.matches) {
+      totalSaldo += parsePtNumber_AuthCore_(info.values[r][idxSaldo]);
+    }
+  }
+  return {
+    email: sess.email,
+    rgpdState: st.state,      // 'total', 'parcial', 'pendente'
+    saldo: totalSaldo,        // Saldo somado
+    hasLines: info.matches.length > 0
+  };
+}
+
+function hostListRgpdRowsFor_(ticket, cfg) {
+  const sess = requireSession(ticket);
+  cfg = __defCfg(cfg);
+  const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
+  const out = [];
+  const r0 = info.range.getRow();
+  const iSem = info.ix[cfg.cols.semanas || "Semanas"];
+  for (const r of info.matches) {
+    out.push({
+      row: r0 + r, // linha real na sheet
+      semanas: iSem != null ? info.values[r][iSem] : "",
+      rgpd: String(info.values[r][info.iRGPD]||"").trim().toLowerCase() === "sim"
+    });
+  }
+  return out;
+}
+
+function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
+  cfg = __defCfg(cfg);
+  const sess = requireSession(ticket);
+  const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
+  const sheet = info.range.getSheet();
+  const r0 = info.range.getRow();
+  const c0 = info.range.getColumn();
+  const bodyRows = info.range.getNumRows() - 1;
+  if (bodyRows <= 0) return { ok: true, touched: 0 };
+  
+  const rgpdRange = sheet.getRange(r0 + 1, c0 + info.iRGPD, bodyRows, 1);
+  const rgpdVals = rgpdRange.getValues();
+  let touched = 0;
+  let acceptedSemanas = [];
+  const iSem = info.ix[cfg.cols.semanas || "Semanas"];
+  
+  for (const r of info.matches) {
+    const sheetRow = r0 + r; 
+    const wantAccept = acceptedRows.includes(sheetRow);
+    const next = wantAccept ? "Sim" : "Não";
+    if (String(rgpdVals[r-1][0]||"") !== next) {
+      rgpdVals[r-1][0] = next;
+      touched++;
+    }
+    if (wantAccept && iSem != null) {
+      const rawSemanas = info.values[r][iSem] || "";
+      const formatted = String(rawSemanas).split(/[+,\s]+/).filter(Boolean).join(" · ");
+      if (formatted) acceptedSemanas.push(formatted);
+    }
+  }
+  if (touched) {
+    rgpdRange.setValues(rgpdVals);
+    SpreadsheetApp.flush();
+    try {
+      const toEmail = cfg.notify.to || "secretario-direcao@titulares-portobelo.pt";
+      let bodyText = "O associado " + sess.email + " atualizou o RGPD.\n\n";
+      bodyText += acceptedSemanas.length > 0 
+        ? acceptedSemanas.map(sem => "Aceite: " + sem).join("\n")
+        : "Nenhuma linha aceite (Rejeitado).";
+      MailApp.sendEmail(toEmail, "[App] Atualização de RGPD - " + sess.email, bodyText);
+    } catch (e) {}
+  }
+  return { ok: true, touched };
+}

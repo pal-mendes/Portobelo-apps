@@ -7,70 +7,30 @@
   <title>Anúncios Portobelo</title>
   <style>
     <?!= include('Styles'); ?>
-    #dbgDock {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 50vh;
-      background: #111;
-      color: #0f0;
-      font: 12px/1.35 monospace;
-      border-top: 2px solid #444;
-      padding: 8px;
-      overflow: auto;
-      z-index: 2147483647;
-    }
   </style>
 
-  <!-- Debug dock unificado (substitui todos os blocos de debug anteriores) -->
   <script>
-  (function(){
-    const SERVER_LOG   = `<?= SERVER_LOG ?>`;
-    const SERVER_DEBUG = "<?= DEBUG ?>" === "1";
-    const URL_DEBUG_ON  = /[?&]debug=1\b/i.test(location.search);
-    const URL_DEBUG_OFF = /[?&](debug=0|nodebug=1)\b/i.test(location.search);
-
-    try{
-      if ((!URL_DEBUG_ON && !SERVER_DEBUG) || URL_DEBUG_OFF) {
-        localStorage.removeItem('pbDebug');
-      }
-    }catch(_){}
-
-    let WANT_DEBUG = SERVER_DEBUG || URL_DEBUG_ON;
-    try{ WANT_DEBUG = WANT_DEBUG || (localStorage.getItem('pbDebug') === '1'); }catch(_){}
-    try{ if (WANT_DEBUG) localStorage.setItem('pbDebug','1'); }catch(_){}
-
-    if (!WANT_DEBUG) { window.__dbg = function(){}; return; }
-
-    const dock=document.createElement('div'); dock.id='dbgDock';
-    dock.style.cssText='position:fixed;left:0;right:0;bottom:0;height:40vh;background:#111;color:#0f0;font:12px/1.35 monospace;border-top:2px solid #444;padding:8px;overflow:auto;z-index:2147483647';
-    function add(l){ try{console.log('[DBG]',l);}catch(_){}; const p=document.createElement('div'); p.textContent=(new Date()).toISOString().slice(11,19)+' '+l; dock.appendChild(p); dock.scrollTop=dock.scrollHeight; }
-    window.__dbg = add;
-
-    window.addEventListener('DOMContentLoaded', function(){
-      document.body.appendChild(dock);
-      if (SERVER_LOG) SERVER_LOG.split('\n').forEach(l=>l&&add(l));
-      add('Main ready: '+location.href);
-    });
-  })();
-  </script>
-
-  <script> const CANON_URL = "<?= CANON_URL ?>"; </script>
-
-
-  <!-- 2) (opcional) redireção se houver ticket em localStorage -->
-  <script>
-    (function(){
-      try{
-        if (!/[\?&]ticket=/.test(location.search)) {
-          var t = localStorage.getItem('sessTicket') || '';
-          if (t) {
-            var url = (window.CANON_URL||location.origin+location.pathname) + '?ticket=' + encodeURIComponent(t) + (("<?= DEBUG ?>"==="1") ? '&debug=1' : '');
-            window.top.location.replace(url);
-          }
-        }
-      }catch(e){}
+    (function () {
+      var SV = {
+        canonUrl:   "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
+        ticket:     "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
+        debugServer:"<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" === "1",
+        serverLog:  `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
+        wipe:       "<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>",
+        pageTag:    "<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : 'MAIN') ?>"
+      };
+      SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
+      const CANON_SELF = location.origin + location.pathname;
+      SV.canonSelf = CANON_SELF;
+      window.CANON_SELF = CANON_SELF;
+      try { localStorage.setItem("appSelfUrl", CANON_SELF); } catch(_) {}
+      try { if ((SV.canonUrl || "").trim()) localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim()); } catch(_) {}
+      window.__SERVER_VARS = Object.freeze(SV);
+      window.CANON_URL      = SV.canonUrl;
+      window.SESSION_TICKET = SV.ticket;
+      window.SERVER_LOG     = SV.serverLog;
+      window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
+      window.dbg = window.dbg || function(){};
     })();
   </script>
 
@@ -78,12 +38,7 @@
 
   <!-- Se por acaso entrar com /u/{n}, tenta corrigir (só funciona se HTML carregar) -->
   <script>
-    (function(){
-    try {
-    var p = location.pathname; var p1 = p.replace(/\/macros\/u\/\d+\//, '/macros/');
-    if (p1 !== p) { __dbg('Fix path: '+p+' → '+p1); location.replace(p1 + location.search); }
-    } catch(e){ __dbg('Fix path ERR: '+e); }
-    })();
+    <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
   </script>
 </head>
 
@@ -98,19 +53,20 @@
         <div class="left-block">
           <div class="nav-icons">
             <span class="icon-group">
-              <a class="icon-btn" href="https://www.titulares-portobelo.pt" target="_top" rel="noopener" title="Início" onclick="__dbg('Home click')">
+              <a class="icon-btn" href="https://www.titulares-portobelo.pt" target="_top" rel="noopener" title="Início">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
               </a>
-              <a class="icon-btn" href="https://www.titulares-portobelo.pt/pessoal" target="_top" rel="noopener" title="Área pessoal" onclick="__dbg('Pessoal click')">
+              <a class="icon-btn" href="https://www.titulares-portobelo.pt/pessoal" target="_top" rel="noopener" title="Área pessoal">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5Z" fill="currentColor"></path></svg>
               </a>
             </span>
             <h2>Consulta de Anúncios</h2>
           </div>
           <div class="top-button">
-            <button onclick="__dbg('Atualizar lista clicked'); loadTable()">🔄 Atualizar lista de anúncios</button>
-            <button onclick="__dbg('Toggle formulário'); toggleFormulario()">➕ Adicionar/Apagar anúncio</button>
+            <button onclick="log('Atualizar lista clicked'); loadTable()">🔄 Atualizar lista</button>
+            <button onclick="log('Toggle formulário'); toggleFormulario()">➕ Adicionar/Apagar anúncio</button>
             <div>(Clique no título da coluna para a ordenar) <span id="clique"></span></div>
+            <a href="#" id="btn-logout" style="padding: 4px 10px; border: 1px solid #ccc; border-radius: 8px; text-decoration: none; color: #111; background: #fff; display: inline-flex; align-items: center; font-size: 14px;">Sair</a>
           </div>
         </div>
         <div id="contador" style="padding: 0.5em; font-weight: bold;">Total: 0 anúncios</div>
@@ -126,7 +82,7 @@
             <th>Anúncio <span class="sort-icon"></span></th>
             <th>Tipo <span class="sort-icon"></span></th>
             <th>Telemóvel <span class="sort-icon"></span></th>
-            <th>Descrição com data de ocupação <span class="sort-icon"></span></th>
+            <th>Descrição <span class="sort-icon"></span></th>
             <th>Entrada <span class="sort-icon"></span></th>
           </tr>
           <tr class="filter-row"></tr>
@@ -148,36 +104,46 @@
   </div>
 
   <script>
-    const SESSION_TICKET = "<?= ticket ?>";
     const VERSION = "<?= VERSION ?>";
     const TOTAL_VISITAS = "<?= count ?>";
-  </script>
 
-  <!-- 4) (opcional) deixar o ticket em window.name (útil se abrires em nova aba) -->
-  <script>
-    try {
-      if ("<?= ticket ?>") {
-        window.name = 'pbTicket:' + "<?= ticket ?>";
-        __dbg('Main: window.name set');
-      }
-    } catch(e) { __dbg('Main: window.name ERR '+e); }
-  </script>
+    // 1) Persistir ticket e lidar com URLs
+    (function () {
+      try {
+        if (SESSION_TICKET) {
+          localStorage.setItem("sessTicket", SESSION_TICKET);
+          document.cookie = "sessTicket=" + encodeURIComponent(SESSION_TICKET) + "; Path=/; SameSite=Lax; Secure";
+          const u = new URL(location.href);
+          if (u.searchParams.has("ticket")) {
+            u.searchParams.delete("ticket");
+            history.replaceState({}, document.title, u.toString());
+          }
+        }
+      } catch (_) {}
+    })();
 
-  <!-- 5) Persistir ticket e (se for popup) tentar avisar opener (mantém como tens) -->
-  <script>
-    try {
-      if (SESSION_TICKET) {
-        __dbg('Set localStorage + cookie with ticket');
-        localStorage.setItem('sessTicket', SESSION_TICKET);
-        localStorage.setItem('appCanonicalUrl', CANON_URL);
-        document.cookie = 'sessTicket=' + encodeURIComponent(SESSION_TICKET) + '; Max-Age=' + (14*24*3600) + '; Path=/; Secure; SameSite=Lax';
-        // … podes manter o teu bloco de postMessage se quiseres …
+    // 2) Lógica do Botão Sair com navegação anti-aninhamento (Top Level)
+    document.getElementById("btn-logout").addEventListener("click", function(ev) {
+      ev.preventDefault();
+      try { localStorage.removeItem("sessTicket"); } catch (_) {}
+      try { document.cookie = "sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure"; } catch (_) {}
+      
+      const sv = window.__SERVER_VARS || {};
+      const url = (sv.canonUrl || window.CANON_URL || sv.canonSelf || location.origin + location.pathname).trim();
+      const u = new URL(url);
+      u.searchParams.set("action", "logout");
+      
+      log("[MAIN] Sair clicado -> Wipe: " + u.toString());
+      try {
+        if (window.top !== window.self) window.top.location.href = u.toString();
+        else location.replace(u.toString());
+      } catch (e) {
+        window.open(u.toString(), "_top");
       }
-    } catch(e){ __dbg('localStorage/cookie ERR: '+e); }
+    });
   </script>
 
   <?!= include('App'); ?>
 
 </body>
-
 </html>
