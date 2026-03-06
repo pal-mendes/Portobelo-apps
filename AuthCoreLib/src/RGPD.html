@@ -106,6 +106,9 @@
       </ol>
       <div id="rgpd-multi" style="display: none; margin: 12px 0"></div>
       <div id="rgpd-multi-actions" style="display: none; margin: 12px 0">
+		<div style="background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; font-weight: 500;">
+          A não aceitação do RGPD resultaria no fornecimento apenas parcial dos serviços da Associação.
+        </div>
         <button id="rgpd-save" class="btn">Guardar</button>
       </div>
     </div>
@@ -260,7 +263,8 @@
 
             u.searchParams.set("ticket", TICKET);
             if (accepted.length) u.searchParams.set("rows", accepted.join(","));
-            if (WANT_DEBUG) u.searchParams.set("debug", "1");
+            // Garantir que debug não entra sem razão
+			if (WANT_DEBUG) u.searchParams.set("debug", "1");
             u.searchParams.set("ts", Date.now());
             
             log("[RGPD/multi] navegar SÍNCRONO (top) → " + u.toString());

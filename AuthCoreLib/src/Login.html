@@ -3,6 +3,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- NOVO: Garante que a página não fica minúscula no telemóvel -->
+
     <meta
       http-equiv="Cache-Control"
       content="no-store, no-cache, must-revalidate, max-age=0"
@@ -13,18 +15,41 @@
     <style>
       body {
         font-family: system-ui, sans-serif;
-        padding: 2em;
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
       }
       .btn {
         display: inline-block;
-        padding: 0.6em 1em;
+        padding: 12px 20px; /* Botões maiores para dedos no telemóvel */
         border: 1px solid #999;
-        border-radius: 6px;
+        border-radius: 8px;
         text-decoration: none;
+        background: #fff;
+        color: #111;
+        font-weight: 500;
+        text-align: center;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .btn-primary {
+        background: #111;
+        color: #fff;
+        border: none;
       }
       #status {
-        margin: 0.75em 0 0;
+        margin: 1.5em 0 0;
         color: #555;
+        line-height: 1.5;
+      }
+      /* Novo estilo para o aviso de bloqueio no telemóvel */
+      .alert-box {
+        background: #fff3cd;
+        color: #856404;
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid #ffeeba;
+        margin-top: 20px;
       }
     </style>
 
@@ -155,7 +180,7 @@
 
         function bestLocalTicket() {
           try {
-            const t = localStorage.getItem("sessTicket") || "";
+            const t = localStorage.getItem("sessTicket");
             if (t) return t;
           } catch (_) {}
           try {
@@ -182,8 +207,11 @@
           // Em vez de redirecionar automaticamente, mostramos um botão "Entrar" para forçar um clique do utilizador.
           if (BTN) BTN.style.display = "none";
           setStatus(
-            'Sessão validada com sucesso.<br><br>' +
-            '<a href="' + u.toString() + '" target="_top" class="btn" style="background:#111;color:#fff;font-weight:600;padding:12px 24px;">Entrar na Área do Associado</a>',
+            '<div style="text-align:center; padding: 20px 0;">' +
+            '<div style="font-size: 40px; margin-bottom: 10px;">✅</div>' +
+            '<h3 style="margin-top:0;">Sessão validada</h3>' +
+            '<a href="' + u.toString() + '" target="_top" class="btn btn-primary">Entrar na Área do Associado</a>' +
+            '</div>',
             true
           );
         }
@@ -212,13 +240,16 @@
           // UI atrasada (hint) só se nada acontecer
           log("Login.html#176 hintTimer=setTimeout()");
           const hintTimer = setTimeout(function () {
-            if (!done)
+            if (!done) {
+              // Substituído link pequeno por um bloco visível e clicável
               setStatus(
-                'A autenticação abriu numa nova janela. Se não avançar, <a href="' +
-                  authUrl +
-                  '" target="_top" rel="noopener">clique aqui</a>.',
-                true,
+                '<div class="alert-box">' +
+                '<b>Aviso:</b> O processo está a demorar. Se o ecrã do Google não abriu, o seu navegador pode ter bloqueado a janela (muito comum em telemóveis).<br><br>' +
+                '<a href="' + authUrl + '" target="_top" class="btn btn-primary">Clique aqui para Entrar</a>' +
+                '</div>',
+                true
               );
+            }
           }, UI_DELAY_HINT);
 
           (function tick() {
@@ -238,7 +269,7 @@
                 }
                 if (Date.now() - t0 > MAX) {
                   done = true;
-                  setStatus("Tempo esgotado.");
+                  setStatus("Tempo esgotado. Por favor, tente recarregar a página.");
                   return;
                 }
                 delay = Math.min(delay * 1.35, 6500);
@@ -249,7 +280,7 @@
                 if (done) return;
                 if (Date.now() - t0 > MAX) {
                   done = true;
-                  setStatus("Tempo esgotado.");
+                  setStatus("Tempo esgotado. Por favor, tente recarregar a página.");
                   return;
                 }
                 delay = Math.min(delay * 1.35, 6500);
@@ -284,41 +315,21 @@
               if (!popupRef) {
                 // Se popup bloqueada:
                 log("Login.html popup blocked");
-                if (manualClick) {
-                  // se foi clique do utilizador, mostra já alternativas
-                  setStatus(
-                    'Pop-up bloqueado. <a href="' +
-                      authUrl +
-                      '" target="_top" rel="noopener">Clique aqui para continuar</a>.',
-                    true,
-                  );
-                  if (BTN) BTN.style.display = "";
-                } else {
-                  // se foi auto: só mostramos UI após pequenos atrasos
-                  log("Login.html#261 buildAuthUrlFor popup OK setTimeout()");
-                  setTimeout(function () {
-                    if (BTN) BTN.style.display = "";
-                  }, UI_DELAY_BTN);
-                  setTimeout(function () {
-                    setStatus(
-                      'Não foi possível abrir a janela automaticamente. <a href="' +
-                        authUrl +
-                        '" target="_top" rel="noopener">Clique aqui para continuar</a>.',
-                      true,
-                    );
-                  }, UI_DELAY_HINT);
-                  setTimeout(function () {
-                    if (BTN) BTN.style.display = "";
-                  }, GIVE_UP);
-                }
+				// A SALVAGUARDA GIGANTE PARA O FIREFOX MOBILE / SAFARI
+
+                setStatus(
+                  '<div class="alert-box">' +
+                  '<b>Ação necessária:</b> O seu navegador de telemóvel bloqueou a janela de autenticação da Google.<br><br>' +
+                  '<a href="' + authUrl + '" target="_top" class="btn btn-primary">Prosseguir para a Google</a>' +
+                  '</div>',
+                  true
+                );
                 return;
               }
 
               // Popup OK
               log("Login.html popup opened OK");
-              setStatus(
-                "A autenticação abriu numa nova janela. Conclua o login nessa janela.",
-              );
+              setStatus("A autenticação abriu numa nova janela. Conclua o login nessa janela.");
               startServerPolling(nonce, authUrl);
             })
             .withFailureHandler(function (err) {
@@ -355,11 +366,6 @@
             if (AUTOSTART) {
               // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
               beginAuthFlow(false);
-              // proteção: ao fim de X segundos, garante que pelo menos o botão aparece
-              log("Login.html#318 setTimeout()");
-              setTimeout(function () {
-                if (BTN) BTN.style.display = "";
-              }, GIVE_UP);
             } else {
               if (BTN) BTN.style.display = "";
             }
@@ -383,7 +389,7 @@
             })
             .withFailureHandler(function (err) {
               log("Login.html validate fail: " + (err && err.message ? err.message : err));
-              setStatus('Não foi possível validar a sessão. Clique em "Entrar com conta Google".');
+              setStatus('Não foi possível validar a sessão.');
               if (BTN) BTN.style.display = "";
             })
             .isTicketValid(t, WANT_DEBUG ? 1 : 0);

@@ -869,19 +869,26 @@ function doGet(e){
 
     return AuthCoreLib.renderLoginPage(optsProc); 
   }
+
   if (action === "logout"){
     L("route: logout");
-    const next = canon + "?action=login" + (DBG ? "&debug=1" : "");
+    
+    // NOVO: Verifica se há um URL de redirecionamento, senão vai para o login
+    const redirectUrl = (e && e.parameter && e.parameter.redirect) 
+                        ? e.parameter.redirect 
+                        : (canon + "?action=login" + (DBG ? "&debug=1" : ""));
+                        
     const out = HtmlService.createHtmlOutput(
       '<!doctype html><html><head><meta charset="utf-8">' +
       '<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:18px} .btn{display:inline-block;padding:10px 16px;background:#000;color:#fff;text-decoration:none;border-radius:6px;}</style>' +
-      '</head><body><h3>Sessão terminada.</h3>' +
-      '<p><a class="btn" href="'+next+'" target="_top">Entrar novamente</a></p>' +
+      '</head><body><h3>A terminar sessão de forma segura...</h3>' +
+      '<p><a class="btn" href="'+redirectUrl+'" target="_top">Clique aqui se não for redirecionado</a></p>' +
       '<script>' +
       'try{localStorage.removeItem("sessTicket");}catch(_){ }' +
       'document.cookie="sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure";' +
-      'var url = ' + JSON.stringify(next) + ';' +
-      'try{ if(window.top!==window.self) window.top.location.href=url; else location.replace(url); } catch(e){ }' +
+      'var url = ' + JSON.stringify(redirectUrl) + ';' +
+      // O delay garante que o browser tem tempo para destruir a cache antes de sair
+      'setTimeout(function() { try{ if(window.top!==window.self) window.top.location.href=url; else location.replace(url); } catch(e){ window.open(url, "_top"); } }, 600);' +
       "</script></body></html>"
     );
     return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

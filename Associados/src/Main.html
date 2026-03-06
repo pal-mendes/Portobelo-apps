@@ -46,6 +46,12 @@
         margin: 16px auto;
         padding: 0 16px;
       }
+      #header-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
       #who {
         margin-left: auto;
         display: flex;
@@ -280,7 +286,10 @@
   <body>
     <div class="header">
       <div class="title">Área do Associado</div>
-      <div class="small muted" id="who"></div>
+      <div id="header-actions">
+        <div class="small muted" id="who"></div>
+        <a href="#" id="btn-logout" class="btn" style="font-size: 13px; padding: 4px 10px; border-color: #ccc;">Sair</a>
+      </div>
     </div>
 
     <div class="wrap">
@@ -356,10 +365,6 @@
               t = localStorage.getItem("sessTicket") || "";
             } catch (_) {}
           }
-          //if (t) u.searchParams.set("ticket", t);
-
-          // 👉 replica o caminho do login: ?ticket=… + go=rgpd
-          //const BASE = (CANON_URL || window.CANON_SELF);
           const BASE = CANON_URL;
           const u = new URL(BASE);
           if (t) u.searchParams.set("ticket", t);
@@ -423,7 +428,7 @@
           const ad = parsePtDate(adesaoStr);
           if (!ad) {
             try {
-              log?.(`[joia] data inválida: ${adesaoStr}`);
+              try { log?.(`[joia] data inválida: ${adesaoStr}`); } catch (_) {}
             } catch (_) {}
             return 0;
           }
@@ -504,7 +509,8 @@
           if (saldoNeg) {
             primTxt = outTxt = "Regularize as quotas, por favor";
           } else if (!rgpdAceite) {
-            primTxt = outTxt = "Aceite o RGPD, por favor";
+            // Alterado para ficar vermelho com a classe 'stat-nok' (vermelho de erro definido no CSS)
+            primTxt = outTxt = '<span class="stat-nok">Aceite o RGPD, por favor</span>';
           } else if (naoTitular) {
             primTxt = outTxt = "---";
           } else {
@@ -749,23 +755,20 @@
             }
           })();
           if (!ticket) {
-            $("#content").textContent =
-              "Sessão inválida — por favor volte a entrar.";
+            $("#content").textContent = "Sessão inválida — por favor volte a entrar.";
             return;
           }
 
           google.script.run
             .withSuccessHandler(function (ok) {
               if (!ok) {
-                $("#content").textContent =
-                  "Sessão inválida — por favor volte a entrar.";
+                $("#content").textContent = "Sessão inválida — por favor volte a entrar.";
                 return;
               }
               google.script.run
                 .withSuccessHandler(render)
                 .withFailureHandler((err) => {
-                  $("#content").textContent =
-                    "Erro a carregar: " + (err?.message || err);
+                  $("#content").textContent = "Erro a carregar: " + (err?.message || err);
                 })
                 .apiGetAssociados(ticket);
             })
@@ -864,10 +867,10 @@
         const sv = window.__SERVER_VARS || {};
         // usar o “self” (domínio userCodeAppPanel) se existir, senão o canónico
         //log("[Main.html canonExec] sv.canonSelf=" + sv.canonSelf || '' + "sv.canonUrl=" + sv.canonUrl || '' + "window.CANON_URL=" + window.CANON_URL || '' + "sv.CANON_URL=" + sv.CANON_URL || '');
-        log("[Main.html canonExec] sv.canonSelf=" + sv.canonSelf);
-        log("[Main.html canonExec] sv.canonUrl=" + sv.canonUrl);
-        log("[Main.html canonExec] window.CANON_URL=" + window.CANON_URL);
-        log("[Main.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
+        //log("[Main.html canonExec] sv.canonSelf=" + sv.canonSelf);
+        //log("[Main.html canonExec] sv.canonUrl=" + sv.canonUrl);
+        //log("[Main.html canonExec] window.CANON_URL=" + window.CANON_URL);
+        //log("[Main.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
         const url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
         return url || (location.origin + location.pathname);
       }
@@ -887,6 +890,7 @@
         const qs_local = new URLSearchParams(location.search);
         const isDbg = (__SERVER_VARS.debugServer === true || qs_local.get("debug") === "1" || qs_local.get("Debug") === "1");
         if (isDbg) u.searchParams.set("debug", "1");
+		
         u.searchParams.set("ts", String(Date.now()));
 
         log("[MAIN] navegar SÍNCRONO (top) → " + u.toString());
@@ -902,6 +906,35 @@
           window.open(u.toString(), "_top");
         }
       });
+
+      // NOVO: Ação do botão Sair (Versão com Logout Absoluto)
+      document.getElementById("btn-logout").addEventListener("click", function(ev) {
+        ev.preventDefault();
+        
+        // Apagar as provas de sessão localmente no iframe atual
+        try { localStorage.removeItem("sessTicket"); } catch (_) {}
+        try { document.cookie = "sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure"; } catch (_) {}
+        
+        // Em vez de ir direto para o site, vamos passar pelo endpoint de logout da app
+        // para limpar também a cache do wrapper principal da Google!
+        const u = new URL(canonExec());
+        u.searchParams.set("action", "logout");
+        u.searchParams.set("redirect", "https://titulares-portobelo.pt");
+        
+        log("[MAIN] Sair clicado -> Passando pelo servidor para Wipe: " + u.toString());
+        
+        try {
+          if (window.top !== window.self) {
+            window.top.location.href = u.toString();
+          } else {
+            location.replace(u.toString());
+          }
+        } catch (e) {
+          window.open(u.toString(), "_top");
+        }
+      });
+      
     </script>
   </body>
 </html>
+
