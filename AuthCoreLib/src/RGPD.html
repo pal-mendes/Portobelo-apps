@@ -113,6 +113,25 @@
       </div>
     </div>
 
+    <!-- Script de Limpeza de Sessão (Se solicitado) -->
+    <script>
+      (function () {
+        const WIPE = (__SERVER_VARS.wipe === '1');
+        if (!WIPE) return;
+        try {
+          localStorage.removeItem("sessTicket");
+          log("RGPD.html wipe: localStorage ok");
+        } catch (e) {
+          log("RGPD.html wipe ls ERR " + e);
+        }
+        try {
+          document.cookie = "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
+          log("RGPD.html wipe: cookie ok");
+        } catch (e) {
+          log("RGPD.html wipe cookie ERR " + e);
+        }
+      })();
+    </script>
     <script>
       (function () {
 
@@ -146,6 +165,10 @@
           try { TICKET = localStorage.getItem('sessTicket') || ''; } catch(_) {}
         }
 
+        // Se foi solicitado WIPE, não consideramos o ticket válido para persistência.
+        if (__SERVER_VARS.wipe === '1') {
+            TICKET = '';
+        }
         log(`RGPD page ready; CANON=${canonExec()}; have TICKET=${!!TICKET}`);
 
         function persistTicket(t) {
@@ -273,14 +296,16 @@
 
         }
 
-        log("RGPD about to call listRgpdRowsFor (host)");
-        // Chama o host para obter linhas; se vier vazio, a página da biblioteca fica no modo single padrão
-        google.script.run
-          .withSuccessHandler(renderMulti)
-          .withFailureHandler(function(err){
-            alert("Erro a carregar linhas: " + (err && err.message ? err.message : String(err)));
-          })
-          .listRgpdRowsFor(TICKET);
+        // Não tenta carregar dados se estivermos no modo wipe (limpeza)
+        if (__SERVER_VARS.wipe !== '1') {
+            log("RGPD about to call listRgpdRowsFor (host)");
+            google.script.run
+              .withSuccessHandler(renderMulti)
+              .withFailureHandler(function(err){
+                alert("Erro a carregar linhas: " + (err && err.message ? err.message : String(err)));
+              })
+              .listRgpdRowsFor(TICKET);
+        }
       })();
     </script>
   </body>

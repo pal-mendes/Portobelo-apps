@@ -109,24 +109,35 @@
     </p>
     <div id="status"></div>
 
-    <!-- 1) Optional wipe (quando renderizado com WIPE=1) -->
+    <!-- 1) Limpeza de Sessão (WIPE) -->
     <script>
       (function () {
         const WIPE = (__SERVER_VARS.wipe === '1');
+        log("Login.html WIPE=" + WIPE);
         if (!WIPE) return;
-        try {
-          localStorage.removeItem("sessTicket");
-          log("Login.html wipe: localStorage ok");
-        } catch (e) {
-          log("Login.html wipe ls ERR " + e);
+        
+        log("Login.html proceed with WIPE");
+        window.STOP_LOGIN_FLOW = true; // Impede que o ecrã tente fazer o login
+        
+        try { localStorage.removeItem("sessTicket"); } catch (e) {
+          log("Login.html remove sessTicket ERR=" + e);
         }
-        try {
-          document.cookie =
-            "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
-          log("Login.html wipe: cookie ok");
-        } catch (e) {
-          log("Login.html wipe cookie ERR " + e);
+        try { document.cookie = "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax"; } catch (e) {
+          log("Login.html document.cookie ERR=" + e);
         }
+        
+        // Extrai o redirecionamento (ou usa o site por defeito)
+        const qs = new URLSearchParams(location.search);
+        const redir = qs.get("redirect") || "https://titulares-portobelo.pt";
+        
+        document.addEventListener("DOMContentLoaded", function() {
+            // Substitui toda a página pelo ecrã de saída limpo
+            document.body.innerHTML = 
+              '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
+              '<h2 style="margin-bottom:20px;">Sessão terminada com sucesso.</h2>' +
+              '<a href="' + redir + '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Voltar ao site da Associação</a>' +
+              '</div>';
+        });
       })();
     </script>
 
@@ -134,6 +145,12 @@
     <script>
       (function () {
         log("Login.html fluxo de autenticação");
+        if (window.STOP_LOGIN_FLOW) {
+          log("Login.html STOP_LOGIN_FLOW");
+           return; // Aborta a procura de tickets locais se for para limpar
+        }
+        log("Login.html prossegue fluxo de autenticação");
+        
         const BTN = document.getElementById("login-link");
         const ST = document.getElementById("status");
 
@@ -315,8 +332,7 @@
               if (!popupRef) {
                 // Se popup bloqueada:
                 log("Login.html popup blocked");
-				// A SALVAGUARDA GIGANTE PARA O FIREFOX MOBILE / SAFARI
-
+				        // A SALVAGUARDA GIGANTE PARA O FIREFOX MOBILE / SAFARI
                 setStatus(
                   '<div class="alert-box">' +
                   '<b>Ação necessária:</b> O seu navegador de telemóvel bloqueou a janela de autenticação da Google.<br><br>' +
