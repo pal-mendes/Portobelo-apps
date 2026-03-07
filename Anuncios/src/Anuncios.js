@@ -194,8 +194,10 @@ function renderBlocked_(msg, DBG) {
 function renderMainPage_(ticket, DBG, serverLogLines) {
   const t = HtmlService.createTemplateFromFile('Main');
   t.VERSION = VERSION;
-  t.count = incrementVisitCounter();
-  t.ticket = ticket || "";
+  const visits = incrementVisitCounters();
+  t.count = visits.total;
+  t.count30 = visits.last30; // Passa os últimos 30 dias para o HTML
+  t.ticket = ticket || "";  
   t.CANON_URL = ScriptApp.getService().getUrl(); 
   t.DEBUG = DBG ? '1' : '';
   t.SERVER_LOG = (serverLogLines || []).join('\n');
@@ -216,11 +218,35 @@ function validateApiAccess_(ticket) {
   }
 }
 
-function incrementVisitCounter() {
+function incrementVisitCounters() {
   const props = PropertiesService.getScriptProperties();
-  const count = parseInt(props.getProperty('visitCount') || '0', 10) + 1;
-  props.setProperty('visitCount', count.toString());
-  return count;
+  
+  // 1. Total Global
+  const total = parseInt(props.getProperty('visitCount') || '0', 10) + 1;
+  props.setProperty('visitCount', total.toString());
+
+  // 2. Histórico dos últimos 30 dias (por dia)
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  let history = {};
+  try { history = JSON.parse(props.getProperty('visitHistory') || '{}'); } catch(e){}
+  history[today] = (history[today] || 0) + 1;
+
+  // 3. Limpar dias velhos e somar o mês
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - 30);
+  const cutoffStr = cutoffDate.toISOString().slice(0, 10);
+  
+  let last30 = 0;
+  for (const dateStr in history) {
+    if (dateStr < cutoffStr) {
+      delete history[dateStr]; // Apaga os registos com mais de 30 dias
+    } else {
+      last30 += history[dateStr];
+    }
+  }
+  props.setProperty('visitHistory', JSON.stringify(history));
+
+  return { total: total, last30: last30 };
 }
 
 function getUltimaAtualizacao() {

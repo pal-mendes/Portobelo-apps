@@ -30,7 +30,7 @@ function hostSaveRgpdRowsFor(ticket, acceptedRows, cfg) { return hostSaveRgpdRow
 
 // NOVO: Função para uso das web apps clientes para registar bloqueios personalizados
 function logFailedAccess(ticket, reason, cfg) { return logFailedAccessPublic_(ticket, reason, cfg); }
-function libBuild(){ return "AuthCoreLib build 2026-03-06 15:54 - development mode"; }
+function libBuild(){ return "AuthCoreLib build 2026-03-06 23:48 - development mode"; }
 
 
 // ===== Config / Constantes comuns =====
@@ -127,6 +127,7 @@ function toQueryString_(obj) {
 function getSessSecretBytes_() {
   const p = PropertiesService.getScriptProperties();
   let b64 = p.getProperty("SESSION_HMAC_SECRET_B64");
+  if (b64) b64 = b64.trim();
   if (!b64) {
     // Deriva 32 bytes “random enough” a partir de dois UUIDs (evita depender de RNG externo)
     const seed = Utilities.getUuid() + ":" + Utilities.getUuid() + ":" + Date.now();

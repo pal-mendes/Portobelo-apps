@@ -73,7 +73,7 @@
         <div class="version">
           <div>Versão: <span id="versao"></span></div>
           <div>Atualização: <span id="atualizacao"></span></div>
-          <div>Visitas: <span id="visitas"></span></div>
+          <div>Visitas: <span id="visitas"></span> (Últ. 30 dias: <span id="visitas30"></span>)</div>
         </div>
       </div>
       <table>
@@ -106,7 +106,12 @@
   <script>
     const VERSION = "<?= VERSION ?>";
     const TOTAL_VISITAS = "<?= count ?>";
+    const TOTAL_VISITAS_30 = "<?= count30 ?>";
 
+    document.addEventListener("DOMContentLoaded", function() {
+      try { document.getElementById("visitas").innerText = TOTAL_VISITAS; } catch(e){}
+      try { document.getElementById("visitas30").innerText = TOTAL_VISITAS_30; } catch(e){}
+    });
     // 1) Persistir ticket e lidar com URLs
     (function () {
       try {
