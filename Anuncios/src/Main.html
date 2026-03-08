@@ -112,6 +112,7 @@
       try { document.getElementById("visitas").innerText = TOTAL_VISITAS; } catch(e){}
       try { document.getElementById("visitas30").innerText = TOTAL_VISITAS_30; } catch(e){}
     });
+
     // 1) Persistir ticket e lidar com URLs
     (function () {
       try {
@@ -121,17 +122,19 @@
           const u = new URL(location.href);
           if (u.searchParams.has("ticket")) {
             u.searchParams.delete("ticket");
+            u.searchParams.delete("ts"); // Limpa também o timestamp para ficar limpo
             history.replaceState({}, document.title, u.toString());
           }
         }
       } catch (_) {}
     })();
 
+    // NOVO: Ação do botão Sair (Mantém-se na app, sem criar novas abas)
     // 2) Lógica do Botão Sair com navegação anti-aninhamento (Top Level)
     document.getElementById("btn-logout").addEventListener("click", function(ev) {
       ev.preventDefault();
       
-      log("[MAIN] Sair clicado (versão 8/3/2026 14:52)");
+      log("[MAIN] Iniciando processo de Sair... (8/3/2026 20:21)");
       // Eliminação Agressiva Antecipada na App Cliente
       try { localStorage.removeItem("sessTicket"); localStorage.clear(); } catch (_) {}
       try { sessionStorage.removeItem("sessTicket"); sessionStorage.clear(); } catch (_) {}
@@ -148,14 +151,19 @@
       const u = new URL(url);
       u.searchParams.set("action", "logout");
       
-      log("[MAIN] Sair clicado -> Wipe: " + u.toString());
-      try {
-        if (window.top !== window.self) window.top.location.href = u.toString();
-        else location.replace(u.toString());
-      } catch (e) {
-        window.open(u.toString(), "_top");
-      }
+      log("[MAIN] Sair clicado -> Aguardando gravação no browser... Wipe: " + u.toString());
+      // O SEGREDO ESTÁ AQUI: Dar 400ms para o browser gravar a eliminação antes de destruir o iframe!
+      setTimeout(function() {
+        log("[MAIN] A navegar para Wipe do Servidor: " + u.toString());
+        try {
+          if (window.top !== window.self) window.top.location.href = u.toString();
+          else location.replace(u.toString());
+        } catch (e) {
+          window.open(u.toString(), "_top");
+        }
+      }, 400);
     });
+
   </script>
 
   <?!= include('App'); ?>
