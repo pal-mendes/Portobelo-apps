@@ -115,6 +115,46 @@
     <script>
       <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
     </script>
+
+    <script>
+      // FUNÇÃO UNIVERSAL DE DESTRUIÇÃO DE SESSÃO
+      function killLocalSession() {
+        log("[Login.html] killLocalSession (versão 8/3/2026 14:52)");
+
+		    // 1. Matar LocalStorage e SessionStorage
+        try {
+          localStorage.removeItem("sessTicket");
+          localStorage.clear();
+        } catch (e) {
+          log("ERRO localStorage wipe: " + e);
+        }
+        try {
+          sessionStorage.removeItem("sessTicket");
+          sessionStorage.clear();
+        } catch (e) {
+          log("ERRO sessionStorage wipe: " + e);
+        }
+		
+        // 2. Matar Cookies em TODAS as combinações de paths possíveis do Google
+        try {
+          // Destrói cookies varrendo as combinações prováveis de domínios/paths do Google
+          const paths = ["/", "/macros/s/", location.pathname];
+          paths.forEach(function (p) {
+            document.cookie =
+              "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" +
+              p +
+              "; SameSite=Lax; Secure";
+            document.cookie =
+              "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" +
+              p +
+              ";";
+          });
+        } catch (e) {
+          log("ERRO cookie wipe: " + e);
+        }
+      }
+    </script>	
+
   </head>
 
   <body>
@@ -135,41 +175,21 @@
 
         log("Login.html proceed with WIPE");
         window.STOP_LOGIN_FLOW = true; // Impede que o ecrã tente fazer o login
-
-        try {
-          localStorage.removeItem("sessTicket");
-          localStorage.clear();
-        } catch (e) {
-          log("ERRO localStorage wipe: " + e);
-        }
-        try {
-		  // CORREÇÃO: Usar as tags SameSite=Lax; Secure obrigatoriamente
-          const killCookie =
-            "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax; Secure";
-          document.cookie = killCookie;
-          // Apaga para a raiz e para o caminho do Apps Script
-          //document.cookie = "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
-          //document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-          //document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/macros/s/;";
-          //document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/a/titulares-portobelo.pt/macros/s/;";
-        } catch (e) {
-          log("ERRO cookie wipe: " + e);
-        }
+        killLocalSession(); // Chama a função universal
 
         // Obter o URL canónico correto para o botão de reentrar
-        const loginUrl =
-          __SERVER_VARS.canonUrl || location.origin + location.pathname;
+        const loginUrl = __SERVER_VARS.canonUrl || location.origin + location.pathname;
 
         document.addEventListener("DOMContentLoaded", function () {
           // Substitui toda a página pelo ecrã de saída limpo, mantendo na mesma aba
-          document.body.innerHTML =
-            '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
-            '<h2 style="margin-bottom:20px;">Sessão terminada com sucesso.</h2>' +
-            '<p style="color:#555; margin-bottom: 30px;">Pode fechar esta página ou entrar novamente.</p>' +
-            '<a href="' +
-            loginUrl +
-            '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
-            "</div>";
+            document.body.innerHTML = 
+              '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
+              '<h2 style="margin-bottom:20px;">Sessão terminada com sucesso.</h2>' +
+              '<p style="color:#555; margin-bottom: 30px;">Pode fechar esta página ou entrar novamente.</p>' +
+              '<a href="' +
+			  loginUrl + 
+			  '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
+              '</div>';
         });
       })();
     </script>
@@ -469,15 +489,7 @@
                 return;
               }
               log("Login.html ticket inválido → wipe");
-              try {
-                localStorage.removeItem("sessTicket");
-                localStorage.clear();
-              } catch (_) {}
-              try {
-                // CORREÇÃO TAMBÉM AQUI: Usar SameSite=Lax; Secure
-                document.cookie =
-                  "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax; Secure";
-              } catch (_) {}
+			  killLocalSession(); // CHAMADA ADICIONADA AQUI TAMBÉM!
               setStatus("A sua sessão expirou.");
               if (BTN) BTN.style.display = "";
             })

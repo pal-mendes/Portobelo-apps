@@ -335,7 +335,7 @@ function finishAuth_(e, cfg) {
     );
   }
   var state = (e && e.parameter && e.parameter.state) || "";
-  //var code = (e && e.parameter && e.parameter.code) || "";
+  var code = (e && e.parameter && e.parameter.code) || "";
   var parsed = parseStateToken_(state);
   if (!parsed.ok)
     return HtmlService.createHtmlOutput(
@@ -416,7 +416,7 @@ function finishAuth_(e, cfg) {
   var html = `
 <meta charset="utf-8"><title>Autenticado</title>
 <style>body{font-family:system-ui,sans-serif;padding:1rem}</style>
-<div>A redireciona…</div><script>
+<div>A redirecionar…</div><script>
 (function(){
   var t = ${JSON.stringify(ticket)};
   //var next = ${JSON.stringify(canon)} + ${dbg ? JSON.stringify('?debug=1') : '""'};

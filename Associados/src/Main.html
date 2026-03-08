@@ -907,13 +907,17 @@
       // 2) Lógica do Botão Sair com navegação anti-aninhamento (Top Level)
       document.getElementById("btn-logout").addEventListener("click", function(ev) {
         ev.preventDefault();
-        // Elimina tudo agressivamente na hora do clique!
-        try {
-          localStorage.removeItem("sessTicket");
-          localStorage.clear();
-        } catch (_) {}
-        try {
-          document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax; Secure";
+        
+        log("[MAIN] Sair clicado (versão 8/3/2026 14:52)");
+        // Eliminação Agressiva Antecipada na App Cliente
+        try { localStorage.removeItem("sessTicket"); localStorage.clear(); } catch (_) {}
+        try { sessionStorage.removeItem("sessTicket"); sessionStorage.clear(); } catch (_) {}
+        try { 
+          const paths = ['/', '/macros/s/', location.pathname];
+          paths.forEach(function(p) {
+            document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + "; SameSite=Lax; Secure";
+            document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + ";";
+          });
         } catch (_) {}
         
         const sv = window.__SERVER_VARS || {};
