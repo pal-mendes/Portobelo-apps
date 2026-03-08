@@ -130,8 +130,14 @@
     // 2) Lógica do Botão Sair com navegação anti-aninhamento (Top Level)
     document.getElementById("btn-logout").addEventListener("click", function(ev) {
       ev.preventDefault();
-      try { localStorage.removeItem("sessTicket"); } catch (_) {}
-      try { document.cookie = "sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure"; } catch (_) {}
+      // Elimina tudo agressivamente na hora do clique!
+      try {
+        localStorage.removeItem("sessTicket");
+        localStorage.clear();
+      } catch (_) {}
+      try {
+        document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      } catch (_) {}
       
       const sv = window.__SERVER_VARS || {};
       const url = (sv.canonUrl || window.CANON_URL || sv.canonSelf || location.origin + location.pathname).trim();

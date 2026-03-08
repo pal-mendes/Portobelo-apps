@@ -904,28 +904,27 @@
       });
 
       // NOVO: Ação do botão Sair (Mantém-se na app, sem criar novas abas)
+      // 2) Lógica do Botão Sair com navegação anti-aninhamento (Top Level)
       document.getElementById("btn-logout").addEventListener("click", function(ev) {
         ev.preventDefault();
-        
-        // Apagar as provas de sessão localmente no iframe atual
-        try { localStorage.removeItem("sessTicket"); } catch (_) {}
-        try { document.cookie = "sessTicket=; Max-Age=0; Path=/; SameSite=Lax; Secure"; } catch (_) {}
-        
-        // Em vez de ir direto para o site, vamos passar pelo endpoint de logout da app
-        // para limpar também a cache do wrapper principal da Google!
-        const u = new URL(canonExec());
-        u.searchParams.set("action", "logout");
-		// Removemos o parâmetro de redirect para não enviar para o site externo
-        //u.searchParams.set("redirect", "https://titulares-portobelo.pt");
-        
-        log("[MAIN] Sair clicado -> Passando pelo servidor para Wipe: " + u.toString());
-        
+        // Elimina tudo agressivamente na hora do clique!
         try {
-          if (window.top !== window.self) {
-            window.top.location.href = u.toString();
-          } else {
-            location.replace(u.toString());
-          }
+          localStorage.removeItem("sessTicket");
+          localStorage.clear();
+        } catch (_) {}
+        try {
+          document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        } catch (_) {}
+        
+        const sv = window.__SERVER_VARS || {};
+        const url = (sv.canonUrl || window.CANON_URL || sv.canonSelf || location.origin + location.pathname).trim();
+        const u = new URL(url);
+        u.searchParams.set("action", "logout");
+        
+        log("[MAIN] Sair clicado -> Wipe: " + u.toString());
+        try {
+          if (window.top !== window.self) window.top.location.href = u.toString();
+          else location.replace(u.toString());
         } catch (e) {
           window.open(u.toString(), "_top");
         }
