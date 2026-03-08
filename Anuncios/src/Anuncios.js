@@ -3,48 +3,83 @@
 // File: Anuncios.gs
 // =========================
 
-/*
 
- Google Apps Script: Web App para exibir a aba "Anúncios" com filtros e ordenação
-
-  Acesso restrito aos titulares contribuintes da associação, até porque não é permitido por lei alugar timeshares sem licença de alojamento local
-
-  ****** Apps Script ***********
-
-  "Execute as" = "Me" (para o web app ler/escrever no Sheets da associação)
-  "Who has access" = "Anyone" (ou "Anyone with Google Account").
-
-  O domínio titulares-portobelo.pt pertence à nossa associação, e é gerido com OVH.
+/***********************************************
+ * Este ficheiro serve dois propósitos:
+ * 1 - Suportar fórmulas no spreadsheet, tal como Pedidos!G3=findTelefoneIndex(C3)
+ * 2 - Suportar a web app dos anúncios
+**********************************************/
 
 
-  ********** TESTES *********************
-  Abre a página dos anúncios no Sites.
-  Carrega F12 para abrir a consola.
-  No topo da consola há um menu de contexto (no teu screenshot aparece “top”).
-  Clica e escolhe o frame chamado userCodeAppPanel (é o iframe da web app).
-  Isto é importante: o localStorage a apagar está nesse frame, não em top.
-  Com o contexto certo selecionado, corre:
+/***********************************************
+* Fórmulas em uso no spreadsheet
+ **********************************************/
 
-  //Para consultar o ticket guardado
-  separador Application → Storage → Cookies → clica no domínio https://script.google.com e procura a cookie sessTicket
-  localStorage.getItem('sessTicket');
-  document.cookie
-  //Para apagar o ticket
-  localStorage.removeItem('sessTicket');
-  document.cookie = 'sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax';
-  location.reload();
+ const TITULARES_SHEET = "Titulares"; //Usado por uma fórmula na aba "Pedidos"
 
-  //Para validar o polling sem CORS
-  fetch('./?route=poll&nonce=teste&_=' + Date.now(), {mode:'same-origin'})
-    .then(r => r.text()).then(console.log).catch(console.error);
+function findTelefoneIndex(numero) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const titulares = ss.getSheetByName(TITULARES_SHEET);
+    const data = titulares.getRange('K2:K').getValues();
+    const cleanedNumero = numero.toString().replace(/\D/g, '');
+    //Logger.log('numero=' + numero + ', cleanedNumero=' + cleanedNumero);
+    for (let i = 0; i < data.length; i++) {
+        const linha = data[i][0];
+        if (typeof linha === 'string') {
+            const telefones = linha.split(';').map(t => t.replace(/\D/g, ''));
+            for (const tel of telefones) {
+                if (tel.endsWith(cleanedNumero)) return i; // índice base 0 do array (linha real = i + 2)
+            }
+        }
+    }
+    return 0; // Not found
+}
 
-  Se o cache ainda não tiver ticket para esse nonce, deves ver {"ok":false}. Depois do login, verás {"ok":true,"ticket":"..."}
-  e a página navega para a Main.
 
-  de quiseres “desligar” o sticky depois, apaga o flag indo a about:blank e na consola:
-  localStorage.removeItem('pbDebug')
 
-*/
+/***********************************************
+*
+* Google Apps Script: Web App para exibir a aba "Anúncios" com filtros e ordenação
+*
+*  Acesso restrito aos titulares contribuintes da associação, até porque não é permitido por lei alugar timeshares sem licença de alojamento local
+*
+*  ****** Apps Script ***********
+*
+*  "Execute as" = "Me" (para o web app ler/escrever no Sheets da associação)
+*  "Who has access" = "Anyone" (ou "Anyone with Google Account").
+*
+*  O domínio titulares-portobelo.pt pertence à nossa associação, e é gerido com OVH.
+*
+*
+*  ********** TESTES *********************
+*  Abre a página dos anúncios no Sites.
+*  Carrega F12 para abrir a consola.
+*  No topo da consola há um menu de contexto (no teu screenshot aparece “top”).
+*  Clica e escolhe o frame chamado userCodeAppPanel (é o iframe da web app).
+*  Isto é importante: o localStorage a apagar está nesse frame, não em top.
+*  Com o contexto certo selecionado, corre:
+*
+*  //Para consultar o ticket guardado
+*  separador Application → Storage → Cookies → clica no domínio https://script.google.com e procura a cookie sessTicket
+*  localStorage.getItem('sessTicket');
+*  document.cookie
+*  //Para apagar o ticket
+*  localStorage.removeItem('sessTicket');
+*  document.cookie = 'sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax';
+*  location.reload();
+*
+*  //Para validar o polling sem CORS
+*  fetch('./?route=poll&nonce=teste&_=' + Date.now(), {mode:'same-origin'})
+*    .then(r => r.text()).then(console.log).catch(console.error);
+*
+*  Se o cache ainda não tiver ticket para esse nonce, deves ver {"ok":false}. Depois do login, verás {"ok":true,"ticket":"..."}
+*  e a página navega para a Main.
+*
+*  de quiseres “desligar” o sticky depois, apaga o flag indo a about:blank e na consola:
+*  localStorage.removeItem('pbDebug')
+*
+**********************************************/
+
 
 const VERSION = "v6.0";
 
@@ -52,13 +87,12 @@ const VERSION = "v6.0";
 const ANUNCIOS_SHEET = "Anúncios";
 const ANUNCIOS_HEADER_ROW = 4;
 const PEDIDOS_SHEET = "Pedidos";
+
 //const ACESSOS_SHEET = "Acessos"; //Vai deixar de ser usada aqui, porque AuthCoreLib passa a gerir os acessos. Há que mover para tblTitulares.
 
 // ---------- Auth wrappers chamados pelo Login.html (biblioteca) ----------
 // Note: Como a AuthCoreLib agora tem defaults inteligentes, só precisamos do redirectUri
 function gatesCfg_(){ return { canon: ScriptApp.getService().getUrl() }; }
-
-
 
 
 function authCfg_() {
@@ -254,6 +288,81 @@ function getUltimaAtualizacao() {
   return sheet ? sheet.getRange('E1').getDisplayValue() : 'Indisponível';
 }
 
+/**
+ * Regista uma linha na aba "Acessos" (tabela tblAcessos) a partir da coluna B:
+ * A=Data, B=Nome, C=Email, D=€, E=Semanas
+ */
+function logDeniedAccess_(ss, name, email, dues, weeks) {
+  const sht = ss.getSheetByName(ACESSOS_SHEET); if (!sht) return;
+
+  const ts = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  const row = sht.getLastRow() + 1;
+  const values = [[ts, String(name || ''), String(email || ''), Number(dues) || 0, Number(weeks) || 0]];
+  sht.getRange(row, 1, 1, 5).setValues(values);
+}
+
+function findDuesPaidByEmail(email, name) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(TITULARES_SHEET);
+  if (!sh) return false;
+
+  const emails = sh.getRange('L2:L').getValues().flat();
+  const dues = sh.getRange('C2:C').getValues().flat();
+  const weeks = sh.getRange('I2:I').getValues().flat();
+  const target = (email || '').toLowerCase().trim();
+  let c = 0, w = 0;
+
+  for (let i = 0; i < emails.length; i++) {
+    const list = (emails[i] || '').toString().split(';').map(function (x) { return x.trim().toLowerCase(); });
+    if (list.indexOf(target) !== -1) {
+      c = (Number(dues[i]) || 0);
+      w = (Number(weeks[i]) || 0);
+      if (c >= 1 && c >= w) return true;  // Pelo menos 1 euro por semana
+    }
+  }
+  logDeniedAccess_(ss, name, email, c, w);
+  return false;
+}
+
+function findRowByEmailAndPhone(email, telefoneDisplay) {
+  // Verifica se, na mesma linha, o email (col L) contém o email e a coluna K contém o telefone indicado
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(TITULARES_SHEET);
+  if (!sh) return false;
+
+  const phones = sh.getRange('K2:K').getValues().flat();
+  const emails = sh.getRange('L2:L').getValues().flat();
+
+  const targetEmail = (email || '').toLowerCase().trim();
+  const telDigits = String(telefoneDisplay || '').replace(/\D/g, ''); // limpeza para digitos
+
+  for (let i = 0; i < phones.length; i++) {
+    const rowPhones = String(phones[i] || '');
+    const rowEmails = String(emails[i] || '');
+    const hasEmail = rowEmails.split(';').some(function (x) { return x.trim().toLowerCase() === targetEmail; });
+    const hasPhone = rowPhones.split(';').some(function (p) {
+      const d = String(p || '').replace(/\D/g, '');
+      // aceitar fim coincidente (para permitir +351 vs 351 vs sem espaços)
+      return d && telDigits && d.endsWith(telDigits);
+    });
+    if (hasEmail && hasPhone) return i + 2; // linha real na sheet
+  }
+  return 0;
+}
+
+
+function findDuesPaid(index, email) {
+    if (index < 0)
+        return false;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(TITULARES_SHEET);
+    const row = index + 2;
+    const emailCell = sheet.getRange(row, 12).getValue(); // L
+    const duesCell = sheet.getRange(row, 3).getValue(); // C
+    const allEmails = emailCell.toString().split(';').map(e => e.trim().toLowerCase());
+    return allEmails.includes((email || '').toLowerCase()) && (Number(duesCell) || 0) >= 1;
+}
+
 function getAnunciosDataSess(ticket) { 
   validateApiAccess_(ticket); // Bloqueia API a quem não cumpra os requisitos
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ANUNCIOS_SHEET);
@@ -279,4 +388,9 @@ function submitAnuncioSess(ticket, anuncioParcial) {
   const email = 'geral@titulares-portobelo.pt';
   MailApp.sendEmail(email, 'Novo anúncio submetido: ' + anuncioParcial[2], 'Telemóvel=' + anuncioParcial[2] + '\nTipo=' + anuncioParcial[1] + '\n' + anuncioParcial[3]);
   return true; 
+}
+
+function testFind() {
+  const result = findDuesPaidByEmail("pal.mendes23@gmail2.com", "Pedro Mendes");
+  Logger.log(result);
 }
