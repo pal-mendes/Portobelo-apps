@@ -60,19 +60,13 @@
         // Defensivo: usar typeof para evitar ReferenceError no template
         var SV = {
           //usar como __SERVER_VARS. no código
-          canonUrl:
-            "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
-          ticket:
-            "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
-          autostart:
-            "<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>", // '1' | ''
-          debugServer:
-            "<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" ===
-            "1",
-          serverLog: `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
-          wipe: "<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>", // '1' | ''
-          pageTag:
-            "<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>", // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
+          canonUrl:"<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
+          ticket:"<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
+          autostart:"<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>", // '1' | ''
+          debugServer:"<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" === "1",
+          serverLog:`<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
+          wipe:"<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>", // '1' | ''
+          pageTag:"<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>", // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
         };
 
         // Flags calculadas no cliente
@@ -120,24 +114,24 @@
     <script>
       // FUNÇÃO UNIVERSAL DE DESTRUIÇÃO DE SESSÃO
       function killLocalSession() {
-        log("killLocalSession: Executando limpeza de localStorage e cookies (versão 8/3/2026 22:04)...");
+        log("killLocalSession: Executando limpeza de localStorage e cookies (versão 9/3/2026 11:34)...");
 
-		    // 1. Matar LocalStorage e SessionStorage
+        // 1. Matar LocalStorage e SessionStorage
         try {
           localStorage.setItem("sessTicket", "");
-		  localStorage.removeItem("sessTicket");
+          localStorage.removeItem("sessTicket");
           localStorage.clear();
         } catch (e) {
           log("ERRO localStorage wipe: " + e);
         }
         try {
-		  sessionStorage.setItem("sessTicket", "");
+          sessionStorage.setItem("sessTicket", "");
           sessionStorage.removeItem("sessTicket");
           sessionStorage.clear();
         } catch (e) {
           log("ERRO sessionStorage wipe: " + e);
         }
-		
+
         // 2. Matar Cookies em TODAS as combinações de paths possíveis do Google
         try {
           // Destrói cookies varrendo as combinações prováveis de domínios/paths do Google
@@ -157,7 +151,6 @@
         }
       }
     </script>
-
   </head>
 
   <body>
@@ -185,14 +178,14 @@
 
         document.addEventListener("DOMContentLoaded", function () {
           // Substitui toda a página pelo ecrã de saída limpo, mantendo na mesma aba
-            document.body.innerHTML = 
-              '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
-              '<h2 style="margin-bottom:20px;">Sessão terminada com sucesso.</h2>' +
-              '<p style="color:#555; margin-bottom: 30px;">Pode fechar esta página ou entrar novamente.</p>' +
-              '<a href="' +
-			  loginUrl + 
-			  '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
-              '</div>';
+          document.body.innerHTML =
+            '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
+            '<h2 style="margin-bottom:20px;">Sessão terminada com sucesso.</h2>' +
+            '<p style="color:#555; margin-bottom: 30px;">Pode fechar esta página ou entrar novamente.</p>' +
+            '<a href="' +
+            loginUrl +
+            '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
+            '</div>';
         });
       })();
     </script>
@@ -205,7 +198,7 @@
           log("Login.html STOP_LOGIN_FLOW");
           return; // Aborta a procura de tickets locais se for para limpar
         }
-        log("Login.html prossegue fluxo de autenticação");
+        log("prossegue fluxo de autenticação");
 
         const BTN = document.getElementById("login-link");
         const ST = document.getElementById("status");
@@ -223,8 +216,7 @@
             } catch (_) {
               return "";
             }
-          })() ||
-          location.origin + location.pathname;
+          })() || location.origin + location.pathname;
 
         const UI_DELAY_BTN = 1200; // só mostramos o botão passado isto (auto)
         const UI_DELAY_HINT = 20000; // só mostramos um hint/fallback passado isto (auto)
@@ -252,7 +244,7 @@
               url = localStorage.getItem("appCanonicalUrl") || "";
             } catch (_) {}
           }
-		  
+
           //    // 2. O iframe herda o referrer do wrapper principal do Google (Solução Definitiva)
           //    if (
           //      !url &&
@@ -285,9 +277,9 @@
           } catch (_) {}
           try {
             const m = (document.cookie || "").match(/(?:^|;\s*)sessTicket=([^;]+)/);
-            if (m && m[1]) { 
-                log("bestLocalTicket: Ticket zombie encontrado no Cookie!"); 
-                return decodeURIComponent(m[1]); 
+            if (m && m[1]) {
+                log("bestLocalTicket: Ticket zombie encontrado no Cookie!");
+                return decodeURIComponent(m[1]);
             }
           } catch (_) {}
           log("bestLocalTicket: Nenhum ticket local encontrado (Limpeza com sucesso).");
@@ -437,9 +429,7 @@
 
               // Popup OK
               log("Login.html popup opened OK");
-              setStatus(
-                "A autenticação abriu numa nova janela. Conclua o login nessa janela.",
-              );
+              setStatus("A autenticação abriu numa nova janela. Conclua o login nessa janela.");
               startServerPolling(nonce, authUrl);
             })
             .withFailureHandler(function (err) {
@@ -461,74 +451,73 @@
 
         // Bootstrap “seguro”: se já houver ticket local/cookie válido, vai direto
         (function bootstrap() {
-          log("Login.html function bootstrap…");
+          log("function bootstrap…");
           if (__SERVER_VARS.noRedirect) {
             if (BTN) BTN.style.display = "";
             return;
           }
-		  
-          // O SEGREDO: Detetar o cavalo de troia (HASH) na Sandbox correta!
-          google.script.url.getLocation(function (loc) {
-            const hash = loc.hash || "";
-            if (hash === "logout" || hash === "wipe") {
-              log("Cavalo de Troia: Hash #logout detetado na Sandbox principal! Destruindo memória...");
-              window.STOP_LOGIN_FLOW = true;
-              killLocalSession();
 
-              // Apagar o Hash do URL para não ficar sujo
-              try {
-                google.script.history.replace(null, loc.parameter, "");
-              } catch (e) {}
-
-              const loginUrl =
-                __SERVER_VARS.canonUrl || location.origin + location.pathname;
-              document.body.innerHTML =
-                '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
-                '<h2 style="margin-bottom:20px; color:#22c55e;">Sessão terminada com sucesso.</h2>' +
-                '<p style="color:#555; margin-bottom: 30px;">A sua sessão foi encerrada de forma estanque e segura.</p>' +
-                '<a href="' +
-                loginUrl +
-                '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
-                "</div>";
-              return;
-            }
-
-            // Se não for wipe, continua com o login normal
-            const t = bestLocalTicket();
-            if (!t) {
-              // sem ticket → podemos autostartar popup (se AUTOSTART=1)
-              const AUTOSTART = __SERVER_VARS.autostart;
-              if (AUTOSTART) {
-                // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
-                beginAuthFlow(false);
-              } else {
-                if (BTN) BTN.style.display = "";
+          // O SEGREDO: Detetar o cavalo de troia (HASH) usando JS nativo (Sem causar erros na API da Google)
+          let isLogout = false;
+          try {
+              if (window.location.hash.indexOf('logout') !== -1 || window.location.href.indexOf('#logout') !== -1) {
+                  isLogout = true;
               }
-              return;
-            }
+          } catch(e) {}
 
-            log("Login.html bootstrap Found local ticket/cookie — validating…");
-            google.script.run
-              .withSuccessHandler(function (valid) {
-                if (valid) {
-                  goWithTicket(t);
-                  return;
-                }
-                log("Login.html ticket inválido → wipe");
-                killLocalSession(); // CHAMADA ADICIONADA AQUI TAMBÉM!
-                setStatus("A sua sessão expirou.");
-                if (BTN) BTN.style.display = "";
-              })
-              .withFailureHandler(function (err) {
-                log(
-                  "Login.html validate fail: " +
-                    (err && err.message ? err.message : err),
-                );
-                setStatus("Não foi possível validar a sessão.");
-                if (BTN) BTN.style.display = "";
-              })
-              .isTicketValid(t, WANT_DEBUG ? 1 : 0);
-          })();
+          if (isLogout) {
+            log("Cavalo de Troia: Hash #logout detetado na Sandbox principal! Destruindo memória...");
+            window.STOP_LOGIN_FLOW = true;
+            killLocalSession();
+
+            // Tentar limpar o URL para não ficar sujo visualmente
+            try { history.replaceState(null, null, ' '); } catch(e){}
+
+            const loginUrl = __SERVER_VARS.canonUrl || location.origin + location.pathname;
+            document.body.innerHTML =
+              '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
+              '<h2 style="margin-bottom:20px; color:#22c55e;">Sessão terminada com sucesso.</h2>' +
+              '<p style="color:#555; margin-bottom: 30px;">A sua sessão foi encerrada de forma estanque e segura.</p>' +
+              '<a href="' + loginUrl + '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
+              '</div>';
+            return;
+          }
+
+          // Se não for wipe, continua com o login normal
+          const t = bestLocalTicket();
+          if (!t) {
+            // sem ticket → podemos autostartar popup (se AUTOSTART=1)
+            const AUTOSTART = __SERVER_VARS.autostart;
+            if (AUTOSTART) {
+              // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
+              beginAuthFlow(false);
+            } else {
+              if (BTN) BTN.style.display = "";
+            }
+            return;
+          }
+
+          log("Login.html bootstrap Found local ticket/cookie — validating…");
+          google.script.run
+            .withSuccessHandler(function (valid) {
+              if (valid) {
+                goWithTicket(t);
+                return;
+              }
+              log("Login.html ticket inválido → wipe");
+              killLocalSession(); // CHAMADA ADICIONADA AQUI TAMBÉM!
+              setStatus("A sua sessão expirou.");
+              if (BTN) BTN.style.display = "";
+            })
+            .withFailureHandler(function (err) {
+              log(
+                "Login.html validate fail: " +
+                  (err && err.message ? err.message : err),
+              );
+              setStatus("Não foi possível validar a sessão.");
+              if (BTN) BTN.style.display = "";
+            })
+            .isTicketValid(t, WANT_DEBUG ? 1 : 0);
         })();
       })();
     </script>
