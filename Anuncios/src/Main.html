@@ -129,40 +129,48 @@
       } catch (_) {}
     })();
 
-    // NOVO: Ação do botão Sair (Mantém-se na app, sem criar novas abas)
-    // 2) Lógica do Botão Sair com navegação anti-aninhamento (Top Level)
-    document.getElementById("btn-logout").addEventListener("click", function(ev) {
-      ev.preventDefault();
-      
-      log("[MAIN] Iniciando processo de Sair... (8/3/2026 20:21)");
-      // Eliminação Agressiva Antecipada na App Cliente
-      try { localStorage.removeItem("sessTicket"); localStorage.clear(); } catch (_) {}
-      try { sessionStorage.removeItem("sessTicket"); sessionStorage.clear(); } catch (_) {}
-      try { 
-        const paths = ['/', '/macros/s/', location.pathname];
-        paths.forEach(function(p) {
-          document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + "; SameSite=Lax; Secure";
-          document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + ";";
-        });
-      } catch (_) {}
-      
-      const sv = window.__SERVER_VARS || {};
-      const url = (sv.canonUrl || window.CANON_URL || sv.canonSelf || location.origin + location.pathname).trim();
-      const u = new URL(url);
-      u.searchParams.set("action", "logout");
-      
-      log("[MAIN] Sair clicado -> Aguardando gravação no browser... Wipe: " + u.toString());
-      // O SEGREDO ESTÁ AQUI: Dar 400ms para o browser gravar a eliminação antes de destruir o iframe!
-      setTimeout(function() {
-        log("[MAIN] A navegar para Wipe do Servidor: " + u.toString());
-        try {
-          if (window.top !== window.self) window.top.location.href = u.toString();
-          else location.replace(u.toString());
-        } catch (e) {
-          window.open(u.toString(), "_top");
+      // 2) Lógica do Botão Sair com navegação para a Sandbox Principal
+      document.getElementById("btn-logout").addEventListener("click", function(ev) {
+        ev.preventDefault();
+        log("[MAIN] Iniciando processo de Sair... (9/3/2026 9:07)");
+        
+        // Eliminação Agressiva Antecipada na App Cliente
+        try { localStorage.setItem("sessTicket", ""); localStorage.removeItem("sessTicket"); localStorage.clear(); } catch (_) {}
+        try { sessionStorage.setItem("sessTicket", ""); sessionStorage.removeItem("sessTicket"); sessionStorage.clear(); } catch (_) {}
+        try { 
+          const paths = ['/', '/macros/s/', location.pathname];
+          paths.forEach(function(p) {
+            document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + "; SameSite=Lax; Secure";
+            document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + ";";
+          });
+        } catch (_) {}
+        
+        // 3. Ocultar a app e mostrar feedback imediato DENTRO do iframe
+        document.body.innerHTML = "<div style='text-align:center; padding:60px 20px; font-family:sans-serif;'>" +
+                                        "<h3 style='color:#333;'>A encerrar sessão com segurança...</h3>" +
+                                        "<p style='color:#777;'>A limpar dados do navegador.</p></div>";
+                  
+        const sv = window.__SERVER_VARS || {};
+        let url = (sv.canonUrl || window.CANON_URL || sv.canonSelf || location.origin + location.pathname).trim();
+        // O TRUQUE MESTRE: Enviar para a Root URL com Hash #logout
+        const u = new URL(url);
+        if (window.location.search.includes('debug=1') || u.searchParams.has('debug')) {
+            u.searchParams.set("debug", "1");
         }
-      }, 400);
-    });
+        u.hash = "logout"; // <-- Garante a abertura da Sandbox original
+        
+        log("[MAIN] A navegar para a sandbox base via hash...";
+        // O SEGREDO ESTÁ AQUI: Dar 400ms para o browser gravar a eliminação antes de destruir o iframe!
+        setTimeout(function() {
+          log("[MAIN] A navegar para: " + u.toString());
+          try {
+            if (window.top !== window.self) window.top.location.href = u.toString();
+            else location.replace(u.toString());
+          } catch (e) {
+            window.open(u.toString(), "_top");
+          }
+        }, 600);
+      });
 
   </script>
 
