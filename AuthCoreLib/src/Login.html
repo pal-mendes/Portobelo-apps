@@ -390,11 +390,8 @@
         }
 
         function beginAuthFlow(manualClick) {
-          log("Login.html beginAuthFlow");
-          const nonce =
-            crypto && crypto.randomUUID
-              ? crypto.randomUUID()
-              : Date.now() + "." + Math.random();
+          log("beginAuthFlow");
+          const nonce = crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now() + "." + Math.random();
           if (BTN) BTN.style.display = "none";
           setStatus("A preparar autenticação…");
 
@@ -402,12 +399,9 @@
             .withSuccessHandler(function (authUrl) {
               // Tentativa 1: POPUP
               try {
-                popupRef = window.open(
-                  authUrl,
-                  "portobeloAuth",
-                  "width=520,height=720",
-                );
+                popupRef = window.open(authUrl, "portobeloAuth", "width=520,height=720");
               } catch (_) {
+                log("popupRef / null");
                 popupRef = null;
               }
 
@@ -433,14 +427,12 @@
               startServerPolling(nonce, authUrl);
             })
             .withFailureHandler(function (err) {
-              log(
-                "Login.html buildAuthUrlFor fail: " +
-                  (err && err.message ? err.message : err),
-              );
+              log("Login.html buildAuthUrlFor fail: " + (err && err.message ? err.message : err));
               setStatus("Não foi possível iniciar a autenticação. Tente novamente.");
               if (BTN) BTN.style.display = "";
             })
-            .buildAuthUrlFor(nonce, WANT_DEBUG, window.top !== window);
+            // AQUI É QUE PASSAMOS O URL DO CLIENTE (/dev ou /exec) PARA O SERVIDOR!
+            .buildAuthUrlFor(nonce, WANT_DEBUG, window.top !== window, canonExec());
         }
 
         // Botão (para quando a pop-up automática falha ou NOREDIRECT)

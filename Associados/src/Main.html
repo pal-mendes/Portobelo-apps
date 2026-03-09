@@ -907,7 +907,7 @@
       // 2) Lógica do Botão Sair simplificada com navegação para a Sandbox Principal
       document.getElementById("btn-logout").addEventListener("click", function(ev) {
         ev.preventDefault();
-        log("[MAIN] Iniciando processo de Sair... (9/3/2026 9:52)");
+        log("[MAIN] Iniciando processo de Sair... (9/3/2026 12:03)");
         
         // Eliminação Agressiva Antecipada na App Cliente
         try { localStorage.setItem("sessTicket", ""); localStorage.removeItem("sessTicket"); localStorage.clear(); } catch (_) {}
@@ -932,10 +932,12 @@
         if (window.location.search.includes('debug=1') || u.searchParams.has('debug')) {
             u.searchParams.set("debug", "1");
         }
-        u.hash = "logout"; // <-- Garante a abertura da Sandbox original
+        //u.hash = "logout"; // <-- Garante a abertura da Sandbox original
+        // 2. Avisar o servidor para travar a Autenticação
+        u.searchParams.set("action", "logout");
         
-        log("[MAIN] A navegar para a sandbox base via hash...");
-        // O SEGREDO ESTÁ AQUI: Dar 400ms para o browser gravar a eliminação antes de destruir o iframe!
+        log("[MAIN] A navegar para a sandbox base de logout...");
+        // O SEGREDO ESTÁ AQUI: Dar tempo para o browser gravar a eliminação antes de destruir o iframe!
         setTimeout(function() {
           log("[MAIN] A navegar para: " + u.toString());
           try {

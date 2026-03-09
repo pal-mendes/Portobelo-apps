@@ -97,10 +97,10 @@ function authCfg_() {
   return {
     clientId:     sp.getProperty("CLIENT_ID"),
     clientSecret: sp.getProperty("CLIENT_SECRET"),
-    redirectUri:  sp.getProperty("REDIRECT_URI") || canon,
+    //redirectUri:  sp.getProperty("REDIRECT_URI") || canon,
   };
 }
-function buildAuthUrlFor(nonce, dbg, embed) { return AuthCoreLib.buildAuthUrlFor(nonce, dbg, embed, authCfg_()); }
+function buildAuthUrlFor(nonce, dbg, embed, clientUrl) { return AuthCoreLib.buildAuthUrlFor(nonce, dbg, embed, authCfg_(), clientUrl); }
 function pollTicket(nonce)                  { return AuthCoreLib.pollTicket(nonce); }
 function isTicketValid(ticket, dbg)              { return AuthCoreLib.isTicketValid(ticket, dbg); }
 function acceptRgpdForMe(ticket, decision){

@@ -9,7 +9,7 @@
 
 // API: Funções públicas sem underscore e com nomes limpos:
 function renderLoginPage(opts) { return renderLoginPage_(opts); }
-function buildAuthUrlFor(nonce, dbg, embed, cfg) { return buildAuthUrlFor_(nonce, dbg, embed, cfg); }
+function buildAuthUrlFor(nonce, dbg, embed, cfg, clientUrl) { return buildAuthUrlFor_(nonce, dbg, embed, cfg, clientUrl); }
 function beginAuth(e, cfg) { return beginAuth_(e, cfg); }
 function finishAuth(e, cfg) { return finishAuth_(e, cfg); }
 function isTicketValid(ticket, dbg) { return !!validateSessionToken_(ticket); }
@@ -199,12 +199,11 @@ function getStateSecret_() {
 
 // Gera state assinado: base64url(payload) + '.' + base64url( HMAC_SHA256(payload, secret) )
 // aceitar flags no state
-function createStateToken_(dbg, embed, nonceOpt) {
-  const payload = { ts: Date.now(), nonce: nonceOpt || Utilities.getUuid(), dbg: !!dbg, embed: !!embed };
+function createStateToken_(dbg, embed, nonceOpt, redirectUri) {
+  const payload = { ts: Date.now(), nonce: nonceOpt || Utilities.getUuid(), dbg: !!dbg, embed: !!embed, ru: redirectUri || "" };
   const payloadBytes = Utilities.newBlob(JSON.stringify(payload), "application/json").getBytes();
-  const secretBytes = Utilities.base64DecodeWebSafe(getStateSecret_());
-  const sigBytes = Utilities.computeHmacSha256Signature(payloadBytes,secretBytes);
-  return (Utilities.base64EncodeWebSafe(payloadBytes) + "." + Utilities.base64EncodeWebSafe(sigBytes));
+  const sigBytes = Utilities.computeHmacSha256Signature(payloadBytes, Utilities.base64DecodeWebSafe(getStateSecret_()));
+  return Utilities.base64EncodeWebSafe(payloadBytes) + "." + Utilities.base64EncodeWebSafe(sigBytes);
 }
 
 function parseStateToken_(state) {
@@ -254,13 +253,14 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
   const L = makeLogger_(dbg);
   L('Entrada em buildAuthUrlFor_');
 
-  const { clientId, redirectUri } = resolveCfg_(cfg);
+  const { clientId, redirectUri: fallbackRu } = resolveCfg_(cfg);
   if (!clientId)
     throw new Error("CLIENT_ID ausente nas Script Properties do projeto host.");
   L('clientId =' + clientId);
 
-  if (!redirectUri)
-    throw new Error("REDIRECT_URI ausente (e URL canónico indisponível).");
+  // A MAGIA: Usa o URL do browser se fornecido, senão usa o padrão
+  const finalRu = clientUrl || fallbackRu; 
+  if (!finalRu) throw new Error("REDIRECT_URI ausente (e URL canónico indisponível).");
   L('redirectUri =' + redirectUri);
 
   const params = {
@@ -271,7 +271,7 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
     access_type: 'offline',
     prompt: 'select_account consent',
     include_granted_scopes: 'true',
-    state: createStateToken_(!!dbg, !!embed, nonce),
+    state: createStateToken_(!!dbg, !!embed, nonce,finalRu),
   };
 
   return "https://accounts.google.com/o/oauth2/v2/auth?" + toQueryString_(params);
@@ -337,15 +337,16 @@ function finishAuth_(e, cfg) {
   var state = (e && e.parameter && e.parameter.state) || "";
   var code = (e && e.parameter && e.parameter.code) || "";
   var parsed = parseStateToken_(state);
-  if (!parsed.ok)
-    return HtmlService.createHtmlOutput(
-      "<pre>State inválido ou expirado.</pre>",
-    );
+  if (!parsed.ok) return HtmlService.createHtmlOutput("<pre>State inválido.</pre>");
   var nonce = parsed.payload.nonce || "";
-  var dbg = !!parsed.payload.dbg;
+  //var dbg = !!parsed.payload.dbg;
 
   // usa cfg do host
-  const { clientId, clientSecret, redirectUri } = resolveCfg_(cfg);
+  const { clientId, clientSecret, redirectUri:fallbackRu } = resolveCfg_(cfg);
+  
+  // A MAGIA PARTE 2: Recupera o URL exato (/dev ou /exec) de dentro do State encriptado
+  const finalRu = (parsed.payload && parsed.payload.ru) ? parsed.payload.ru : fallbackRu;
+  
   /*
   if (!clientId || !clientSecret) {
     return HtmlService.createHtmlOutput(
@@ -360,11 +361,12 @@ function finishAuth_(e, cfg) {
       code: code,
       client_id: clientId,
       client_secret: clientSecret,
-      redirect_uri: redirectUri,
+      redirect_uri: finalRu,
       grant_type: "authorization_code",
     },
     muteHttpExceptions: true,
   });
+  
   var status = resp.getResponseCode(),
     body = resp.getContentText();
   //if (status < 200 || status >= 300) {
@@ -379,9 +381,7 @@ function finishAuth_(e, cfg) {
   }
 
   var tok = {};
-  try {
-    tok = JSON.parse(body);
-  } catch (_) {}
+  try { tok = JSON.parse(body);} catch (_) {}
   var idt = tok.id_token;
   if (!idt) return HtmlService.createHtmlOutput("<pre>Sem id_token devolvido pelo Google.</pre>");
 
@@ -396,7 +396,7 @@ function finishAuth_(e, cfg) {
       claims.iss === "https://accounts.google.com" ||
       claims.iss === "accounts.google.com";
     //if (!audOk || !issOk) throw new Error("iss/aud inválidos");
-	if (!audOk) throw new Error("aud inválido");
+	  if (!audOk) throw new Error("aud inválido");
     email = String(claims.email || '');
     name = claims.name || '';
     picture = claims.picture || '';
@@ -405,21 +405,20 @@ function finishAuth_(e, cfg) {
       "<pre>id_token inválido: " + String(err) + "</pre>",
     );
   }
+
   if (!email) return HtmlService.createHtmlOutput("<pre>id_token sem email.</pre>");
 
   var ticket = issueSessionToken_(email, 14, { name: name, picture: picture });
-
   if (nonce) putTicketForNonce_(nonce, ticket);
 
   //var canon = canonicalAppUrl_(); 
-  var canon = redirectUri; // mantém EXACTAMENTE o mesmo /a/<domínio>/... usado no OAuth
+  //var canon = redirectUri; // mantém EXACTAMENTE o mesmo /a/<domínio>/... usado no OAuth
   var html = `
 <meta charset="utf-8"><title>Autenticado</title>
 <style>body{font-family:system-ui,sans-serif;padding:1rem}</style>
 <div>A redirecionar…</div><script>
 (function(){
   var t = ${JSON.stringify(ticket)};
-  //var next = ${JSON.stringify(canon)} + ${dbg ? JSON.stringify('?debug=1') : '""'};
 
   // 0) guardar ticket
   try{ localStorage.setItem('sessTicket', t); }catch(_){}
@@ -433,8 +432,6 @@ function finishAuth_(e, cfg) {
 
   // 3) fecha o popup – quem navega é a janela principal via goWithTicket()
   setTimeout(function(){ try{ window.close(); }catch(_){} }, 200);
-
-  setTimeout(function(){ try{ window.close(); }catch(_){} }, 600);
 })();
 </script>`;
 
