@@ -163,16 +163,26 @@ function issueSessionToken_(email, days, extra){
 
 
 function validateSessionToken_(tok) {
-  if (!tok || tok.indexOf(".") < 0) throw new Error("Formato de token inválido");
+  // Com DEBUG AGRESSIVO DO TICKET
+  if (!tok || tok.indexOf(".") < 0) throw new Error("[DEBUG] Formato de token inválido: " + tok);
   const parts = tok.split("."), pB64 = parts[0], sig = parts[1];
 
-  const pB64bytes = Utilities.newBlob(pB64).getBytes(); // bytes da string base64
-  const expSig = Utilities.base64EncodeWebSafe(
-    Utilities.computeHmacSha256Signature(pB64bytes, getSessSecretBytes_()), // bytes,bytes
-  );
-  if (expSig !== sig) throw new Error("Assinatura HMAC inválida (As propriedades de script das apps são diferentes?)");
+  let data;
+  try {
+     data = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(pB64)).getDataAsString());
+  } catch(e) {
+     throw new Error("[DEBUG] Falha no parse do token JSON");
+  }
 
-  const data = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(pB64)).getDataAsString());
+  const secretBytes = getSessSecretBytes_();
+  const expSig = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(Utilities.newBlob(pB64).getBytes(), secretBytes));
+
+  // A MENSAGEM CHAVE: Se falhar, diz-nos a versão exata do ticket e o segredo!
+  if (expSig !== sig) {
+     const secretPrefix = Utilities.base64EncodeWebSafe(secretBytes).substring(0, 6);
+     throw new Error(`[DEBUG] HMAC Inválida! Ticket gerado na versão v:${data.v}. Segredo local começa por: ${secretPrefix}. (Provável redirecionamento acidental para o /exec antigo)`);
+  }
+
   if (!data) throw new Error("Token vazio");
   if (!data.email) throw new Error("Token sem email");
   if (!data.exp) throw new Error("Token sem data de expiração");
@@ -248,58 +258,46 @@ function getClientSecret_() {
 }
 */
 
-// Nota: tornamos a construção do URL "interna" e expomos via buildAuthUrlFor()
-function buildAuthUrlFor_(nonce, dbg, embed, cfg) {
+function buildAuthUrlFor_(nonce, dbg, embed, cfg, clientUrl) {
+  // Nota: tornamos a construção do URL "interna" e expomos via buildAuthUrlFor()
   const L = makeLogger_(dbg);
   L('Entrada em buildAuthUrlFor_');
 
   const { clientId, redirectUri: fallbackRu } = resolveCfg_(cfg);
-  if (!clientId)
-    throw new Error("CLIENT_ID ausente nas Script Properties do projeto host.");
+  if (!clientId) throw new Error("CLIENT_ID ausente.");
   L('clientId =' + clientId);
 
-  // A MAGIA: Usa o URL do browser se fornecido, senão usa o padrão
-  const finalRu = clientUrl || fallbackRu; 
-  if (!finalRu) throw new Error("REDIRECT_URI ausente (e URL canónico indisponível).");
-  L('redirectUri =' + redirectUri);
+  // AGORA: A configuração explícita do servidor (fallbackRu) tem prioridade absoluta!
+  const finalRu = fallbackRu || clientUrl; 
+  if (!finalRu) throw new Error("REDIRECT_URI ausente.");
+  L('redirectUri =' + finalRu);
 
   const params = {
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: OAUTH_SCOPES,
-    access_type: 'offline',
-    prompt: 'select_account consent',
-    include_granted_scopes: 'true',
-    state: createStateToken_(!!dbg, !!embed, nonce,finalRu),
+    client_id: clientId, redirect_uri: finalRu, response_type: 'code',
+    scope: OAUTH_SCOPES, access_type: 'offline', prompt: 'select_account consent',
+    include_granted_scopes: 'true', state: createStateToken_(!!dbg, !!embed, nonce, finalRu),
   };
-
   return "https://accounts.google.com/o/oauth2/v2/auth?" + toQueryString_(params);
 }
 
 // ===== Render do Login (comum às apps) =====
 function renderLoginPage_(opts) {
-
+  // FORÇAR O CANON URL NO HTML
   const L = makeLogger_(opts.debug);
   //const L = makeLogger_(1); //parece que opts.debug não está a funcionar?
   L('function renderLoginPage_');
+
   const t = HtmlService.createTemplateFromFile("Login");
-  t.CANON_URL = canonicalAppUrl_();
+  // Permite à App forçar o URL de testes
+  t.CANON_URL = opts.canon || canonicalAppUrl_(); 
   //t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
-  t.AUTOSTART = "1"; // auto-inicia o popup
+  t.AUTOSTART = "1"; t.DEBUG = opts.debug ? "1" : ""; // auto-inicia o popup
   t.DEBUG = opts.debug ? "1" : "";
-  t.SERVER_LOG = 
-      opts.serverLog && opts.serverLog.join
-        ? opts.serverLog.join("\n")
-        : String(opts.serverLog || "");
-  // 🔒 Defesas contra ReferenceError no template
-  //if (typeof t.SERVER_LOG === "undefined" || t.SERVER_LOG == null) t.SERVER_LOG = "";
+  t.SERVER_LOG = opts.serverLog && opts.serverLog.join ? opts.serverLog.join("\n") : String(opts.serverLog || "");
   t.WIPE = opts.wipe ? "1" : "";  
   L('renderLoginPage_: opts.wipe = ' + opts.wipe + ', t.WIPE = ' + t.WIPE);
-  t.ticket = "";   // ← mesmo que não uses, evita o erro quando existir <?= ticket ?>
-  t.TICKET = "";   // ← alias, caso o HTML use TICKET
-  t.SERVER_VARS = "";
-  t.PAGE_TAG = 'LOGIN';
+  t.ticket = ""; t.TICKET = ""; t.SERVER_VARS = ""; t.PAGE_TAG = 'LOGIN';
+
   try {
     return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
@@ -314,6 +312,7 @@ function renderLoginPage_(opts) {
     );
   }
 }
+
 
 // ===== Fluxo OAuth: begin + finish =====
 function beginAuth_(e, cfg) {

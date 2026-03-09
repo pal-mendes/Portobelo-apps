@@ -100,7 +100,8 @@ function authCfg_() {
   return {
     clientId:     sp.getProperty("CLIENT_ID"),
     clientSecret: sp.getProperty("CLIENT_SECRET"),
-    //redirectUri:  sp.getProperty("REDIRECT_URI") || ScriptApp.getService().getUrl(),
+    // OBRIGA a usar o /dev se ele estiver nas propriedades!
+    redirectUri:  sp.getProperty("REDIRECT_URI") || ScriptApp.getService().getUrl()
   };
 }
 
