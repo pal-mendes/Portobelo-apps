@@ -401,6 +401,7 @@
 
           google.script.run
             .withSuccessHandler(function (authUrl) {
+              log("[DEBUG-OAUTH] URL gerado para a Google: " + authUrl);
               // Tentativa 1: POPUP
               try {
                 popupRef = window.open(authUrl, "portobeloAuth", "width=520,height=720");

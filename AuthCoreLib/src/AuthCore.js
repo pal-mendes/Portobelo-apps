@@ -179,8 +179,13 @@ function validateSessionToken_(tok) {
 
   // A MENSAGEM CHAVE: Se falhar, diz-nos a versão exata do ticket e o segredo!
   if (expSig !== sig) {
-     const secretPrefix = Utilities.base64EncodeWebSafe(secretBytes).substring(0, 6);
-     throw new Error(`[DEBUG] HMAC Inválida! Ticket gerado na versão v:${data.v}. Segredo local começa por: ${secretPrefix}. (Provável redirecionamento acidental para o /exec antigo)`);
+     const sp = PropertiesService.getScriptProperties();
+     const cs = sp.getProperty("CLIENT_SECRET") || "";
+     const hmac = sp.getProperty("SESSION_HMAC_SECRET_B64") || "";
+     const csSuffix = cs.length > 4 ? cs.slice(-4) : cs;
+     const hmacSuffix = hmac.length > 4 ? hmac.slice(-4) : hmac;
+     
+     throw new Error(`[DEBUG] HMAC Inválida! Ticket gerado na versão v:${data.v}. CLIENT_SECRET termina em: ${csSuffix}. SESSION_HMAC_SECRET_B64 termina em: ${hmacSuffix}. (Provável redirecionamento para o /exec antigo)`);
   }
 
   if (!data) throw new Error("Token vazio");
