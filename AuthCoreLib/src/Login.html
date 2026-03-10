@@ -229,7 +229,18 @@
         }
 
         function canonExec() {
+          try {
+            // Lê o URL exato onde o utilizador está (ex: .../dev ou .../exec)
+            if (document.referrer && document.referrer.indexOf('script.google.com/macros/s/') !== -1) {
+              log("canonExec: referrer script.google.com/macros/s/");
+              return document.referrer.split('?')[0].split('#')[0];
+            }
+          } catch(e) {}
           const sv = window.__SERVER_VARS || {};
+          log("canonExec: sv.canonUrl=", sv.canonUrl);
+          log("canonExec: sv.CANON_URL=", sv.CANON_URL);
+          log("canonExec: window.CANON_URL=", window.CANON_URL);
+          log("canonExec: window.CANON=", window.CANON);
           let url = (
             sv.canonUrl ||
             sv.CANON_URL ||
@@ -237,22 +248,15 @@
             window.CANON ||
             ""
           ).trim();
+          log("canonExec (sv): url=", url);
+          if (url) return url;
 
           // 1. Tentar ler da cache (Main.html costuma guardar lá)
-          if (!url) {
-            try {
-              url = localStorage.getItem("appCanonicalUrl") || "";
-            } catch (_) {}
-          }
-
-          //    // 2. O iframe herda o referrer do wrapper principal do Google (Solução Definitiva)
-          //    if (
-          //      !url &&
-          //      document.referrer &&
-          //      document.referrer.indexOf("script.google.com/macros/s/") !== -1
-          //    ) {
-          //      url = document.referrer.split("?")[0];
-          //    }
+          try {
+            url = localStorage.getItem("appCanonicalUrl") || "";
+          } catch (_) {}
+          log("canonExec (localStorage): url=", url);
+          log("canonExec location=", location.origin + location.pathname);
 
           // 3. Fallback final
           return url || location.origin + location.pathname;

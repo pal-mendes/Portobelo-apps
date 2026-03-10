@@ -101,7 +101,7 @@ function authCfg_() {
     clientId:     sp.getProperty("CLIENT_ID"),
     clientSecret: sp.getProperty("CLIENT_SECRET"),
     // OBRIGA a usar o /dev se ele estiver nas propriedades!
-    redirectUri:  sp.getProperty("REDIRECT_URI") || ScriptApp.getService().getUrl()
+    //redirectUri:  sp.getProperty("REDIRECT_URI") || ScriptApp.getService().getUrl()
   };
 }
 
@@ -138,7 +138,18 @@ function doGet(e) {
   const L = makeLogger_(DBG);
   L("doGet start Anúncios");
 
+  /*
+  const sp = PropertiesService.getScriptProperties();
+  // Garante que o servidor diz ao cliente que está no /dev e não no /exec
+  const forceCanon = sp.getProperty("bREDIRECT_URI") || ScriptApp.getService().getUrl();
+  L('forceCanon=' + forceCanon);
+  */
+
+  // Passamos o canon forçado para o renderLoginPage da AuthCoreLib
   var optsProc = { ticket: "", debug: DBG, serverLog: [], wipe: false };    
+  //var optsProc = { ticket: "", debug: DBG, serverLog: [], wipe: false, canon: forceCanon };    
+  const action = (e && e.parameter && e.parameter.action) || "";
+
   const canon = ScriptApp.getService().getUrl();
   L('e.parameter.action=' + e.parameter.action);
   L('e.parameter.ticket=' + e.parameter.ticket);
@@ -153,8 +164,6 @@ function doGet(e) {
   //L('REDIRECT_URI=' + (REDIRECT_URI||''));
   //L('redirectUri_()=' + redirectUri_());
 
-
-  const action = (e && e.parameter && e.parameter.action) || "";
 
   // 1) OAuth callback
   if (e && e.parameter && e.parameter.code){ return AuthCoreLib.finishAuth(e, authCfg_()); }
@@ -233,7 +242,9 @@ function renderMainPage_(ticket, DBG, serverLogLines) {
   t.count = visits.total;
   t.count30 = visits.last30; // Passa os últimos 30 dias para o HTML
   t.ticket = ticket || "";  
-  t.CANON_URL = ScriptApp.getService().getUrl(); 
+  //t.CANON_URL = ScriptApp.getService().getUrl(); 
+  const sp = PropertiesService.getScriptProperties();
+  t.CANON_URL = sp.getProperty("bREDIRECT_URI") || ScriptApp.getService().getUrl();  
   t.DEBUG = DBG ? '1' : '';
   t.SERVER_LOG = (serverLogLines || []).join('\n');
   t.PAGE_TAG = 'MAIN';

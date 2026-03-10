@@ -268,9 +268,9 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg, clientUrl) {
   L('clientId =' + clientId);
 
   // AGORA: A configuração explícita do servidor (fallbackRu) tem prioridade absoluta!
-  const finalRu = fallbackRu || clientUrl; 
+  const finalRu = clientUrl || fallbackRu; 
   if (!finalRu) throw new Error("REDIRECT_URI ausente.");
-  L('redirectUri =' + finalRu);
+  L('clientUrl=' + clientUrl + ', fallbackRu =' + fallbackRu + ' finalRu =' + finalRu);
 
   const params = {
     client_id: clientId, redirect_uri: finalRu, response_type: 'code',
