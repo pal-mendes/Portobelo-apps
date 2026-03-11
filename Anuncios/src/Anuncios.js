@@ -447,31 +447,155 @@ function findDuesPaid(index, email) {
     return allEmails.includes((email || '').toLowerCase()) && (Number(duesCell) || 0) >= 1;
 }
 
+
 function getAnunciosDataSess(ticket) { 
+  const DBG = true; //isDebug_(e);
+  const L = makeLogger_(DBG);
+  L("getAnunciosDataSess");
   validateApiAccess_(ticket); // Bloqueia API a quem não cumpra os requisitos
+  const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
+  
+  // Extrai todos os números de telemóvel do associado
+  const myPhones = new Set();
+  if (profile.cardsLinhas) {
+    profile.cardsLinhas.forEach(c => {
+      if (c.telefones) c.telefones.split(/[;,]/).forEach(t => {
+        const d = String(t).replace(/\D/g, '');
+        if (d) myPhones.add(d);
+      });
+    });
+  }
+  L("getAnunciosDataSess: myPhones=", Array.from(myPhones));
+  
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ANUNCIOS_SHEET);
   const numRows = sheet.getLastRow() - ANUNCIOS_HEADER_ROW;
-  if (numRows <= 0) return [];
-  return sheet.getRange(ANUNCIOS_HEADER_ROW + 1, 1, numRows, 5).getValues().map(row => row.map(cell => {
-    if (typeof cell === 'string') return cell.replace(/[\r\n]+/g, ' ').trim();
-    return (cell !== undefined && cell !== null) ? cell.toString() : '';
-  }));
+  L("getAnunciosDataSess: numRows=", numRows);
+  let ads = [];
+  if (numRows > 0) {
+    ads = sheet.getRange(ANUNCIOS_HEADER_ROW + 1, 1, numRows, 5).getDisplayValues().map(row => row.map(cell => {
+      if (typeof cell === 'string') return cell.replace(/[\r\n]+/g, ' ').trim();
+      return (cell !== undefined && cell !== null) ? cell.toString() : '';
+    }));
+  }
+  L("getAnunciosDataSess: return OK");
+  // Agora devolve a tabela E os contactos aprovados!
+  return { ads: ads, myPhones: Array.from(myPhones) };
 }
 
-function submitAnuncioSess(ticket, anuncioParcial) { 
-  validateApiAccess_(ticket);
+
+function apiGestaoAnuncios(ticket, payload) {
+  validateApiAccess_(ticket);   // 1. Acesso blindado (Se não tiver quotas ou RGPD, falha aqui e nem chega a executar o resto)
+  const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
+  
+  const allEmails = new Set();
+  const myPhones = new Set();
+  
+  // Recolhe e-mails para CC e Telefones para controlo de acesso
+  if (profile.email) allEmails.add(profile.email.toLowerCase());
+  if (profile.cardsLinhas) {
+    profile.cardsLinhas.forEach(c => {
+      if (c.emails) c.emails.split(/[;,]/).forEach(e => {
+        const clean = String(e).trim().toLowerCase();
+        if (clean) allEmails.add(clean);
+      });
+      if (c.telefones) c.telefones.split(/[;,]/).forEach(t => {
+        const d = String(t).replace(/\D/g, '');
+        if (d) myPhones.add(d);
+      });
+    });
+  }
+  
+  const ccEmails = Array.from(allEmails).join(',');
+  
+  // Trinco de segurança: O anúncio tem de ter um telemóvel pertencente ao utilizador
+  const ownsPhone = (phoneStr) => {
+    const d = String(phoneStr).replace(/\D/g, '');
+    return Array.from(myPhones).some(my => my.endsWith(d) || d.endsWith(my));
+  };
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(PEDIDOS_SHEET) || ss.insertSheet(PEDIDOS_SHEET);
+  const sheet = ss.getSheetByName(ANUNCIOS_SHEET); // 2. Agora aponta DIRETAMENTE para a folha principal de Anúncios
+  
+  // 1. PUBLICAR NOVO
+  if (payload.action === 'add') {
+      if (!Array.isArray(payload) || payload.length !== 5) throw new Error('Dados inválidos');
 
-  if (!Array.isArray(anuncioParcial) || anuncioParcial.length !== 5) throw new Error('Dados inválidos');
-  if (sheet.getLastRow() >= 50) throw new Error('Limite de 50 anúncios atingido.');
-
-  sheet.appendRow([new Date(), ...anuncioParcial.slice(1)]);
-  SpreadsheetApp.flush();
-
-  const email = 'geral@titulares-portobelo.pt';
-  MailApp.sendEmail(email, 'Novo anúncio submetido: ' + anuncioParcial[2], 'Telemóvel=' + anuncioParcial[2] + '\nTipo=' + anuncioParcial[1] + '\n' + anuncioParcial[3]);
-  return true; 
+    const numAnuncios = Math.max(0, sheet.getLastRow() - ANUNCIOS_HEADER_ROW);
+    if (numAnuncios >= 400) throw new Error('Limite da plataforma atingido (Max. 400 anúncios).');
+    
+    sheet.appendRow([new Date(), ...payload.novo.slice(1)]);
+    SpreadsheetApp.flush();
+    
+    try {
+      MailApp.sendEmail({
+        to: 'geral@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
+        subject: 'Novo anúncio AUTOMÁTICO: ' + payload.novo[2],
+        body: 'Um titular publicou um anúncio diretamente na plataforma.\n\nTelemóvel: ' + payload.novo[2] + '\nTipo: ' + payload.novo[1] + '\nDescrição: ' + payload.novo[3]
+      });
+    } catch(e) {}
+    return { ok: true };
+  }
+  
+  // 2. ATUALIZAR EXISTENTE
+  if (payload.action === 'update') {
+    const data = sheet.getDataRange().getDisplayValues();
+    const orig = payload.original;
+    let foundRow = -1;
+    
+    // Procura de baixo para cima para encontrar a versão mais recente
+    for (let r = data.length - 1; r >= ANUNCIOS_HEADER_ROW; r--) {
+      const rowData = data[r];
+      if (rowData[1] === orig[1] && rowData[2] === orig[2] && rowData[3] === orig[3]) {
+        if (!ownsPhone(rowData[2])) throw new Error("Segurança: Este anúncio não pertence aos seus contactos.");
+        foundRow = r + 1; break;
+      }
+    }
+    
+    if (foundRow === -1) throw new Error("O anúncio original já não foi encontrado.");
+    
+    sheet.getRange(foundRow, 1, 1, 5).setValues([[new Date(), ...payload.novo.slice(1)]]);
+    SpreadsheetApp.flush();
+    
+    try {
+      MailApp.sendEmail({
+        to: 'geral@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
+        subject: 'Anúncio ATUALIZADO pelo titular: ' + payload.novo[2],
+        body: 'Um titular atualizou o seu anúncio.\n\nTelemóvel: ' + payload.novo[2] + '\nTipo: ' + payload.novo[1] + '\nNova Descrição: ' + payload.novo[3]
+      });
+    } catch(e) {}
+    return { ok: true };
+  }
+  
+  // 3. APAGAR
+  if (payload.action === 'delete') {
+    const data = sheet.getDataRange().getDisplayValues();
+    const toDelete = [];
+    
+    for (let r = data.length - 1; r >= ANUNCIOS_HEADER_ROW; r--) {
+      const rowData = data[r];
+      const matchIdx = payload.originais.findIndex(orig => rowData[1] === orig[1] && rowData[2] === orig[2] && rowData[3] === orig[3]);
+      
+      if (matchIdx !== -1) {
+        if (!ownsPhone(rowData[2])) throw new Error("Segurança: Não pode apagar um anúncio que não lhe pertence.");
+        toDelete.push(r + 1);
+        payload.originais.splice(matchIdx, 1);
+      }
+    }
+    
+    // Apaga de baixo para cima para não alterar os índices das linhas de cima
+    toDelete.sort((a, b) => b - a).forEach(rowIdx => sheet.deleteRow(rowIdx));
+    SpreadsheetApp.flush();
+    
+    try {
+      MailApp.sendEmail({
+        to: 'geral@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
+        subject: 'Anúncio(s) APAGADO(S) pelo titular',
+        body: 'Um titular removeu ' + toDelete.length + ' anúncio(s) da plataforma.'
+      });
+    } catch(e) {}
+    return { ok: true };
+  }
+  throw new Error("Ação inválida");
 }
 
 function testFind() {

@@ -8,37 +8,42 @@
   });
 
   let rawData = [];
+  let myPhones = [];
+  let myAds = [];
+  let selectedMyAds = [];
   let sortDirection = -1; // descendente
   let sortColumn = 0;     // ordenar por "Anúncio" por omissão
   let envioEmCurso = false;
 
-  document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('versao').textContent = VERSION;
-    document.getElementById('visitas').textContent = TOTAL_VISITAS;
-    loadTable();
-  });
+  document.addEventListener('DOMContentLoaded', function() { loadTable(); });
 
   function loadTable() {
     document.getElementById('spinner').style.display = 'block';
     google.script.run
-    .withSuccessHandler(function(novosDados) {
+    .withSuccessHandler(function(response) {
       document.getElementById('spinner').style.display = 'none';
-      if (!Array.isArray(novosDados)) { log('getAnunciosDataSess → não é array'); return; }
+      if (!response || !Array.isArray(response.adds)) { log('Falha ao obter formato de anúncios'); return; }
 
-      rawData = novosDados.filter(r => r.some(c => c !== '' && c != null));
+      rawData = response.filter(r => r.some(c => c !== '' && c != null));
+      myPhones = response.myPhones || [];
       sortColumn = 0; // data
       sortDirection = -1; // mais recentes primeiro
       setupFilters();
       applyFilters();
       updateSortIcons();
 
+      // Constrói a gestão de "Os Meus Anúncios" logo acima do formulário
+      renderMyAdsUI();
+
       google.script.run
       .withSuccessHandler(function(novaData) {
-        document.getElementById('atualizacao').textContent = novaData;
+        const el = document.getElementById('atualizacao'); 
+        if (el) el.textContent = novaData;
       })
         .withFailureHandler(function(err) {
           log('getUltimaAtualizacao ERROR: ' + err);
-          document.getElementById('atualizacao').textContent = 'Erro';
+          const el = document.getElementById('atualizacao');
+          if (el) el.textContent = 'Erro';
         })      
       .getUltimaAtualizacao();
     })
@@ -62,6 +67,7 @@
     return { ok:true, digits:d, pretty:pretty };
   }
 
+  /*
   function enviarAnuncio() {
     if (envioEmCurso) return;
     envioEmCurso = true;
@@ -117,7 +123,7 @@
       document.getElementById('anuncioDescricao').value = '';
 
       const msg = document.getElementById('mensagem-submissao');
-      msg.textContent = '✅ Anúncio submetido com sucesso. Será contactado em breve.';
+      msg.textContent = '✅ Anúncio publicado com sucesso.';
       msg.style.display = 'block';
       setTimeout(function(){ msg.style.display = 'none'; }, 10000);
 
@@ -133,6 +139,216 @@
       if (botao) botao.disabled = false;
       envioEmCurso = false;
     }).submitAnuncioSess(SESSION_TICKET, dados);
+  }
+  */
+
+
+  // ====== NOVA MAGIA: GESTÃO DE ANÚNCIOS (CMS) ======
+
+  function ownsPhone(phoneStr) {
+     const d = String(phoneStr).replace(/\D/g, '');
+     return myPhones.some(my => my.endsWith(d) || d.endsWith(my));
+  }
+
+  function renderMyAdsUI() {
+     let container = document.getElementById('my-ads-container');
+     if (!container) {
+        container = document.createElement('div');
+        container.id = 'my-ads-container';
+        container.style.marginBottom = '25px';
+        container.style.padding = '15px';
+        container.style.backgroundColor = '#f9fafb';
+        container.style.border = '1px solid #e5e7eb';
+        container.style.borderRadius = '8px';
+        
+        const formEl = document.getElementById('formulario');
+        formEl.insertBefore(container, formEl.firstChild);
+     }
+     
+     myAds = rawData.filter(ad => ownsPhone(ad[2]));
+     selectedMyAds = []; // Reseta seleções
+     
+     if (myAds.length === 0) {
+        container.innerHTML = '<p style="margin:0; color:#666; font-size:14px;">Não tem anúncios ativos associados aos seus telemóveis neste momento.</p>';
+     } else {
+        let html = '<h4 style="margin-top:0; margin-bottom:12px; color:#111; font-size:15px;">Os Meus Anúncios Ativos</h4>';
+        html += '<div style="display:flex; flex-direction:column; gap:10px;">';
+        myAds.forEach((ad, i) => {
+           let desc = ad[3].length > 70 ? ad[3].substring(0,70) + '...' : ad[3];
+           html += `<label style="display:flex; align-items:flex-start; gap:10px; font-size:14px; cursor:pointer; padding:8px; border-radius:6px; background:#fff; border:1px solid #ddd; transition: border 0.2s;">
+                      <input type="checkbox" class="my-ad-chk" data-idx="${i}" style="margin-top:3px; transform: scale(1.1);">
+                      <div style="line-height:1.4;">
+                        <div style="font-weight:600; color:#333;">${ad[1]} <span style="font-weight:normal; color:#666; margin-left:6px;">(${ad[2]})</span></div>
+                        <div style="color:#555;">${desc}</div>
+                      </div>
+                    </label>`;
+        });
+        html += '</div>';
+        html += '<div style="margin-top:10px; font-size:12px; color:#888;">(Selecione 1 anúncio para o Editar, ou vários para os Apagar)</div>';
+        container.innerHTML = html;
+        
+        document.querySelectorAll('.my-ad-chk').forEach(chk => {
+           chk.addEventListener('change', handleAdSelection);
+        });
+     }
+     setupFormButtons();
+  }
+
+  function setupFormButtons() {
+     const btnOriginal = document.getElementById('botaoSubmeter');
+     if (!btnOriginal) return;
+     
+     // Recicla o botão existente para "Publicar"
+     btnOriginal.textContent = 'Publicar anúncio';
+     btnOriginal.onclick = function(e) { e.preventDefault(); processarGestao('add'); };
+     
+     // Cria o botão de Atualizar
+     let btnUpdate = document.getElementById('btnAtualizar');
+     if (!btnUpdate) {
+        btnUpdate = document.createElement('button');
+        btnUpdate.id = 'btnAtualizar';
+        btnUpdate.textContent = 'Atualizar anúncio';
+        btnUpdate.style.display = 'none';
+        btnUpdate.style.marginLeft = '12px';
+        btnUpdate.style.padding = '8px 16px';
+        btnUpdate.style.backgroundColor = '#2563eb'; // Azul premium
+        btnUpdate.style.color = '#fff';
+        btnUpdate.style.border = 'none';
+        btnUpdate.style.borderRadius = '6px';
+        btnUpdate.style.cursor = 'pointer';
+        btnUpdate.onclick = function(e) { e.preventDefault(); processarGestao('update'); };
+        btnOriginal.parentNode.insertBefore(btnUpdate, btnOriginal.nextSibling);
+     }
+     
+     // Cria o botão de Apagar
+     let btnDelete = document.getElementById('btnApagar');
+     if (!btnDelete) {
+        btnDelete = document.createElement('button');
+        btnDelete.id = 'btnApagar';
+        btnDelete.textContent = 'Apagar anúncio(s)';
+        btnDelete.style.display = 'none';
+        btnDelete.style.marginLeft = '12px';
+        btnDelete.style.padding = '8px 16px';
+        btnDelete.style.backgroundColor = '#dc2626'; // Vermelho perigo
+        btnDelete.style.color = '#fff';
+        btnDelete.style.border = 'none';
+        btnDelete.style.borderRadius = '6px';
+        btnDelete.style.cursor = 'pointer';
+        btnDelete.onclick = function(e) { e.preventDefault(); processarGestao('delete'); };
+        btnUpdate.parentNode.insertBefore(btnDelete, btnUpdate.nextSibling);
+     }
+     
+     handleAdSelection(); // Aplica visibilidade base
+  }
+
+  function handleAdSelection() {
+     const chks = document.querySelectorAll('.my-ad-chk');
+     selectedMyAds = [];
+     chks.forEach(chk => { if (chk.checked) selectedMyAds.push(myAds[chk.getAttribute('data-idx')]); });
+     
+     const btnOriginal = document.getElementById('botaoSubmeter');
+     const btnUpdate = document.getElementById('btnAtualizar');
+     const btnDelete = document.getElementById('btnApagar');
+     
+     if (selectedMyAds.length === 0) {
+        // Nada selecionado -> Modo Criação
+        document.getElementById('anuncioTelefone').value = '';
+        document.getElementById('anuncioTipo').selectedIndex = 0; 
+        document.getElementById('anuncioEntrada').value = '';
+        document.getElementById('anuncioDescricao').value = '';
+        
+        if(btnOriginal) btnOriginal.style.display = 'inline-block';
+        if(btnUpdate) btnUpdate.style.display = 'none';
+        if(btnDelete) btnDelete.style.display = 'none';
+     } else if (selectedMyAds.length === 1) {
+        // 1 selecionado -> Modo Edição. Copia os valores para o form!
+        const ad = selectedMyAds[0];
+        
+        const tipoSel = document.getElementById('anuncioTipo');
+        for(let i=0; i<tipoSel.options.length; i++){
+            if(tipoSel.options[i].value === ad[1] || tipoSel.options[i].text === ad[1]) {
+                tipoSel.selectedIndex = i; break;
+            }
+        }
+        document.getElementById('anuncioTelefone').value = ad[2];
+        document.getElementById('anuncioDescricao').value = ad[3];
+        document.getElementById('anuncioEntrada').value = ad[4] || '';
+        
+        if(btnOriginal) btnOriginal.style.display = 'none';
+        if(btnUpdate) btnUpdate.style.display = 'inline-block';
+        if(btnDelete) btnDelete.style.display = 'inline-block';
+     } else {
+        // Vários selecionados -> Modo Destruição
+        document.getElementById('anuncioTelefone').value = '';
+        document.getElementById('anuncioDescricao').value = '';
+        document.getElementById('anuncioEntrada').value = '';
+        
+        if(btnOriginal) btnOriginal.style.display = 'none';
+        if(btnUpdate) btnUpdate.style.display = 'none';
+        if(btnDelete) btnDelete.style.display = 'inline-block';
+     }
+  }
+
+  function processarGestao(action) {
+     if (envioEmCurso) return;
+     
+     const telRaw = document.getElementById('anuncioTelefone').value;
+     const tipo = (document.getElementById('anuncioTipo').value || '').trim();
+     const descricao = (document.getElementById('anuncioDescricao').value || '').trim();
+     const entrada = (document.getElementById('anuncioEntrada').value || '').trim();
+     
+     let payload = { action: action };
+     
+     if (action === 'add' || action === 'update') {
+        const norm = normalizePhone(telRaw);
+        if (!norm.ok) { alert('Número de telemóvel inválido.'); return; }
+        if (!tipo) { alert('Selecione o tipo de anúncio.'); return; }
+        if (descricao.length < 10) { alert('A descrição deve ter pelo menos 10 caracteres.'); return; }
+        payload.novo = ['', tipo, norm.pretty, descricao, entrada];
+     }
+     if (action === 'update') payload.original = selectedMyAds[0];
+     if (action === 'delete') {
+        if (!confirm('Tem a certeza que deseja apagar ' + selectedMyAds.length + ' anúncio(s)?')) return;
+        payload.originais = selectedMyAds;
+     }
+     
+     envioEmCurso = true;
+     document.getElementById('spinner').style.display = 'block';
+     
+     const btnOriginal = document.getElementById('botaoSubmeter');
+     const btnUpdate = document.getElementById('btnAtualizar');
+     const btnDelete = document.getElementById('btnApagar');
+     if(btnOriginal) btnOriginal.disabled = true;
+     if(btnUpdate) btnUpdate.disabled = true;
+     if(btnDelete) btnDelete.disabled = true;
+     
+     google.script.run.withSuccessHandler(function() {
+        const msg = document.getElementById('mensagem-submissao');
+        if (msg) {
+           if (action === 'add') msg.textContent = '✅ Anúncio publicado com sucesso!';
+           if (action === 'update') msg.textContent = '✅ Anúncio atualizado com sucesso!';
+           if (action === 'delete') msg.textContent = '✅ Anúncio(s) apagado(s) com sucesso!';
+           msg.style.display = 'block';
+           setTimeout(function(){ msg.style.display = 'none'; }, 6000);
+        }
+        
+        envioEmCurso = false;
+        document.getElementById('anuncioTelefone').value = '';
+        document.getElementById('anuncioDescricao').value = '';
+        document.getElementById('anuncioEntrada').value = '';
+        if(btnOriginal) btnOriginal.disabled = false;
+        if(btnUpdate) btnUpdate.disabled = false;
+        if(btnDelete) btnDelete.disabled = false;
+        
+        loadTable(); // Recarrega a tabela final e as caixas de seleção
+     }).withFailureHandler(function(err){
+        document.getElementById('spinner').style.display = 'none';
+        alert(err.message);
+        envioEmCurso = false;
+        if(btnOriginal) btnOriginal.disabled = false;
+        if(btnUpdate) btnUpdate.disabled = false;
+        if(btnDelete) btnDelete.disabled = false;
+     }).apiGestaoAnuncios(SESSION_TICKET, payload);
   }
 
   function setupFilters() {
