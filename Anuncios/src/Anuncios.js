@@ -90,6 +90,11 @@ const PEDIDOS_SHEET = "Pedidos";
 
 //const ACESSOS_SHEET = "Acessos"; //Vai deixar de ser usada aqui, porque AuthCoreLib passa a gerir os acessos. Há que mover para tblTitulares.
 
+// Função utilitária para injetar ficheiros HTML noutros ficheiros HTML
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
 // ---------- Auth wrappers chamados pelo Login.html (biblioteca) ----------
 // Note: Como a AuthCoreLib agora tem defaults inteligentes, só precisamos do redirectUri
 function gatesCfg_(){ return { canon: ScriptApp.getService().getUrl() }; }
@@ -126,8 +131,13 @@ function makeLogger_(DBG) {
   return L;
 }
 
-function renderRgpdPage_(ticket, DBG, serverLogLines) {
+function renderRgpdPage_(ticket, DBG, serverLogLines, blockOpts) {
   const opts = { ticket: ticket, debug: DBG, serverLog: serverLogLines, wipe: false };    
+  if (blockOpts) {
+     opts.blockMsg = blockOpts.msg;
+     opts.blockBtnLabel = blockOpts.btnLabel;
+     opts.blockBtnUrl = blockOpts.btnUrl;
+  }
   opts.serverLog.unshift("RGPD");
   return AuthCoreLib.renderRgpdPage(opts);
 }
@@ -181,43 +191,82 @@ function doGet(e) {
   }
 
   if (action === "rgpd") { return renderRgpdPage_(e.parameter.ticket || '', DBG, L.dump()); }
+
   if (action === "postrgpd") {
-    const ticket = e.parameter.ticket || '';
-    const rowsQS = String(e.parameter.rows || '').trim();
-    const rows   = rowsQS ? rowsQS.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n)) : [];
-    try { AuthCoreLib.hostSaveRgpdRowsFor(ticket, rows, gatesCfg_()); } catch(err) { L('RGPD save FAIL: ' + err); }
-    return renderMainPage_(ticket, DBG, L.dump());
-  }
+      const ticket = e.parameter.ticket || '';
+      const rowsQS = String(e.parameter.rows || '').trim();
+      const rows   = rowsQS ? rowsQS.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n)) : [];
+      try { AuthCoreLib.hostSaveRgpdRowsFor(ticket, rows, gatesCfg_()); } catch(err) { L('RGPD save FAIL: ' + err); }
+  
+      // Deixamos o código continuar (NÃO fazemos return aqui).
+      // Ao continuar para a validação abaixo, ele vai ler o perfil já atualizado
+      // e aplicar a Regra do Saldo normalmente!
+      // SEGURANÇA: Em vez de mostrar a grelha direta, recarrega a app principal 
+      //return renderMainPage_(ticket, DBG, L.dump());
+      // para obrigar o sistema a validar se o utilizador tem o Saldo Positivo!
+      //const nextUrl = forceCanon + "?ticket=" + encodeURIComponent(ticket) + (DBG ? "&debug=1" : "");
+      //return HtmlService.createHtmlOutput(`<script>window.top.location.href="${nextUrl}";</script>`).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
 
   if (action === "login") { optsProc.serverLog = L.dump(); optsProc.serverLog.unshift("login"); return AuthCoreLib.renderLoginPage(optsProc); }
   if (action === "logout") { optsProc.serverLog = L.dump(); optsProc.serverLog.unshift("logout"); optsProc.wipe = true; return AuthCoreLib.renderLoginPage(optsProc); }
 
-  // 3) Validar Ticket & Regras Estritas
+  // 3) Validar Ticket & Regras Estritas de Negócio
   const ticket = (e && e.parameter && e.parameter.ticket) || "";
   if (ticket){
     try { AuthCoreLib.requireSession(ticket); } 
     catch(err){ optsProc.serverLog = L.dump(); optsProc.serverLog.unshift("wipe (Motivo: " + err.message + ")"); optsProc.wipe = true; return AuthCoreLib.renderLoginPage(optsProc); }
-    if (String(e.parameter.go || '') === 'rgpd') { return renderRgpdPage_(ticket, DBG, L.dump()); }
-    if (String(e.parameter.go || '') === 'main') { return renderMainPage_(ticket, DBG, L.dump()); }
+	
+	 // Carrega o Perfil antes de qualquer decisão de ecrã
+	 
+    //if (String(e.parameter.go || '') === 'main') { return renderMainPage_(ticket, DBG, L.dump()); }
 
     // Utiliza a biblioteca para ler a ficha do Associado!
     const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
+    L(`[DEBUG PERFIL] Email: ${profile.email} | Linhas: ${profile.hasLines} | RGPD: ${profile.rgpdState} | Saldo: €${profile.saldo}`);
+	
+    // REGRA 0: Se não for Titular (0 Linhas), Bloqueia Absoluto Imediato
+    if (!profile.hasLines) {
+      L("Bloqueio: Acesso Negado. Motivo: Não é titular (0 linhas)");
+      AuthCoreLib.logFailedAccess(ticket, "Não é titular (0 linhas)", gatesCfg_()); 
+      return renderBlocked_(
+          "Acesso negado: O seu e-mail não está registado como titular.", 
+          "Ir para Titulares Portobelo", 
+          "https://titulares-portobelo.pt", 
+          DBG, L.dump()
+      );
+    }
+
+    // Pedido manual para ver a página de RGPD
+    if (String(e.parameter.go || '') === 'rgpd') { return renderRgpdPage_(ticket, DBG, L.dump()); }
 
     // Regra 1: RGPD DEVE ESTAR TOTALMENTE ACEITE
     if (profile.rgpdState !== 'total') {
-      L("RGPD pendente ou parcial. Bloquear.");
-      return renderRgpdPage_(ticket, DBG, L.dump());
+      L("Bloqueio: RGPD está '" + profile.rgpdState + "'. Exigindo ida à página local de RGPD.");
+      AuthCoreLib.logFailedAccess(ticket, "RGPD pendente ou parcial", gatesCfg_());
+      return renderRgpdPage_(ticket, DBG, L.dump(), {
+          msg: "Para aceder à secção de anúncios é obrigatório aceitar o RGPD para todas as suas frações/semanas. Pode fazê-lo agora mesmo usando o formulário abaixo."
+          //btnLabel: "Ou vá para a Área do Associado",
+          //btnUrl: "https://associados.titulares-portobelo.pt"
+      });
+  
     }
 
-    // Regra 2: Saldo global deve ser positivo/zero (e deve ser titular)
-    if (!profile.hasLines || profile.saldo < 0) {
-      L("Acesso Negado: Não tem linhas ou o Saldo é negativo: " + profile.saldo);
-      const motivo = !profile.hasLines ? "Não é titular (0 linhas)" : "Saldo negativo (€" + profile.saldo + ")";
+    // Regra 2: Saldo global deve ser positivo/zero
+    if (profile.saldo < 0) {
+      const motivo = "Saldo negativo (€" + profile.saldo + ")";
+	    L("Bloqueio: Acesso Negado. Motivo: " + motivo);
       AuthCoreLib.logFailedAccess(ticket, motivo, gatesCfg_()); // <-- REGISTA NA FOLHA ACESSOS
-      return renderBlocked_("Acesso negado: Para aceder aos anúncios é necessário ser titular registado e não ter quotas em dívida.", DBG);
+      return renderBlocked_(
+          "Acesso negado: Para aceder aos anúncios é necessário não ter quotas em dívida (o seu saldo global é de €" + profile.saldo + ").", 
+          "Ir para a Área do Associado", 
+          "https://associados.titulares-portobelo.pt", 
+          DBG, L.dump()
+      );
     }
 
-    // OK -> Main
+    // OK -> Main e Mostra a grelha de Anúncios
+    L("Sucesso: Acesso aos Anúncios concedido.");
     return renderMainPage_(ticket, DBG, L.dump());
   }
 
@@ -225,13 +274,36 @@ function doGet(e) {
   return AuthCoreLib.renderLoginPage(optsProc);
 }
 
-function renderBlocked_(msg, DBG) {
+// O ecrã de bloqueio foi otimizado para mostrar botões dinâmicos e os logs na consola
+function renderBlocked_(msg, btnLabel, btnUrl, DBG, serverLogLines) {
   const canon = ScriptApp.getService().getUrl();
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Acesso Negado</title></head>
+  const safeLog = (serverLogLines || []).join('\\n').replace(/`/g, '\\`'); // Protege quebras de linha
+
+  // Se passarmos texto e URL para o botão, criamos o HTML do botão
+  let btnHtml = "";
+  if (btnLabel && btnUrl) {
+    btnHtml = `
+      <p style="margin-top: 2.5em;">
+          <a href="${btnUrl}" target="_top" style="padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500; font-size:16px;">${btnLabel}</a>
+      </p>`;
+  }
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Acesso Negado</title>
+  <script>
+      const SERVER_LOG = \`${safeLog}\`;
+      console.log("[SERVER LOG]\\n" + SERVER_LOG);
+  </script>
+  </head>
   <body style="font-family:sans-serif; padding: 2em; text-align: center; max-width: 600px; margin: 0 auto;">
-      <h3 style="color: #dc2626;">${msg}</h3>
-      <p style="margin-top: 2em;"><a href="${canon}?action=logout${DBG ? '&debug=1' : ''}" target="_top" style="padding:10px 20px; background:#111; color:#fff; text-decoration:none; border-radius:5px;">Sair / Terminar Sessão</a></p>
+      <h3 style="color: #dc2626; line-height: 1.4;">${msg}</h3>
+      
+      ${btnHtml}
+      
+      <p style="margin-top: 2em;">
+          <a href="${canon}?action=logout${DBG ? '&debug=1' : ''}" target="_top" style="color:#666; text-decoration:underline; font-size:14px;">Sair / Terminar Sessão</a>
+      </p>
   </body></html>`;
+
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 

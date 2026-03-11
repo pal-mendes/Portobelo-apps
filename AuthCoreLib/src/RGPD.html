@@ -80,39 +80,49 @@
     
   </head>
   <body>
-    <h2>Proteção de dados (RGPD)</h2>
-    <div class="card">
-      <p><b>REGULAMENTO DA ASSOCIAÇÃO DOS TITULARES DE DRHP DO PORTOBELO</b></p>
-      <p><b>Artigo 9.º — Proteção de dados</b></p>
-      <ol>
-        <li>
-          A Associação recolhe e trata dados pessoais dos associados
-          estritamente necessários ao cumprimento dos seus fins, designadamente
-          identificação, contactos e dados relativos às semanas detidas.
-        </li>
-        <li>
-          A Associação compromete-se a adotar medidas técnicas e organizativas
-          adequadas para a proteção desses dados.
-        </li>
-        <li>
-          Os dados serão usados apenas para fins associativos, com respeito pelo
-          RGPD e legislação nacional.
-        </li>
-        <li>
-          Os associados têm direito a aceder, retificar e solicitar a eliminação
-          dos seus dados, salvo os que sejam legalmente obrigatórios para o
-          funcionamento da Associação.
-        </li>
-      </ol>
-      <div id="rgpd-multi" style="display: none; margin: 12px 0"></div>
-      <div id="rgpd-multi-actions" style="display: none; margin: 12px 0">
-		<div style="background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; font-weight: 500;">
-          A não aceitação do RGPD resultaria no fornecimento apenas parcial dos serviços da Associação.
+    <? if (typeof BLOCK_MSG !== 'undefined' && BLOCK_MSG) { ?>
+    <div style="max-width: 600px; margin: 20px auto 0; background-color: #fef2f2; border: 1px solid #f87171; color: #991b1b; padding: 16px; border-radius: 8px; text-align: center; font-family: sans-serif;">
+      <h3 style="margin-top: 0; color: #dc2626;">Acesso Restrito</h3>
+      <p style="margin-bottom: 16px; line-height: 1.4;"><strong><?= BLOCK_MSG ?></strong></p>
+      <? if (typeof BLOCK_BTN_LABEL !== 'undefined' && BLOCK_BTN_LABEL) { ?>
+        <a href="<?= BLOCK_BTN_URL ?>" target="_top" style="display:inline-block; padding:10px 20px; background:#111; color:#fff; text-decoration:none; border-radius:6px; font-weight:500; font-size:14px;"><?= BLOCK_BTN_LABEL ?></a>
+      <? } ?>
+    </div>
+    <? } ?>
+    <div class="container">
+      <h2>Proteção de dados (RGPD)</h2>
+      <div class="card">
+        <p><b>REGULAMENTO DA ASSOCIAÇÃO DOS TITULARES DE DRHP DO PORTOBELO</b></p>
+        <p><b>Artigo 9.º — Proteção de dados</b></p>
+        <ol>
+          <li>
+            A Associação recolhe e trata dados pessoais dos associados
+            estritamente necessários ao cumprimento dos seus fins, designadamente
+            identificação, contactos e dados relativos às semanas detidas.
+          </li>
+          <li>
+            A Associação compromete-se a adotar medidas técnicas e organizativas
+            adequadas para a proteção desses dados.
+          </li>
+          <li>
+            Os dados serão usados apenas para fins associativos, com respeito pelo
+            RGPD e legislação nacional.
+          </li>
+          <li>
+            Os associados têm direito a aceder, retificar e solicitar a eliminação
+            dos seus dados, salvo os que sejam legalmente obrigatórios para o
+            funcionamento da Associação.
+          </li>
+        </ol>
+        <div id="rgpd-multi" style="display: none; margin: 12px 0"></div>
+        <div id="rgpd-multi-actions" style="display: none; margin: 12px 0">
+          <div style="background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; font-weight: 500;">
+            A não aceitação do RGPD resultaria no fornecimento apenas parcial dos serviços da Associação.
+          </div>
+          <button id="rgpd-save" class="btn">Guardar</button>
         </div>
-        <button id="rgpd-save" class="btn">Guardar</button>
       </div>
     </div>
-
     <!-- Script de Limpeza de Sessão (Se solicitado) -->
     <script>
       (function () {

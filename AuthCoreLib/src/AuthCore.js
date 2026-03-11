@@ -536,88 +536,6 @@ function enforceGates_(email, ticket, DBG, gatesCfg, extLogger){
   return null;
 }
 
-/*
-function notifyRgpdDecision_AuthCore_(info, sess, accept, cfg){
-  const to = (cfg.notify && cfg.notify.to) || Session.getActiveUser().getEmail();
-  const subj = `RGPD: ${accept ? 'ACEITE' : 'REJEITADO'} — ${sess.name||''} <${sess.email}>`;
-
-  const iNome    = info.ix['Nome membros (e titulares representados)'];
-  const iSemanas = info.ix['Semanas'];
-
-  const linhas = info.matches.map(r=>{
-    const nome = (iNome!=null ? info.values[r][iNome] : '') || '';
-    const sem  = (iSemanas!=null ? info.values[r][iSemanas] : '') || '';
-    const rgpd = info.values[r][info.iRGPD] || '';
-    return `- linha ${r+1}: ${nome} | Semanas: ${sem} | RGPD=${rgpd}`;
-  }).join('\n');
-
-  const body = [
-    `Utilizador: ${sess.name||''} <${sess.email}>`,
-    `Decisão: ${accept ? 'ACEITOU' : 'REJEITOU'}`,
-    `Linhas afetadas: ${info.matches.length}`,
-    ``,
-    linhas
-  ].join('\n');
-
-  MailApp.sendEmail({ to, subject: subj, body, name: 'AT Portobelo' });
-}
-*/
-
-/**
- * Chamada a partir do RGPD.html da biblioteca.
- * `gatesCfg` vem do host e deve conter pelo menos:
- *   { titularesId: "...", rangeNameOrA1: "...", notify: { to: "geral@...", ccAllRows: true } }
- */
-/*
-function acceptRgpdForMe(ticket, decision, gatesCfg){
-  gatesCfg = __defCfg(gatesCfg);
-
-  const sess   = requireSession(ticket);
-  const accept = (decision === 'accept');
-
-  // 1) ler uma vez e manter em memória
-  const rowsInfo = getTitularesRowsByEmail_AuthCore_(sess.email, gatesCfg);
-
-  // 2) escrever apenas se muda (Sim/Não) nas linhas desse email
-  var changed = setRgpdForEmail_AuthCore_(rowsInfo, gatesCfg, accept ? 'Sim' : 'Não');
-
-  // 3) notificar só quando houve alteração
-  if (changed > 0) {
-    try { notifyRgpdDecision_AuthCore_(rowsInfo, sess, accept, gatesCfg); } catch(_) {}
-  }
-  return { ok:true, changed: changed|0 };
-}
-
-
-// ---------- Helpers internos (AuthCoreLib) ----------
-
-function isAllowedEmail_AuthCore_(email){
-  const csv = (PropertiesService.getScriptProperties().getProperty('ALLOWLIST_CSV') || '');
-  const list = csv.split(/[,\s;]+/).map(s=>s.trim().toLowerCase()).filter(Boolean);
-  if (!list.length) return true; // allowlist desligada
-  return list.includes(String(email||'').toLowerCase());
-}
-
-function renderNotAllowed_AuthCore_(email, DBG){
-  const sp = PropertiesService.getScriptProperties();
-  //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, '/macros');
-  const canon = ScriptApp.getService().getUrl();
-  const dbgBlock = DBG ? (function(){
-    const raw = sp.getProperty('ALLOWLIST_CSV') || '(vazio)';
-    const parsed = raw.split(/[,\s;]+/).map(s=>s.trim()).filter(Boolean).join(', ');
-    return `<details style="margin-top:12px"><summary>DEBUG</summary>
-<pre>Email sessão: ${email}
-ALLOWLIST_CSV (raw): ${raw}
-ALLOWLIST parsed: ${parsed}</pre></details>`;
-  })() : '';
-  return HtmlService.createHtmlOutput(
-    '<meta charset="utf-8"><h3>Acesso não autorizado</h3>'+
-    '<p>Este endereço não está na lista da fase de validação.</p>'+
-    `<p><a href="${canon}?action=login${DBG?'&debug=1':''}">Voltar</a></p>`+dbgBlock
-  ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-*/
-
 // ... Helpers de RGPD e Fetching
 
 function fetchTable_AuthCore_(ssId, cfg){
@@ -642,20 +560,16 @@ function renderNotAllowed_AuthCore_(email, DBG){
   return HtmlService.createHtmlOutput('<meta charset="utf-8"><h3>Acesso não autorizado</h3><p>Este endereço não está na lista da fase de validação.</p><p><a href="'+canon+'?action=login'+(DBG?'&debug=1':'')+'">Voltar</a></p>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-/*
-function indexByHeader_AuthCore_(header){
-  const map={}; header.forEach((h,i)=> map[String(h).trim()]=i); return map;
-}
-function cellHasEmail_AuthCore_(cell, emailLC){
-  return String(cell||'').split(/[;,]/).map(s=>s.trim().toLowerCase()).filter(Boolean).includes(emailLC);
-}
-*/
 
 
-
-function parsePtNumber_AuthCore_(s){
-  const clean = String(s||'').replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^\d.\-]/g,'');
-  const n = parseFloat(clean); return isNaN(n)?0:n;
+function parsePtNumber_AuthCore_(val){
+  // Se o Google Sheets já nos der um número nativo, devolve-o intacto!
+  if (typeof val === 'number') return val;
+  
+  // Caso contrário, limpa o texto formatado (ex: "1.000,50" -> 1000.5)
+  const clean = String(val||'').replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace(/[^\d.\-]/g,'');
+  const n = parseFloat(clean); 
+  return isNaN(n) ? 0 : n;
 }
 
 function getTitularesRowsByEmail_AuthCore_(email, cfg){
@@ -735,13 +649,19 @@ function isRgpdAllAcceptedFor(ticket, cfg){
 function renderRgpdPage_(opts) {
   const L = makeLogger_(opts.debug);
   L('renderRgpdPage_');
+
   const t = HtmlService.createTemplateFromFile('RGPD');
-  //t.CANON_URL  = canonOverride || canonicalAppUrl_(); // << usa o do HOST se vier
   t.CANON_URL  = canonicalAppUrl_(); // << usa o do HOST se vier
   t.ticket = opts.ticket || '';
   t.TICKET = opts.ticket || '';
   t.DEBUG  = opts.debug ? '1' : '';
   t.WIPE = opts.wipe ? "1" : "";
+
+// NOVAS VARIÁVEIS DE ALERTA DE BLOQUEIO
+  t.BLOCK_MSG = opts.blockMsg || "";
+  t.BLOCK_BTN_LABEL = opts.blockBtnLabel || "";
+  t.BLOCK_BTN_URL = opts.blockBtnUrl || "";
+
   t.SERVER_LOG = 
       opts.serverLog && opts.serverLog.join
         ? opts.serverLog.join("\n")
@@ -759,9 +679,7 @@ function renderRgpdPage_(opts) {
       (opts.serverLog && opts.serverLog.join
         ? opts.serverLog.join("\n")
         : String(opts.serverLog || ""));
-    return HtmlService.createHtmlOutput(
-      '<pre style="white-space:pre-wrap">' + msg + "</pre>",
-    );
+    return HtmlService.createHtmlOutput('<pre style="white-space:pre-wrap">' + msg + "</pre>");
   }
 }
 
@@ -934,8 +852,8 @@ function getProfileStats_(ticket, cfg) {
 }
 
 function hostListRgpdRowsFor_(ticket, cfg) {
-  //const sess = requireSession(ticket);
-  //cfg = __defCfg(cfg);
+  const sess = requireSession(ticket);
+  cfg = __defCfg(cfg);
   const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
   const out = [];
   const r0 = info.range.getRow();
@@ -951,8 +869,10 @@ function hostListRgpdRowsFor_(ticket, cfg) {
 }
 
 function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
-  //cfg = __defCfg(cfg);
+  // 1. Restauramos a configuração para ler o mail de destino
+  cfg = __defCfg(cfg);
   const sess = requireSession(ticket);
+
   const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
   const sheet = info.range.getSheet();
   const r0 = info.range.getRow();
@@ -964,38 +884,79 @@ function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
   const rgpdVals = rgpdRange.getValues();
   let touched = 0;
   
-  //let acceptedSemanas = [];
-  //const iSem = info.ix[cfg.cols.semanas || "Semanas"];
+  // Vamos guardar quais semanas foram aceites e quais foram rejeitadas
+  let acceptedSemanas = [];
+  let rejectedSemanas = [];
+  const iSem = info.ix[cfg.cols.semanas || "Semanas"];
+  
+  // NOVO: Coleção para guardar todos os e-mails únicos das linhas afetadas
+  const allEmailsToCc = new Set();
+  
+  // Garantimos que o e-mail de quem fez o login entra sempre no CC
+  if (sess.email) allEmailsToCc.add(String(sess.email).trim().toLowerCase());
   
   for (const r of info.matches) {
     const sheetRow = r0 + r; 
     const wantAccept = acceptedRows.includes(sheetRow);
     const next = wantAccept ? "Sim" : "Não";
-    if (String(rgpdVals[r-1][0]||"") !== next) {
+  
+	if (String(rgpdVals[r-1][0]||"") !== next) {
       rgpdVals[r-1][0] = next;
       touched++;
     }
-	/*
-    if (wantAccept && iSem != null) {
+
+    
+    // NOVO: Extrair e limpar todos os e-mails desta linha (separados por ; ou ,)
+    if (info.iEmail != null) {
+       const rawEmails = String(info.values[r][info.iEmail] || "");
+       rawEmails.split(/[;,]/).forEach(e => {
+          const cleanEmail = e.trim().toLowerCase();
+          if (cleanEmail) allEmailsToCc.add(cleanEmail);
+       });
+    }
+	
+    // Formatar as semanas para o E-mail
+    if (iSem != null) {
       const rawSemanas = info.values[r][iSem] || "";
       const formatted = String(rawSemanas).split(/[+,\s]+/).filter(Boolean).join(" · ");
-      if (formatted) acceptedSemanas.push(formatted);
+      if (formatted) {
+        if (wantAccept) acceptedSemanas.push(formatted);
+        else rejectedSemanas.push(formatted);
+      } 
     }
-	*/
   }
   if (touched) {
     rgpdRange.setValues(rgpdVals);
     SpreadsheetApp.flush();
-    /*
-	try {
+
+  // 2. ENVIO DO E-MAIL CENTRALIZADO
+  try {
       const toEmail = cfg.notify.to || "secretario-direcao@titulares-portobelo.pt";
-      let bodyText = "O associado " + sess.email + " atualizou o RGPD.\n\n";
-      bodyText += acceptedSemanas.length > 0 
-        ? acceptedSemanas.map(sem => "Aceite: " + sem).join("\n")
-        : "Nenhuma linha aceite (Rejeitado).";
-      MailApp.sendEmail(toEmail, "[App] Atualização de RGPD - " + sess.email, bodyText);
-    } catch (e) {}
-	*/
+      let bodyText = "O associado " + (sess.name ? sess.name + " (" + sess.email + ")" : sess.email) + " atualizou o seu consentimento do RGPD da Associação.\n\n";
+   
+      if (acceptedSemanas.length > 0) {
+        bodyText += "✅ Semanas ACEITES:\n" + acceptedSemanas.map(sem => "- " + sem).join("\n") + "\n\n";
+      }
+      if (rejectedSemanas.length > 0) {
+        bodyText += "❌ Semanas REJEITADAS:\n" + rejectedSemanas.map(sem => "- " + sem).join("\n") + "\n\n";
+      }
+      bodyText += "Associação dos titulares de DRHP do Portobelo\n";
+      bodyText += "https://titulares-portobelo.pt\n\n";
+      bodyText += "Em caso de dúvidas, contactar geral@titulares-portobelo.pt\n";
+
+      // Converte o Set de e-mails únicos numa string separada por vírgulas para o MailApp
+      const ccEmails = Array.from(allEmailsToCc).join(",");
+      MailApp.sendEmail({
+        to: toEmail,
+        cc: ccEmails, // Agora envia para todos os e-mails associados àquelas semanas!
+        replyTo: "geral@titulares-portobelo.pt",
+        subject: "[Associação Portobelo] Atualização de RGPD - " + sess.email,
+        body: bodyText,
+        name: "Associação dos titulares de DRHP do Portobelo"
+      });
+    } catch (e) {
+      console.log("Erro a enviar email RGPD: " + e);
+    }
   }
   return { ok: true, touched };
 }

@@ -1,4 +1,5 @@
 
+
 <!-- Main.html (Anúncios) -->
 <html>
 
@@ -7,20 +8,6 @@
   <title>Anúncios Portobelo</title>
   <style>
     <?!= include('Styles'); ?>
-    #dbgDock {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 50vh;
-      background: #111;
-      color: #0f0;
-      font: 12px/1.35 monospace;
-      border-top: 2px solid #444;
-      padding: 8px;
-      overflow: auto;
-      z-index: 2147483647;
-    }
   </style>
 
   <script>
@@ -70,22 +57,33 @@
               <a class="icon-btn" href="https://www.titulares-portobelo.pt" target="_top" rel="noopener" title="Início">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
               </a>
-              <a class="icon-btn" href="https://www.titulares-portobelo.pt/pessoal" target="_top" rel="noopener" title="Área pessoal">
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5Z" fill="currentColor"></path></svg>
-              </a>
             </span>
-            <h2>Consulta de Anúncios</h2>
+            <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eaeaea; background: #fff; flex-wrap: wrap; gap: 15px;">                  
+              <div>
+                <h2 style="margin: 0; display: flex; align-items: baseline; gap: 8px; color: #111;">
+                  Consulta de Anúncios 
+                  <span style="font-size: 0.55em; color: #777; font-weight: normal;">(<?= VERSION ?>)</span>
+                </h2>
+              </div>
+              <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="text-align: right; line-height: 1.2;">
+                  <div id="user-name" style="font-weight: 600; font-size: 14px; color: #333;">Associado</div>
+                  <div id="user-email" style="font-size: 12px; color: #777;">A carregar...</div>
+                </div>
+                <img id="user-pic" src="" alt="Foto de perfil" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; display: none; background: #f0f0f0; border: 1px solid #ddd;">
+                
+                <button id="btn-logout" style="padding: 8px 16px; background-color: #111; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">Sair</button>
+              </div>
+            </header>
           </div>
           <div class="top-button">
             <button onclick="log('Atualizar lista clicked'); loadTable()">🔄 Atualizar lista</button>
             <button onclick="log('Toggle formulário'); toggleFormulario()">➕ Adicionar/Apagar anúncio</button>
             <div>(Clique no título da coluna para a ordenar) <span id="clique"></span></div>
-            <a href="#" id="btn-logout" style="padding: 4px 10px; border: 1px solid #ccc; border-radius: 8px; text-decoration: none; color: #111; background: #fff; display: inline-flex; align-items: center; font-size: 14px;">Sair</a>
           </div>
         </div>
         <div id="contador" style="padding: 0.5em; font-weight: bold;">Total: 0 anúncios</div>
         <div class="version">
-          <div>Versão: <span id="versao"></span></div>
           <div>Atualização: <span id="atualizacao"></span></div>
           <div>Visitas: <span id="visitas"></span> (Últ. 30 dias: <span id="visitas30"></span>)</div>
         </div>

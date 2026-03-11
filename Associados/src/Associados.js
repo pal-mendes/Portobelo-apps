@@ -107,6 +107,11 @@ function acceptRgpdForMe(ticket, decision){
   // decision: 'accept' | 'reject'
   return AuthCoreLib.acceptRgpdForMe(ticket, decision, gatesCfg_());
 }
+
+// Funções ponte para o RGPD HTML
+function listRgpdRowsFor(ticket) { return AuthCoreLib.hostListRgpdRowsFor(ticket, gatesCfg_()); }
+
+
 // ===== DEBUG infra =====
 
 // Utilitário de logs (cai para Google Apps Script executions logs, se console não existir)  //log em Execuções Apps Script
@@ -285,7 +290,7 @@ function isWeekOfEmail_(email, week){ return listWeeksForEmail_(email).includes(
 
 // ===== Acesso/allowlist/rgpd =====
 
-
+/*
 // Lista as linhas de "Titulares" do utilizador logado com o estado RGPD atual.
 // Devolve {row, semanas, rgpd} onde "row" é o número de linha real na folha.
 function listRgpdRowsFor(ticket) {
@@ -326,8 +331,9 @@ function listRgpdRowsFor(ticket) {
   }
   return out;
 }
+*/
 
-
+/*
 // Grava RGPD por linha: "acceptedRows" = array de números de linha (1-based na folha)
 // Para as linhas do utilizador que NÃO estão em acceptedRows → limpa RGPD.
 function setRgpdRowsFor(ticket, acceptedRows) {
@@ -417,7 +423,9 @@ function setRgpdRowsFor(ticket, acceptedRows) {
   dbgLog('[RGPD] setRgpdRowsFor email=', sess.email, 'accepted=', JSON.stringify(acceptedRows), 'touched=', touched);
   return { ok:true, touched };
 }
+*/
 
+/*
 function rgpdStatsForEmail_(email){
   const emailLC = String(email||"").trim().toLowerCase();
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
@@ -434,9 +442,11 @@ function rgpdStatsForEmail_(email){
   });
   return { total, sim, all: total>0 && sim===total };
 }
+*/
 
 //function isRgpdAllAccepted_(email){ return rgpdStatsForEmail_(email).all; }
 
+/*
 // Marca RGPD="Sim" em todas as linhas desse email — sem tocar noutras colunas
 function setRgpdAcceptedForEmail_(email){
   const emailLC = String(email||"").trim().toLowerCase();
@@ -485,6 +495,7 @@ function setRgpdAcceptedForEmail_(email){
   if (touched) rgpdRange.setValues(rgpdVals); // <-- escreve SÓ a coluna RGPD
   return touched;
 }
+*/
 
 function parseAllowlist_(){
   const csv = (PropertiesService.getScriptProperties().getProperty("ALLOWLIST_CSV") || "");
@@ -785,10 +796,9 @@ function doGet(e){
 	  
     // CSV de linhas aceites vindo do RGPD.html
     const rowsQS = String((e && e.parameter && e.parameter.rows) || '').trim();
-    const rows   = rowsQS
-        ? rowsQS.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n))
-        : [];
+    const rows   = rowsQS ? rowsQS.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n)) : [];
 
+    /*
     try {
       const touched = (setRgpdRowsFor(ticket, rows) | 0); // <-- grava no servidor
       L(`RGPD save: rows=[${rows.join(',')}] touched=${touched}`);
@@ -796,6 +806,12 @@ function doGet(e){
     } catch (err) {
       L('RGPD save FAIL: ' + (err && err.message));
     }
+    */
+
+    try { 
+      AuthCoreLib.hostSaveRgpdRowsFor(ticket, rows, gatesCfg_());
+      L(`RGPD save: rows=[${rows.join(',')}]`);
+    } catch(err) { L('RGPD save FAIL: ' + err); }
 
     return renderMainPage_(ticket, DBG, L.dump());
   }

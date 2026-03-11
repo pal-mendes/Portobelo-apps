@@ -23,7 +23,7 @@
     google.script.run
     .withSuccessHandler(function(novosDados) {
       document.getElementById('spinner').style.display = 'none';
-      if (!Array.isArray(novosDados)) { __dbg('getAnunciosDataSess → não é array'); return; }
+      if (!Array.isArray(novosDados)) { log('getAnunciosDataSess → não é array'); return; }
 
       rawData = novosDados.filter(r => r.some(c => c !== '' && c != null));
       sortColumn = 0; // data
@@ -37,14 +37,14 @@
         document.getElementById('atualizacao').textContent = novaData;
       })
         .withFailureHandler(function(err) {
-          __dbg('getUltimaAtualizacao ERROR: ' + err);
+          log('getUltimaAtualizacao ERROR: ' + err);
           document.getElementById('atualizacao').textContent = 'Erro';
         })      
       .getUltimaAtualizacao();
     })
     .withFailureHandler(function(err) {
       document.getElementById('spinner').style.display = 'none';
-      __dbg('getAnunciosDataSess ERROR: ' + err);
+      log('getAnunciosDataSess ERROR: ' + err);
       var el = document.getElementById('contador'); 
       if (el) el.textContent = 'Erro ao carregar dados (' + err + ')';
     })
