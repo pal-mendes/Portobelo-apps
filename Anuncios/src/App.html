@@ -22,10 +22,16 @@
     google.script.run
     .withSuccessHandler(function(response) {
       document.getElementById('spinner').style.display = 'none';
-      if (!response || !Array.isArray(response.adds)) { log('Falha ao obter formato de anúncios'); return; }
+      // Proteção contra erro se a resposta não for o objeto esperado
+      if (!response || !Array.isArray(response.adds)) {
+        log('Falha ao obter formato de anúncios');
+        return; 
+      }
 
       rawData = response.filter(r => r.some(c => c !== '' && c != null));
       myPhones = response.myPhones || [];
+      populatePhoneDropdown(); // <--- INJETA OS TELEMÓVEIS NA LISTA SUSPENSA
+      
       sortColumn = 0; // data
       sortDirection = -1; // mais recentes primeiro
       setupFilters();
@@ -40,11 +46,11 @@
         const el = document.getElementById('atualizacao'); 
         if (el) el.textContent = novaData;
       })
-        .withFailureHandler(function(err) {
-          log('getUltimaAtualizacao ERROR: ' + err);
-          const el = document.getElementById('atualizacao');
-          if (el) el.textContent = 'Erro';
-        })      
+      .withFailureHandler(function(err) {
+        log('getUltimaAtualizacao ERROR: ' + err);
+        const el = document.getElementById('atualizacao');
+        if (el) el.textContent = 'Erro';
+      })      
       .getUltimaAtualizacao();
     })
     .withFailureHandler(function(err) {
@@ -270,7 +276,17 @@
                 tipoSel.selectedIndex = i; break;
             }
         }
-        document.getElementById('anuncioTelefone').value = ad[2];
+
+        // NOVO: Seleciona o telemóvel correto na lista suspensa
+        const telSel = document.getElementById('anuncioTelefone');
+        const adTelD = ad[2].replace(/\D/g, '');
+        for(let i=0; i<telSel.options.length; i++){
+            const optVal = telSel.options[i].value.replace(/\D/g, '');
+            if(optVal === adTelD || optVal.endsWith(adTelD) || adTelD.endsWith(optVal)) {
+                telSel.selectedIndex = i; break;
+            }
+        }
+
         document.getElementById('anuncioDescricao').value = ad[3];
         document.getElementById('anuncioEntrada').value = ad[4] || '';
         
@@ -474,4 +490,30 @@
     f.style.display = isVisible ? 'none' : 'block';
     if (!isVisible) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  function populatePhoneDropdown() {
+     const select = document.getElementById('anuncioTelefone');
+     if (!select || select.tagName.toLowerCase() !== 'select') return;
+
+     select.innerHTML = ''; // Limpa o "A carregar..."
+     
+     if (myPhones.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.textContent = "Nenhum telemóvel registado";
+        select.appendChild(opt);
+        return;
+     }
+
+     myPhones.forEach(p => {
+        const norm = normalizePhone(p);
+        const formatado = norm.ok ? norm.pretty : p;
+        
+        const opt = document.createElement('option');
+        opt.value = formatado;
+        opt.textContent = formatado;
+        select.appendChild(opt);
+     });
+  }
+
 </script>

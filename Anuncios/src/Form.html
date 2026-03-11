@@ -3,7 +3,12 @@
 <h2>Criar ou apagar anúncio</h2>
 
 <label for="anuncioTelefone">Telemóvel para publicar:</label>
-<input id="anuncioTelefone" type="tel" placeholder="Ex.: 351967012590 ou +33 612345678" title="Indique o seu número (será validado com o e-mail da sessão)." />
+<div style="margin-bottom: 15px;">
+  <label for="anuncioTelefone" style="display: block; font-weight: 600; margin-bottom: 5px; color: #333;">Telemóvel</label>
+  <select id="anuncioTelefone" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;">
+    <option value="">A carregar telemóveis...</option>
+  </select>
+</div>
 
 <label for="anuncioTipo">Tipo de anúncio:</label>
 <select id="anuncioTipo" required title="O intercâmbio é para trocas num só ano, e a permuta é definitiva. Para apagar, escolha o mesmo tipo que o do anúncio a apagar.">

@@ -449,9 +449,9 @@ function findDuesPaid(index, email) {
 
 
 function getAnunciosDataSess(ticket) { 
-  const DBG = true; //isDebug_(e);
-  const L = makeLogger_(DBG);
-  L("getAnunciosDataSess");
+  //const DBG = true; //isDebug_(e);
+  //const L = makeLogger_(DBG);
+  //L("getAnunciosDataSess");
   validateApiAccess_(ticket); // Bloqueia API a quem não cumpra os requisitos
   const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
   
@@ -461,15 +461,18 @@ function getAnunciosDataSess(ticket) {
     profile.cardsLinhas.forEach(c => {
       if (c.telefones) c.telefones.split(/[;,]/).forEach(t => {
         const d = String(t).replace(/\D/g, '');
-        if (d) myPhones.add(d);
+        // O SEU FILTRO: Ignora os números de controlo financeiro (ex: 351000...)
+        if (d && !d.startsWith('351000') && !d.startsWith('000')) {
+          myPhones.add(d);
+        }
       });
     });
   }
-  L("getAnunciosDataSess: myPhones=", Array.from(myPhones));
+  //L("getAnunciosDataSess: myPhones=", Array.from(myPhones));
   
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ANUNCIOS_SHEET);
   const numRows = sheet.getLastRow() - ANUNCIOS_HEADER_ROW;
-  L("getAnunciosDataSess: numRows=", numRows);
+  //L("getAnunciosDataSess: numRows=", numRows);
   let ads = [];
   if (numRows > 0) {
     ads = sheet.getRange(ANUNCIOS_HEADER_ROW + 1, 1, numRows, 5).getDisplayValues().map(row => row.map(cell => {
@@ -477,7 +480,7 @@ function getAnunciosDataSess(ticket) {
       return (cell !== undefined && cell !== null) ? cell.toString() : '';
     }));
   }
-  L("getAnunciosDataSess: return OK");
+  //L("getAnunciosDataSess: return OK");
   // Agora devolve a tabela E os contactos aprovados!
   return { ads: ads, myPhones: Array.from(myPhones) };
 }
