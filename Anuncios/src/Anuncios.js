@@ -15,7 +15,7 @@
 * Fórmulas em uso no spreadsheet
  **********************************************/
 
- const TITULARES_SHEET = "Titulares"; //Usado por uma fórmula na aba "Pedidos"
+ const TITULARES_SHEET = "Titulares"; //Usado por uma fórmula na aba "Pedidos" que usa findTelefoneIndex
 
 function findTelefoneIndex(numero) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -86,7 +86,6 @@ const VERSION = "v6.0";
 // Folhas pertencentes APENAS a esta App
 const ANUNCIOS_SHEET = "Anúncios";
 const ANUNCIOS_HEADER_ROW = 4;
-const PEDIDOS_SHEET = "Pedidos";
 
 //const ACESSOS_SHEET = "Acessos"; //Vai deixar de ser usada aqui, porque AuthCoreLib passa a gerir os acessos. Há que mover para tblTitulares.
 
@@ -96,17 +95,14 @@ function include(filename) {
 }
 
 // ---------- Auth wrappers chamados pelo Login.html (biblioteca) ----------
-// Note: Como a AuthCoreLib agora tem defaults inteligentes, só precisamos do redirectUri
-function gatesCfg_(){ return { canon: ScriptApp.getService().getUrl() }; }
-
+// Note: A AuthCoreLib agora tem defaults inteligentes
+function gatesCfg_(){ return { canon: ScriptApp.getService().getUrl(), appName: "Anúncios" }; }
 
 function authCfg_() {
   const sp = PropertiesService.getScriptProperties();
   return {
     clientId:     sp.getProperty("CLIENT_ID"),
     clientSecret: sp.getProperty("CLIENT_SECRET"),
-    // OBRIGA a usar o /dev se ele estiver nas propriedades!
-    //redirectUri:  sp.getProperty("REDIRECT_URI") || ScriptApp.getService().getUrl()
   };
 }
 
@@ -124,7 +120,8 @@ function makeLogger_(DBG) {
   const start = new Date();
   const log = [];
   function L() {
-    const t = new Date(new Date() - start).toISOString().substr(11, 8);
+    const ts = new Date();
+    const t = new Date(ts - start).toISOString().substr(11, 8);
     log.push(t + " " + Array.prototype.map.call(arguments, String).join(" "));
   }
   L.dump = () => log.slice();
@@ -148,13 +145,6 @@ function doGet(e) {
   const L = makeLogger_(DBG);
   L("doGet start Anúncios");
 
-  /*
-  const sp = PropertiesService.getScriptProperties();
-  // Garante que o servidor diz ao cliente que está no /dev e não no /exec
-  const forceCanon = sp.getProperty("bREDIRECT_URI") || ScriptApp.getService().getUrl();
-  L('forceCanon=' + forceCanon);
-  */
-
   // Passamos o canon forçado para o renderLoginPage da AuthCoreLib
   var optsProc = { ticket: "", debug: DBG, serverLog: [], wipe: false };    
   //var optsProc = { ticket: "", debug: DBG, serverLog: [], wipe: false, canon: forceCanon };    
@@ -169,11 +159,6 @@ function doGet(e) {
   L('e.parameter.logout=' + e.parameter.logout);
   L('e.parameter.debug=' + e.parameter.debug);
   L('e.parameter.wipe=' + e.parameter.wipe);
-  //L('here=' + ScriptApp.getService().getUrl());
-  //L('canon=' + canonicalAppUrl_());
-  //L('REDIRECT_URI=' + (REDIRECT_URI||''));
-  //L('redirectUri_()=' + redirectUri_());
-
 
   // 1) OAuth callback
   if (e && e.parameter && e.parameter.code){ return AuthCoreLib.finishAuth(e, authCfg_()); }
@@ -228,7 +213,7 @@ function doGet(e) {
     // REGRA 0: Se não for Titular (0 Linhas), Bloqueia Absoluto Imediato
     if (!profile.hasLines) {
       L("Bloqueio: Acesso Negado. Motivo: Não é titular (0 linhas)");
-      AuthCoreLib.logFailedAccess(ticket, "Não é titular (0 linhas)", gatesCfg_()); 
+      AuthCoreLib.logFailedAccess(ticket, "Não é titular", gatesCfg_()); 
       return renderBlocked_(
           "Acesso negado: O seu e-mail não está registado como titular.", 
           "Ir para Titulares Portobelo", 
@@ -256,7 +241,7 @@ function doGet(e) {
     if (profile.saldo < 0) {
       const motivo = "Saldo negativo (€" + profile.saldo + ")";
 	    L("Bloqueio: Acesso Negado. Motivo: " + motivo);
-      AuthCoreLib.logFailedAccess(ticket, motivo, gatesCfg_()); // <-- REGISTA NA FOLHA ACESSOS
+      AuthCoreLib.logFailedAccess(ticket, "Saldo negativo", gatesCfg_()); // <-- REGISTA NA FOLHA ACESSOS
       return renderBlocked_(
           "Acesso negado: Para aceder aos anúncios é necessário não ter quotas em dívida (o seu saldo global é de €" + profile.saldo + ").", 
           "Ir para a Área do Associado", 
@@ -314,9 +299,11 @@ function renderMainPage_(ticket, DBG, serverLogLines) {
   t.count = visits.total;
   t.count30 = visits.last30; // Passa os últimos 30 dias para o HTML
   t.ticket = ticket || "";  
+
   //t.CANON_URL = ScriptApp.getService().getUrl(); 
   const sp = PropertiesService.getScriptProperties();
-  t.CANON_URL = sp.getProperty("bREDIRECT_URI") || ScriptApp.getService().getUrl();  
+  t.CANON_URL = ScriptApp.getService().getUrl();
+
   t.DEBUG = DBG ? '1' : '';
   t.SERVER_LOG = (serverLogLines || []).join('\n');
   t.PAGE_TAG = 'MAIN';
@@ -449,46 +436,74 @@ function findDuesPaid(index, email) {
 
 
 function getAnunciosDataSess(ticket) { 
-  //const DBG = true; //isDebug_(e);
-  //const L = makeLogger_(DBG);
-  //L("getAnunciosDataSess");
-  validateApiAccess_(ticket); // Bloqueia API a quem não cumpra os requisitos
-  const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
-  
-  // Extrai todos os números de telemóvel do associado
-  const myPhones = new Set();
-  if (profile.cardsLinhas) {
-    profile.cardsLinhas.forEach(c => {
-      if (c.telefones) c.telefones.split(/[;,]/).forEach(t => {
-        const d = String(t).replace(/\D/g, '');
-        // O SEU FILTRO: Ignora os números de controlo financeiro (ex: 351000...)
-        if (d && !d.startsWith('351000') && !d.startsWith('000')) {
-          myPhones.add(d);
-        }
+  // 1. Forçamos o Logger a arrancar em modo de debug
+  const DBG = true; //isDebug_(e);
+  const L = makeLogger_(DBG);
+  L("getAnunciosDataSess()");
+
+  try {
+    validateApiAccess_(ticket); // Bloqueia API a quem não cumpra os requisitos
+    L("getAnunciosDataSess: Acesso da API validado com sucesso.");
+    const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
+    L("getAnunciosDataSess: Perfil lido. Email associado: " + profile.email);
+
+    // Extrai todos os números de telemóvel do associado
+    const myPhones = new Set();
+    if (profile.cardsLinhas) {
+      profile.cardsLinhas.forEach(c => {
+        if (c.telefones) c.telefones.split(/[;,]/).forEach(t => {
+          L("getAnunciosDataSess: telefone=" + t);
+          const d = String(t).replace(/\D/g, '');
+          L("getAnunciosDataSess: telefone transformado=" + d);
+          // O SEU FILTRO: Ignora os números de controlo financeiro (ex: 351000...)
+          if (d && !d.startsWith('351000') && !d.startsWith('000')) {
+            L("getAnunciosDataSess: telefone adicionado");
+            myPhones.add(d);
+          }
+        });
       });
-    });
+    }
+    L("getAnunciosDataSess: Telemóveis válidos encontrados: " + Array.from(myPhones).join(', '));
+    
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ANUNCIOS_SHEET);
+    const numRows = sheet.getLastRow() - ANUNCIOS_HEADER_ROW;
+    L("getAnunciosDataSess: numRows=", numRows);
+    
+    let ads = [];
+    if (numRows > 0) {
+      ads = sheet.getRange(ANUNCIOS_HEADER_ROW + 1, 1, numRows, 5).getDisplayValues().map(row => row.map(cell => {
+        if (typeof cell === 'string') return cell.replace(/[\r\n]+/g, ' ').trim();
+        return (cell !== undefined && cell !== null) ? cell.toString() : '';
+      }));
+    }
+
+    const respostaFinal = { ads: ads, myPhones: Array.from(myPhones) };
+    L("Tudo OK. A devolver o pacote ao frontend. Anúncios totais na folha: " + ads.length);
+    
+    // 2. Descarrega os logs para a plataforma do Google
+    console.log(L.dump().join('\n'));    
+    // Agora devolve a tabela E os contactos aprovados!
+    return respostaFinal;
+
+  } catch (error) {
+    L("ERRO FATAL: " + error.message);
+    // Em caso de erro, descarrega os logs também
+    console.log(L.dump().join('\n'));
+    throw error; // Lança o erro para que o F12 o mostre como "Erro ao carregar dados"
   }
-  //L("getAnunciosDataSess: myPhones=", Array.from(myPhones));
-  
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ANUNCIOS_SHEET);
-  const numRows = sheet.getLastRow() - ANUNCIOS_HEADER_ROW;
-  //L("getAnunciosDataSess: numRows=", numRows);
-  let ads = [];
-  if (numRows > 0) {
-    ads = sheet.getRange(ANUNCIOS_HEADER_ROW + 1, 1, numRows, 5).getDisplayValues().map(row => row.map(cell => {
-      if (typeof cell === 'string') return cell.replace(/[\r\n]+/g, ' ').trim();
-      return (cell !== undefined && cell !== null) ? cell.toString() : '';
-    }));
-  }
-  //L("getAnunciosDataSess: return OK");
-  // Agora devolve a tabela E os contactos aprovados!
-  return { ads: ads, myPhones: Array.from(myPhones) };
 }
 
 
 function apiGestaoAnuncios(ticket, payload) {
+  // 1. Forçamos o Logger a arrancar em modo de debug
+  //const DBG = true; //isDebug_(e);
+  //const L = makeLogger_(DBG);
+  console.log("apiGestaoAnuncios()");
+
   validateApiAccess_(ticket);   // 1. Acesso blindado (Se não tiver quotas ou RGPD, falha aqui e nem chega a executar o resto)
+  console.log("apiGestaoAnuncios: Acesso da API validado com sucesso.");
   const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
+  console.log("apiGestaoAnuncios: Perfil lido. Email associado: " + profile.email);
   
   const allEmails = new Set();
   const myPhones = new Set();
@@ -498,36 +513,57 @@ function apiGestaoAnuncios(ticket, payload) {
   if (profile.cardsLinhas) {
     profile.cardsLinhas.forEach(c => {
       if (c.emails) c.emails.split(/[;,]/).forEach(e => {
+        console.log("apiGestaoAnuncios: email =" + String(e));
         const clean = String(e).trim().toLowerCase();
         if (clean) allEmails.add(clean);
       });
       if (c.telefones) c.telefones.split(/[;,]/).forEach(t => {
+        console.log("apiGestaoAnuncios: telefone =" + String(t));
         const d = String(t).replace(/\D/g, '');
         if (d) myPhones.add(d);
       });
     });
   }
+  console.log("apiGestaoAnuncios: Telemóveis válidos encontrados: " + Array.from(myPhones).join(', '));
   
   const ccEmails = Array.from(allEmails).join(',');
-  
+  console.log("apiGestaoAnuncios: emails válidos encontrados: " + ccEmails);
+
   // Trinco de segurança: O anúncio tem de ter um telemóvel pertencente ao utilizador
   const ownsPhone = (phoneStr) => {
     const d = String(phoneStr).replace(/\D/g, '');
     return Array.from(myPhones).some(my => my.endsWith(d) || d.endsWith(my));
   };
 
+  console.log("apiGestaoAnuncios: Phone OK");
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(ANUNCIOS_SHEET); // 2. Agora aponta DIRETAMENTE para a folha principal de Anúncios
   
+  // Função auxiliar para atualizar sempre a data em E1 com formato legível
+  const atualizarDataE1 = () => {
+    const agora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm");
+    sheet.getRange('E1').setValue(agora);
+  };
+
+  console.log("apiGestaoAnuncios: Conteúdo completo: " + JSON.stringify(payload));
+
   // 1. PUBLICAR NOVO
   if (payload.action === 'add') {
-      if (!Array.isArray(payload) || payload.length !== 5) throw new Error('Dados inválidos');
+    console.log("apiGestaoAnuncios: add");
+    if (!payload.novo || !Array.isArray(payload.novo) || payload.novo.length !== 5) {
+      throw new Error('Dados inválidos. O array de dados tem de ter 5 posições.');
+    }
 
     const numAnuncios = Math.max(0, sheet.getLastRow() - ANUNCIOS_HEADER_ROW);
     if (numAnuncios >= 400) throw new Error('Limite da plataforma atingido (Max. 400 anúncios).');
     
+    // Força o Google Sheets a aceitar o número como texto, preservando os espaços!
+    payload.novo[2] = "'" + payload.novo[2];
     sheet.appendRow([new Date(), ...payload.novo.slice(1)]);
+    atualizarDataE1();
     SpreadsheetApp.flush();
+    console.log("apiGestaoAnuncios: flush");
     
     try {
       MailApp.sendEmail({
@@ -541,6 +577,8 @@ function apiGestaoAnuncios(ticket, payload) {
   
   // 2. ATUALIZAR EXISTENTE
   if (payload.action === 'update') {
+    console.log("apiGestaoAnuncios: update");
+
     const data = sheet.getDataRange().getDisplayValues();
     const orig = payload.original;
     let foundRow = -1;
@@ -556,9 +594,13 @@ function apiGestaoAnuncios(ticket, payload) {
     
     if (foundRow === -1) throw new Error("O anúncio original já não foi encontrado.");
     
+    // Força o formato de texto
+    payload.novo[2] = "'" + payload.novo[2];
     sheet.getRange(foundRow, 1, 1, 5).setValues([[new Date(), ...payload.novo.slice(1)]]);
+    atualizarDataE1();
     SpreadsheetApp.flush();
-    
+    console.log("apiGestaoAnuncios: flush");
+
     try {
       MailApp.sendEmail({
         to: 'geral@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
@@ -566,6 +608,7 @@ function apiGestaoAnuncios(ticket, payload) {
         body: 'Um titular atualizou o seu anúncio.\n\nTelemóvel: ' + payload.novo[2] + '\nTipo: ' + payload.novo[1] + '\nNova Descrição: ' + payload.novo[3]
       });
     } catch(e) {}
+    console.log("apiGestaoAnuncios: fim");
     return { ok: true };
   }
   
@@ -587,6 +630,7 @@ function apiGestaoAnuncios(ticket, payload) {
     
     // Apaga de baixo para cima para não alterar os índices das linhas de cima
     toDelete.sort((a, b) => b - a).forEach(rowIdx => sheet.deleteRow(rowIdx));
+    atualizarDataE1();
     SpreadsheetApp.flush();
     
     try {

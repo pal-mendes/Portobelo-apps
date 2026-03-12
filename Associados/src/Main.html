@@ -582,11 +582,11 @@
 
               <div class="line">
                 <div class="value euro">
-                  Quota anual: ${c.quota || ""} ·
-                  Pagamentos: ${c.pago || ""} ·
-                  Jóia: ${c.joia || ""} ·
-                  Quotas devidas: ${fmtEUR(c.quotasDevidas ?? 0)} ·
-                  Saldo: ${c.saldo || ""}
+                  Jóia: ${c.joia || "0,00 €"} ·
+                  Quota deste ano: ${c.quota || "0,00 €"} ·
+                  Quotização total: ${fmtEUR(c.quotizacao)} ·
+                  Pagamentos: ${c.pago || "0,00 €"} ·
+                  Saldo: <b>${c.saldo || "0,00 €"}</b>
                 </div>
               </div>
 
@@ -689,19 +689,23 @@
               pago: 0,
               quota: 0,
               joia: 0,
-              quotasDevidas: 0,
+              quotizacao: 0,
               saldo: 0,
             };
             const totalsHtml = `
           <div class="info">
             <div class="badge">Totais</div>
             <div class="box euro">
-              Quotas anuais: <b>${fmtEUR(T.quota)}</b> ·
-              Pagamentos: <b>${fmtEUR(T.pago)}</b> ·
               Jóias: <b>${fmtEUR(T.joia)}</b> ·
-              Quotas devidas: <b>${fmtEUR(T.quotasDevidas || 0)}</b> ·
+              Quotas deste ano: <b>${fmtEUR(T.quota)}</b> ·
+              Quotizações totais: <b>${fmtEUR(T.quotizacao)}</b> ·
+              Pagamentos: <b>${fmtEUR(T.pago)}</b> ·
               Saldo: <b>${fmtEUR(T.saldo)}</b>
             </div>
+          </div>
+          
+          <div class="card muted small wraptext" style="background: #f9fafb; border-color: #d1d5db; line-height: 1.6; margin-top: 0;">
+            A quotização representa a soma da jóia e das quotas de cada ano desde a adesão. O seu pagamento pode ser feito por MB WAY ou Revolut para o número <b>+351 967 012 590</b>, ou através do IBAN <b>PT50 0018 0238 0020 0021 976 46</b> (dado ainda não existir conta bancária da associação). Por favor, indique no descritivo pelo menos uma das suas semanas (104/30, por exemplo).
           </div>`;
 
             $("#content").innerHTML = quotasHtml + cardsHtml + totalsHtml;

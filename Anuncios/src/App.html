@@ -18,17 +18,21 @@
   document.addEventListener('DOMContentLoaded', function() { loadTable(); });
 
   function loadTable() {
+    log("loadTable()");
     document.getElementById('spinner').style.display = 'block';
     google.script.run
     .withSuccessHandler(function(response) {
+      log("loadTable: getAnunciosDataSess success");
+      log("loadTable: response =", response || null);
+
       document.getElementById('spinner').style.display = 'none';
       // Proteção contra erro se a resposta não for o objeto esperado
-      if (!response || !Array.isArray(response.adds)) {
+      if (!response || !Array.isArray(response.ads)) {
         log('Falha ao obter formato de anúncios');
         return; 
       }
 
-      rawData = response.filter(r => r.some(c => c !== '' && c != null));
+      rawData = response.ads.filter(r => r.some(c => c !== '' && c != null));
       myPhones = response.myPhones || [];
       populatePhoneDropdown(); // <--- INJETA OS TELEMÓVEIS NA LISTA SUSPENSA
       
@@ -63,13 +67,22 @@
   }
 
   function normalizePhone(raw) {
+    if (!raw) return { ok: false };
+        
+    // Limpa absolutamente tudo o que não seja número
+    //const digits = String(raw || '').replace(/\D/g, '');
     const digits = String(raw || '').replace(/\D/g, '').replace(/^0+/, '');
+
+    // Validação mínima (um número português tem pelo menos 9 dígitos)
+    if (digits.length < 9) return { ok: false };
+      
     let d = digits;
-    if (d.length === 9) d = '351' + d;       // PT
-    else if (d.length === 10) d = '00' + d;  // ex.: +33 -> 11 dígitos…
-    else if (d.length === 11) d = '0' + d;
-    if (d.length < 12 || d.length > 15) return { ok:false };
-    const pretty = d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,9)+' '+d.slice(9,12) + (d.length>12 ? (' '+d.slice(12)) : '');
+    if (d.length === 9) d = '351' + d;       // PT (default)
+    else if (d.length === 10) d = '00' + d;  // Outros países
+    else if (d.length === 11) d = '0' + d;  // ex.: +33 -> 11 dígitos no total, com 0 ficam 12
+    else if (d.length < 12 || d.length > 15) return { ok:false }; //Há países com mais de 12 dígitos, mas com menos não pode haver
+    //const pretty = d.slice(0,3)+' '+d.slice(3,6)+' '+d.slice(6,9)+' '+d.slice(9,12) + (d.length>12 ? (' '+d.slice(12)) : '');
+    let pretty = d.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     return { ok:true, digits:d, pretty:pretty };
   }
 

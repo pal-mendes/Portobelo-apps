@@ -46,8 +46,6 @@ var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", seman
 var LIB_NOTIFY = { to:"secretario-direcao@titulares-portobelo.pt", ccAllRows:true };
 
 function __defCfg(cfgParam){
-  //if (g && g.ssTitularesId) return g; // host forneceu cfg
-  //return { ssTitularesId: LIB_SS_TITULARES_ID, ranges: LIB_RANGES, cols: LIB_COLS, notify: LIB_NOTIFY };
   const out = cfgParam || {};
   out.ssTitularesId = out.ssTitularesId || LIB_SS_TITULARES_ID;
   out.ranges = out.ranges || LIB_RANGES;
@@ -423,19 +421,23 @@ function finishAuth_(e, cfg) {
 <div>A redirecionar…</div><script>
 (function(){
   var t = ${JSON.stringify(ticket)};
+  var appUrl = ${JSON.stringify(finalRu)}; // O URL da Web App que gerou o pedido
 
-  // 0) guardar ticket
+  // 1) guardar ticket e cookie na memória local do navegador
   try{ localStorage.setItem('sessTicket', t); }catch(_){}
   try{ document.cookie = 'sessTicket='+encodeURIComponent(t)+'; Path=/; SameSite=Lax; Secure'; }catch(_){}
 
-  // 1) postMessage com o ticket
+  // 2) postMessage com o ticket para tentar avisar a janela mãe (se for popup)
   try{ if (window.opener) window.opener.postMessage({type:'portobelo_ticket', ticket:t}, '*'); }catch(_){}
 
-  // 2) define cookie (mesma origem script.google.com)
-  try{ document.cookie = 'sessTicket='+encodeURIComponent(t)+'; Path=/; SameSite=Lax; Secure'; }catch(_){}
+  // 3) fecha o popup – quem navega é a janela principal via goWithTicket() - suportar iPhone
+  setTimeout(function(){
+    // Tenta fechar a janela primeiro
+    try{ window.close(); }catch(_){}
 
-  // 3) fecha o popup – quem navega é a janela principal via goWithTicket()
-  setTimeout(function(){ try{ window.close(); }catch(_){} }, 200);
+    // Se o código chegou aqui (a janela não fechou), navega à força de volta para a App!
+    window.location.replace(appUrl + "?ticket=" + encodeURIComponent(t));
+  }, 600);
 })();
 </script>`;
 
@@ -461,9 +463,9 @@ function logFailedAccessToSheet_(email, name, saldo, semanas, reason, cfg) {
     let sheet = ss.getSheetByName("Acessos");
     if (!sheet) {
       sheet = ss.insertSheet("Acessos");
-      sheet.appendRow(["Data", "Nome", "Email", "€", "Semanas", "Motivo"]);
+      sheet.appendRow(["Data", "Nome", "Email", "Saldo €", "Semanas", "Motivo", "Web App"]);
     }
-    sheet.appendRow([new Date(), name || "", email || "", saldo !== undefined ? saldo : "", semanas || "", reason || ""]);
+    sheet.appendRow([new Date(), name || "", email || "", saldo !== undefined ? saldo : "", semanas || "", reason || "", cfg.appName || "Desconhecida"]);
   } catch(e) { console.log("Erro a gravar acessos:", e); }
 }
 
@@ -503,7 +505,7 @@ function enforceGates_(email, ticket, DBG, gatesCfg, extLogger){
   // 1) allowlist
   if (!isAllowedEmail_AuthCore_(email)) {
     L('enforceGates_: email not registered');
-	logFailedAccessToSheet_(email, sess.name, "", "", "Não registado na allowlist", gatesCfg);
+	  logFailedAccessToSheet_(email, sess.name, "", "", "Não registado na allowlist", gatesCfg);
     return renderNotAllowed_AuthCore_(email, DBG);
   }
 
@@ -691,17 +693,6 @@ function acceptRgpdForMe(ticket, decision, gatesCfg){
   return { ok:true, changed: changed|0 };
 }
 
-/*
-function isRgpdAcceptedForEmail_AuthCore_(rowsInfo, gatesCfg){
-  gatesCfg = __defCfg(gatesCfg);
-
-  const iRGPD = rowsInfo.iRgpd;
-  if (iRGPD == null) return true; // coluna ainda não criada → não bloquear
-  if (!rowsInfo.rows.length) return false;
-  return rowsInfo.rows.some(r => String(r[iRGPD]||'').trim().toLowerCase().startsWith('s'));
-}
-*/
-
 
 
 // --- helpers privados na biblioteca ---
@@ -760,76 +751,24 @@ function setRgpdForEmail_(emailLC, accept, cfg){
 
 function setRgpdForEmail_AuthCore_(info, cfg, want){
   const sheet = info.range.getSheet(), r0 = info.range.getRow(), c0 = info.range.getColumn(), bodyRows = info.range.getNumRows() - 1;
-  /*
-  cfg = __defCfg(cfg);
-
-  const range   = info.range;                 // A6:V ou equivalente
-  const sheet   = range.getSheet();
-  const nRows   = range.getNumRows();
-  const r0      = range.getRow();
-  const c0      = range.getColumn();
-  const bodyRows = nRows - 1;
-  */
   if (bodyRows <= 0) return 0;
 
-  /*
-  const iEmail  = info.iEmail;
-  const iRGPD   = info.iRGPD;
-  if (iEmail==null || iRGPD==null) throw new Error('Config/colunas RGPD ou e-mail em falta');
 
-  const emailRange = sheet.getRange(r0+1, c0+iEmail, bodyRows, 1);
-  const rgpdRange  = sheet.getRange(r0+1, c0+iRGPD,  bodyRows, 1);
-
-  const emailVals  = emailRange.getDisplayValues();
-  const rgpdVals   = rgpdRange.getValues();
-  */
   const emailVals = sheet.getRange(r0+1, c0+info.iEmail, bodyRows, 1).getDisplayValues();
   const rgpdRange = sheet.getRange(r0+1, c0+info.iRGPD, bodyRows, 1), rgpdVals = rgpdRange.getValues();
   
   let changed = 0;
   for (let i=0; i<bodyRows; i++){
-	/*
-    const emails = String(emailVals[i][0]||'')
-      .split(/[;,]/).map(s=>s.trim().toLowerCase()).filter(Boolean);
-    if (emails.includes(info.emailLC)){
-      const prev = String(rgpdVals[i][0]||'').trim();
-      if (prev !== want){
-        rgpdVals[i][0] = want;
-        changed++;
-      }
+    if (String(emailVals[i][0]||'').split(/[;,]/).map(s=>s.trim().toLowerCase()).includes(info.emailLC)){
+        if (String(rgpdVals[i][0]||'').trim() !== want){ rgpdVals[i][0] = want; changed++; }
     }
-	*/
-	if (String(emailVals[i][0]||'').split(/[;,]/).map(s=>s.trim().toLowerCase()).includes(info.emailLC)){
-      if (String(rgpdVals[i][0]||'').trim() !== want){ rgpdVals[i][0] = want; changed++; }
-	}
   }
   if (changed) { rgpdRange.setValues(rgpdVals); SpreadsheetApp.flush(); }
   return changed;
 }
 
-/*
-function dedupeEmails_AuthCore_(arr){
-  const out=[]; const seen=new Set();
-  (arr||[]).forEach(e=>{ const v=String(e||'').trim().toLowerCase(); if (v && !seen.has(v)){ seen.add(v); out.push(v);} });
-  return out;
-}
 
 
-function renderRgpdPage_AuthCore_(DBG, email, ticket, gatesCfg){
-  gatesCfg = __defCfg(gatesCfg);
-
-  //L('function renderRgpdPage_Authcore_');
-  const t = HtmlService.createTemplateFromFile('RGPD'); // o HTML acima
-  t.CANON_URL = canonicalAppUrl_();           // a tua função já existente que dá o URL canónico
-  t.TICKET = ticket || '';
-  t.DEBUG = DBG ? '1' : '';
-  t.PAGE_TAG = 'RGPD';
-  //t.GATES_CFG_JSON = JSON.stringify(gatesCfg || {}); // passa config do HOST
-  return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-// --- Expansão para a App Anúncios ---
-*/
 function getProfileStats_(ticket, cfg) {
   const sess = requireSession(ticket);
   cfg = __defCfg(cfg);
@@ -838,16 +777,34 @@ function getProfileStats_(ticket, cfg) {
   
   let totalSaldo = 0;
   const idxSaldo = info.ix[cfg.cols.saldo || "Saldo"];
-  if (idxSaldo != null) {
-    for (const r of info.matches) {
+
+  // NOVO: Procurar a coluna dos telefones de forma flexível
+  let idxTel = cfg.cols.telefones ? info.ix[cfg.cols.telefones] : null;
+  if (idxTel == null) idxTel = info.ix["Telefones"];
+  if (idxTel == null) idxTel = info.ix["Telemóvel"];
+  if (idxTel == null) idxTel = info.ix["Telemóveis"];
+  if (idxTel == null) idxTel = 10; // Fallback seguro para a Coluna K (índice 10)
+
+  // NOVO: Guardar as linhas cruas (emails e telefones) para a App Anúncios usar
+  const cardsLinhas = [];
+
+  for (const r of info.matches) {
+    if (idxSaldo != null) {
       totalSaldo += parsePtNumber_AuthCore_(info.values[r][idxSaldo]);
     }
+    
+    cardsLinhas.push({
+      emails: info.iEmail != null ? String(info.values[r][info.iEmail]) : "",
+      telefones: idxTel != null ? String(info.values[r][idxTel]) : ""
+    });
   }
+
   return {
     email: sess.email,
     rgpdState: st.state,      // 'total', 'parcial', 'pendente'
     saldo: totalSaldo,        // Saldo somado
-    hasLines: info.matches.length > 0
+    hasLines: info.matches.length > 0,
+    cardsLinhas: cardsLinhas  // A magia volta a acontecer aqui!
   };
 }
 

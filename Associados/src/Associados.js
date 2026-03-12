@@ -3,6 +3,153 @@
 // Associados.gs
 // =========================
 
+/*************************
+ * 
+ * Utilizado para fórmulas a usar no spreadsheet, mas também para a web app
+ * 
+ ************************/
+
+
+
+// ====================================================================
+// FUNÇÕES PERSONALIZADAS PARA O GOOGLE SHEETS
+// ====================================================================
+
+/**
+ * Helper interno para extrair o preço correto de um determinado ano
+ */
+function getPrecosAno_(ano, matrizQuotas) {
+  // matrizQuotas é o range Quotas!A2:D
+  let t0 = 0, t1 = 0, t2 = 0;
+  for (let i = 0; i < matrizQuotas.length; i++) {
+    let row = matrizQuotas[i];
+    if (!row[0]) continue; // linha vazia
+    let rowAno = new Date(row[0]).getFullYear();
+    if (rowAno <= ano) {
+      t0 = Number(row[1]) || 0;
+      t1 = Number(row[2]) || 0;
+      t2 = Number(row[3]) || 0;
+    }
+  }
+  return { t0, t1, t2 };
+}
+
+/**
+ * Calcula a Quota do Ano.
+ * Uso no Sheets: =CALCULAR_QUOTA(F7; G7; H7; YEAR(TODAY()); Quotas!$A$2:$D$3)
+ *
+ * @customfunction
+ */
+function CALCULAR_QUOTA(numT0, numT1, numT2, anoAtual, matrizQuotas) {
+  numT0 = Number(numT0) || 0; numT1 = Number(numT1) || 0; numT2 = Number(numT2) || 0;
+  if (!anoAtual) anoAtual = new Date().getFullYear();
+  
+  const p = getPrecosAno_(anoAtual, matrizQuotas);
+  return (numT0 * p.t0) + (numT1 * p.t1) + (numT2 * p.t2);
+}
+
+/**
+ * Calcula a Jóia de entrada.
+ * Uso no Sheets: =CALCULAR_JOIA(F7; G7; H7; E7; Quotas!$A$2:$D$3)
+ * 
+ * 
+ * =LET(
+    join_raw; E7;
+    adj; IF(join_raw<DATE(2025;3;26); DATE(2025;3;26); join_raw);
+    y; YEAR(adj);
+    m; MONTH(adj);
+    qnum; INT((m-1)/3)+1;
+    qstart; DATE(y; (qnum-1)*3+1; 1);
+    full_quarters; 5 - qnum - N(adj>qstart);
+    base; O7 * full_quarters / 4;
+    IF(C7<1; 0; FLOOR(base; 0,05))
+  )
+ * 
+ *
+ * @customfunction
+ */
+function CALCULAR_JOIA(numT0, numT1, numT2, dataAdesaoRaw, matrizQuotas) {
+  numT0 = Number(numT0) || 0; numT1 = Number(numT1) || 0; numT2 = Number(numT2) || 0;
+  if (numT0 + numT1 + numT2 === 0) return 0;
+
+  let dataAdesao = new Date(dataAdesaoRaw);
+  if (isNaN(dataAdesao.getTime())) return 0;
+
+  // Tudo o que é anterior a 26/03/2025 conta como tendo aderido nessa data
+  const minDate = new Date(2025, 2, 26); 
+  if (dataAdesao < minDate) dataAdesao = minDate;
+
+  const ano = dataAdesao.getFullYear();
+  const mes = dataAdesao.getMonth() + 1;
+  const qnum = Math.floor((mes - 1) / 3) + 1;
+  const qstart = new Date(ano, (qnum - 1) * 3, 1);
+  const afterQstart = dataAdesao.getTime() > qstart.getTime() ? 1 : 0;
+  const fullQuarters = 5 - qnum - afterQstart;
+
+  const p = getPrecosAno_(ano, matrizQuotas);
+  const cotaAnual = (numT0 * p.t0) + (numT1 * p.t1) + (numT2 * p.t2);
+  
+  const base = (cotaAnual * fullQuarters) / 4;
+  return Math.floor(base / 0.05) * 0.05; // Arredondamento da Jóia aos 5 cêntimos
+}
+
+/**
+ * Calcula a Quotização Total (Jóia + Quotas anuais completas até ao ano atual).
+ * Uso no Sheets: =CALCULAR_QUOTIZACAO(F7; G7; H7; E7; YEAR(TODAY()); Quotas!$A$2:$D$20)
+ *
+ * @customfunction
+ */
+function CALCULAR_QUOTIZACAO(numT0, numT1, numT2, dataAdesaoRaw, anoAtual, matrizQuotas) {
+  numT0 = Number(numT0) || 0; numT1 = Number(numT1) || 0; numT2 = Number(numT2) || 0;
+  let total = CALCULAR_JOIA(numT0, numT1, numT2, dataAdesaoRaw, matrizQuotas);
+  
+  let dataAdesao = new Date(dataAdesaoRaw);
+  if (isNaN(dataAdesao.getTime())) return total;
+
+  const minDate = new Date(2025, 2, 26); 
+  if (dataAdesao < minDate) dataAdesao = minDate;
+
+  // O primeiro ano completo de quotas é o ano seguinte ao da adesão (que pagou jóia)
+  let primeiroAnoCheio = dataAdesao.getFullYear() + 1;
+  if (!anoAtual) anoAtual = new Date().getFullYear();
+
+  for (let ano = primeiroAnoCheio; ano <= anoAtual; ano++) {
+    let p = getPrecosAno_(ano, matrizQuotas);
+    total += (numT0 * p.t0) + (numT1 * p.t1) + (numT2 * p.t2);
+  }
+  
+  return total;
+}
+
+/**
+ * Calcula o Saldo (Pagamentos - Quotização Total).
+ * Uso no Sheets: =CALCULAR_SALDO(C7; F7; G7; H7; E7; YEAR(TODAY()); Quotas!$A$2:$D$3)
+ *
+=LET(
+  join_raw; E7;
+  join; IF(join_raw<DATE(2025;3;26); DATE(2025;3;26); join_raw);
+  thisYear; YEAR(NOW());
+  firstDue; YEAR(join)+1;
+  yearsDue; MAX(0; thisYear-firstDue+1);
+  if(C7<1;0;C7 - P7 - yearsDue*O7)
+)
+ * @customfunction
+ */
+function CALCULAR_SALDO(valorPago, numT0, numT1, numT2, dataAdesaoRaw, anoAtual, matrizQuotas) {
+  valorPago = Number(valorPago) || 0;
+  const devidas = CALCULAR_QUOTIZACAO(numT0, numT1, numT2, dataAdesaoRaw, anoAtual, matrizQuotas);
+  return valorPago - devidas;
+}
+// ====================================================================
+
+
+
+
+
+
+
+
+
 /*
 
   SSO entre apps: se quiseres que um login numa app valha na outra,
@@ -48,6 +195,8 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
+const VERSION = "v1.1";
+
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
 const SS_ANUNCIOS_ID  = "1oacSvYMYrcJeaUV9XFLcylrAX2PJGodGjpeeHl96Smo";
@@ -59,7 +208,7 @@ const RANGES = {
   titulares: { name: "tblTitulares", sheet: "Titulares", a1: "A6:V" },
   anuncios:  { name: "tbl",         sheet: "Anúncios",   a1: "A4:J" },
   ips:       { name: "tblIPS",      sheet: "IPS",        a1: "A4:M" },
-  quotas:    { name: "tblQuotas",   sheet: "Quotas",     a1: "A2:L" },
+  transacoes:    { name: "tblTransacoes",   sheet: "Transações",     a1: "A2:L" },
 };
 
 // Cabeçalhos esperados
@@ -72,9 +221,9 @@ const COLS_TITULARES = {
   L_EMAIL: "e-mail",
   M_ESTADO: "Estado",
   RGPD: "RGPD",
-  N_QUOTA: "Quota",
-  O_JOIA: "Jóia",
-  P_SALDO: "Saldo",
+  O_QUOTA: "Quota",
+  P_JOIA: "Jóia",
+  Q_SALDO: "Saldo",
 };
 
 const COLS_IPS = {
@@ -97,7 +246,6 @@ function authCfg_() {
   return {
     clientId:     sp.getProperty("CLIENT_ID"),
     clientSecret: sp.getProperty("CLIENT_SECRET"),
-    redirectUri:  sp.getProperty("REDIRECT_URI") || canon,
   };
 }
 function buildAuthUrlFor(nonce, dbg, embed, clientUrl) { return AuthCoreLib.buildAuthUrlFor(nonce, dbg, embed, authCfg_(), clientUrl); }
@@ -157,6 +305,7 @@ function gatesCfg_(){
     cols:   { email: COLS_TITULARES.L_EMAIL, rgpd: COLS_TITULARES.RGPD, pago: COLS_TITULARES.C_PAGO },
     notify: { to: "secretario-direcao@titulares-portobelo.pt", ccAllRows: true },
     canon: canon,
+    appName: "Associados",
   };
 }
 
@@ -286,216 +435,7 @@ function listWeeksForEmail_(email){
 }
 function isWeekOfEmail_(email, week){ return listWeeksForEmail_(email).includes(String(week||"").trim()); }
 
-
-
 // ===== Acesso/allowlist/rgpd =====
-
-/*
-// Lista as linhas de "Titulares" do utilizador logado com o estado RGPD atual.
-// Devolve {row, semanas, rgpd} onde "row" é o número de linha real na folha.
-function listRgpdRowsFor(ticket) {
-  const sess = AuthCoreLib.requireSession(ticket);
-  const emailLC = String(sess.email||"").trim().toLowerCase();
-
-  const ss = SpreadsheetApp.openById(SS_TITULARES_ID);
-  let tableR = null;
-  try { if (RANGES.titulares.name) tableR = ss.getRangeByName(RANGES.titulares.name); } catch(_){}
-  if (!tableR) tableR = ss.getSheetByName(RANGES.titulares.sheet).getRange(RANGES.titulares.a1);
-
-  const sheet  = tableR.getSheet();
-  const r0     = tableR.getRow();    // 1-based (c/ cabeçalho)
-  const c0     = tableR.getColumn(); // 1-based
-  const nRows  = tableR.getNumRows();
-  const nCols  = tableR.getNumColumns();
-  if (nRows <= 1) return [];
-
-  const values = tableR.getDisplayValues(); // inclui cabeçalho
-  const header = values[0].map(v => String(v).trim());
-  const col = {}; header.forEach((h,i)=> col[h]=i);
-
-  const iEmail = col[COLS_TITULARES.L_EMAIL];
-  const iSem   = col[COLS_TITULARES.D_SEMANAS];
-  const iRGPD  = col[COLS_TITULARES.RGPD];
-
-  if (iEmail==null || iSem==null || iRGPD==null) return [];
-
-  const out = [];
-  for (let i = 1; i < nRows; i++) { // corpo
-    const rowVals = values[i];
-    const hasEmail = cellHasEmail_(rowVals[iEmail], emailLC);
-    if (!hasEmail) continue;
-    const sheetRow = r0 + i; // linha real na folha
-    const semanas  = rowVals[iSem] || "";
-    const rgpd     = String(rowVals[iRGPD]||"").trim().toLowerCase()==="sim";
-    out.push({ row: sheetRow, semanas, rgpd });
-  }
-  return out;
-}
-*/
-
-/*
-// Grava RGPD por linha: "acceptedRows" = array de números de linha (1-based na folha)
-// Para as linhas do utilizador que NÃO estão em acceptedRows → limpa RGPD.
-function setRgpdRowsFor(ticket, acceptedRows) {
-  const sess = AuthCoreLib.requireSession(ticket);
-  const emailLC = String(sess.email||"").trim().toLowerCase();
-  acceptedRows = Array.isArray(acceptedRows) ? acceptedRows.map(Number) : [];
-
-  const ss = SpreadsheetApp.openById(SS_TITULARES_ID);
-  let tableR = null;
-  try { if (RANGES.titulares.name) tableR = ss.getRangeByName(RANGES.titulares.name); } catch(_){}
-  if (!tableR) tableR = ss.getSheetByName(RANGES.titulares.sheet).getRange(RANGES.titulares.a1);
-
-  const sheet  = tableR.getSheet();
-  const r0     = tableR.getRow();
-  const c0     = tableR.getColumn();
-  const nRows  = tableR.getNumRows();
-  if (nRows <= 1) return { ok:true, touched:0 };
-
-  const header = tableR.getValues()[0].map(v => String(v).trim());
-  const col = {}; header.forEach((h,i)=> col[h]=i);
-  const iEmail = col[COLS_TITULARES.L_EMAIL];
-  const iRGPD  = col[COLS_TITULARES.RGPD];
-  const iSem   = col[COLS_TITULARES.D_SEMANAS]; // Puxar as semanas para formatar no e-mail
-  if (iEmail==null || iRGPD==null || iSem==null) throw new Error('Cabeçalhos "e-mail", "Semanas" ou "RGPD" em falta.');
-
-  const bodyRows = nRows - 1;
-  const emailRange = sheet.getRange(r0+1, c0+iEmail, bodyRows, 1);
-  const rgpdRange  = sheet.getRange(r0+1, c0+iRGPD,  bodyRows, 1);
-
-  const semRange   = sheet.getRange(r0+1, c0+iSem,   bodyRows, 1);
-  const emailVals = emailRange.getDisplayValues();
-  const rgpdVals  = rgpdRange.getValues();
-
-
-  const semVals   = semRange.getDisplayValues();
-
-  let touched = 0;
-  let acceptedSemanas = [];
-  for (let i=0; i<bodyRows; i++){
-    const sheetRow = r0 + 1 + i;
-    const hasEmail = cellHasEmail_(emailVals[i][0], emailLC);
-    if (!hasEmail) continue;
-
-    const wantAccept = acceptedRows.includes(sheetRow);
-    const curr = String(rgpdVals[i][0]||"");
-    const next = wantAccept ? "Sim" : "Não";
-
-    if (curr !== next) {
-      rgpdVals[i][0] = next;
-      touched++;
-    }
-	
-    // Se o utilizador aceitou esta linha (neste momento ou já antes), guardamos a info para o e-mail
-    if (wantAccept) {
-      const rawSemanas = semVals[i][0] || "";
-      // Formatação exata como na interface (separadas por " · ")
-      const formatted = String(rawSemanas).split(/[+,\s]+/).filter(Boolean).join(" · ");
-      if (formatted) acceptedSemanas.push(formatted);
-    }
-  }
-  if (touched) {
-    rgpdRange.setValues(rgpdVals);
-    
-    // NOVO: Notificar por e-mail descritivo com o RGPD das semanas
-    try {
-      const toEmail = gatesCfg_().notify.to || "secretario-direcao@titulares-portobelo.pt";
-      const subject = "[Associados] Atualização de RGPD - " + sess.email;
-      
-      let bodyText = "O associado " + sess.email + " (" + (sess.name || "Sem Nome") + ") atualizou as suas preferências de RGPD.\n\n";
-      
-      if (acceptedSemanas.length > 0) {
-        bodyText += acceptedSemanas.map(sem => "Aceitada a linha com as semanas: " + sem).join("\n") + "\n\n";
-      } else {
-        bodyText += "Nenhuma linha aceite (Rejeitado para todas as semanas).\n\n";
-      }
-      
-      bodyText += "As restantes linhas deste utilizador (se aplicável) foram marcadas como NÃO aceites.\n";
-      bodyText += "Esta mensagem foi gerada automaticamente pela aplicação.";
-      
-      MailApp.sendEmail(toEmail, subject, bodyText);
-      dbgLog('[RGPD] E-mail enviado para: ' + toEmail);
-    } catch (err) {
-      dbgLog('[RGPD] Erro ao enviar e-mail: ' + err.message);
-    }
-  }
-  
-  dbgLog('[RGPD] setRgpdRowsFor email=', sess.email, 'accepted=', JSON.stringify(acceptedRows), 'touched=', touched);
-  return { ok:true, touched };
-}
-*/
-
-/*
-function rgpdStatsForEmail_(email){
-  const emailLC = String(email||"").trim().toLowerCase();
-  const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
-  const col = indexByHeader_(header);
-  const iEmail = col[COLS_TITULARES.L_EMAIL];
-  const iRGPD  = col[COLS_TITULARES.RGPD];
-  if (iEmail==null || iRGPD==null) return { total:0, sim:0, all:false };
-  let total=0, sim=0;
-  rows.forEach(r=>{
-    if (cellHasEmail_(r[iEmail], emailLC)){
-      total++;
-      if (String(r[iRGPD]||"").trim().toLowerCase()==="sim") sim++;
-    }
-  });
-  return { total, sim, all: total>0 && sim===total };
-}
-*/
-
-//function isRgpdAllAccepted_(email){ return rgpdStatsForEmail_(email).all; }
-
-/*
-// Marca RGPD="Sim" em todas as linhas desse email — sem tocar noutras colunas
-function setRgpdAcceptedForEmail_(email){
-  const emailLC = String(email||"").trim().toLowerCase();
-
-  const ss    = SpreadsheetApp.openById(SS_TITULARES_ID);
-  // range da tabela (inclui cabeçalho)
-  let tableR = null;
-  try { if (RANGES.titulares.name) tableR = ss.getRangeByName(RANGES.titulares.name); } catch(_){}
-  if (!tableR) tableR = ss.getSheetByName(RANGES.titulares.sheet).getRange(RANGES.titulares.a1);
-
-  const sheet   = tableR.getSheet();
-  const nRows   = tableR.getNumRows();
-  const nCols   = tableR.getNumColumns();
-  const r0      = tableR.getRow();    // 1-based
-  const c0      = tableR.getColumn(); // 1-based
-
-  // descobrir índices das colunas
-  const header  = tableR.getValues()[0].map(v => String(v).trim());
-  const colIdx  = {}; header.forEach((h,i)=> colIdx[h]=i);
-  const iEmail  = colIdx[COLS_TITULARES.L_EMAIL];
-  const iRGPD   = colIdx[COLS_TITULARES.RGPD];
-  if (iEmail==null) throw new Error('Coluna "e-mail" não encontrada em Titulares');
-  if (iRGPD==null)  throw new Error('Coluna "RGPD" não encontrada em Titulares');
-
-  // sub-ranges só do corpo (exclui cabeçalho)
-  const bodyRows = nRows - 1;
-  if (bodyRows <= 0) return 0;
-
-  const emailRange = sheet.getRange(r0+1, c0+iEmail, bodyRows, 1);
-  const rgpdRange  = sheet.getRange(r0+1, c0+iRGPD,  bodyRows, 1);
-
-  const emailVals  = emailRange.getDisplayValues(); // string já “renderizada” é suficiente
-  const rgpdVals   = rgpdRange.getValues();
-
-  let touched = 0;
-  for (let i=0; i<bodyRows; i++){
-    const emails = String(emailVals[i][0]||'')
-      .split(/[;,]/).map(s=>s.trim().toLowerCase()).filter(Boolean);
-    if (emails.includes(emailLC)){
-      if (String(rgpdVals[i][0]||'') !== 'Sim'){
-        rgpdVals[i][0] = 'Sim';
-        touched++;
-      }
-    }
-  }
-  if (touched) rgpdRange.setValues(rgpdVals); // <-- escreve SÓ a coluna RGPD
-  return touched;
-}
-*/
 
 function parseAllowlist_(){
   const csv = (PropertiesService.getScriptProperties().getProperty("ALLOWLIST_CSV") || "");
@@ -585,19 +525,28 @@ function buildAssociadosView_(loginEmail){
     const telef     = r[col[H.K_TEL]]    || "";
     const emails    = r[col[H.L_EMAIL]]  || "";
     const estado    = col[H.M_ESTADO] >= 0 ? r[col[H.M_ESTADO]] || "" : "";
-    const quota     = r[col[H.N_QUOTA]] || "";
-    const joia      = r[col[H.O_JOIA]]  || "";
-    const saldo     = r[col[H.P_SALDO]] || "";
+    const quota     = r[col[H.O_QUOTA]] || "";
+    const joia      = r[col[H.P_JOIA]]  || "";
+    const saldo     = r[col[H.Q_SALDO]] || "";
 
     const rgpdOk    = String(r[col[H.RGPD]]||"").trim().toLowerCase()==="sim";
-    const saldoNum  = parsePtNumber_(saldo);
-    const saldoNeg  = saldoNum < 0;
 
-    // Totais (por linha)
-    tot.pago  += parsePtNumber_(pago);
-    tot.quota += parsePtNumber_(quota);
-    tot.joia  += parsePtNumber_(joia);
-    tot.saldo += parsePtNumber_(saldo);
+    // Obter valores numéricos para efetuar a matemática
+    const pagoNum  = parsePtNumber_(pago);
+    const quotaNum = parsePtNumber_(quota);
+    const joiaNum  = parsePtNumber_(joia);
+    const saldoNum = parsePtNumber_(saldo);
+    const saldoNeg = saldoNum < 0;
+
+    // A Quotização Total é simplesmente tudo o que já se pagou menos o saldo (positivo ou negativo)
+    const quotizacaoNum = pagoNum - saldoNum;
+
+    // Atualizar Acumuladores Globais
+    tot.pago       += pagoNum;
+    tot.quota      += quotaNum;
+    tot.joia       += joiaNum;
+    tot.saldo      += saldoNum;
+    tot.quotizacao = (tot.quotizacao || 0) + quotizacaoNum;
 
     allPhones.push(...splitPhones_(telef));
     const fp = getFirstPhone_(telef); if (fp) firstPhones.push(fp);
@@ -611,6 +560,7 @@ function buildAssociadosView_(loginEmail){
     cards.push({
       semanas, t0, t1, t2, adesaoRaw, estado, dataIPS, statIPS, primIPS, outIPS,
       nomes, emails, telefones: telef, pago, quota, joia, saldo,
+      uotizacao: quotizacaoNum,
       rgpdOk, saldoNeg
     });
   });
@@ -1028,7 +978,6 @@ function debugAuthConfig(){
   return {
     CLIENT_ID_present: !!cfg.clientId,
     CLIENT_SECRET_present: !!cfg.clientSecret,
-    REDIRECT_URI: cfg.redirectUri,
     sampleAuthUrl: AuthCoreLib.buildAuthUrlFor("diag-"+Date.now(), false, false, cfg),
   };
 }
@@ -1039,7 +988,6 @@ function dumpScriptProps(){
     keys: Object.keys(sp.getProperties()).sort(),
     CLIENT_ID_present: !!cfg.clientId,
     CLIENT_SECRET_present: !!cfg.clientSecret,
-    REDIRECT_URI: cfg.redirectUri,
     sampleAuthUrl: AuthCoreLib.buildAuthUrlFor("diag-"+Date.now(), false, false, cfg),
   };
 }
