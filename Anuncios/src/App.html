@@ -399,96 +399,69 @@ function renderMyAdsUI() {
   }
 
   function setupFilters() {
-    const headerRow = document.getElementById('header-row');
-    headerRow.innerHTML = '';
-    const headers = ['Anúncio','Tipo','Telemóvel','Descrição com data de ocupação','Entrada'];
-    const filterTypes = ['none','dropdown','dropdown','input','dropdown'];
-
-    headers.forEach((h, i) => {
-      const th = document.createElement('th');
-      th.classList.add('sortable');
-      th.innerHTML = h + ' <span class="sort-icon"></span>';
-      th.addEventListener('click', () => {
-        if (sortColumn === i) sortDirection *= -1; else { sortColumn = i; sortDirection = 1; }
-        updateSortIcons();
-        applyFilters();
-      });
-      headerRow.appendChild(th);
-    });
-
-    const filterRow = document.querySelector('.filter-row');
-    if (filterRow) {
-      filterRow.innerHTML = '';
-      headers.forEach((_, i) => {
-        const th = document.createElement('th');
-        if (filterTypes[i] === 'dropdown') {
-          const select = document.createElement('select');
-          let unique = [...new Set(rawData.map(row => formatCell(row[i], i)))];
-          if (i === 2) { // Telemóvel: ordenar por dígitos
-            unique.sort((a,b) => (a||'').replace(/\s+/g,'').localeCompare((b||'').replace(/\s+/g,''), undefined, { numeric: true }));
-          } else {
-            unique.sort();
-          }
-          if (i === 4 && !unique.includes('')) unique.push('');
-          let options = '<option value="">Todos</option>';
-          unique.forEach(function(val){ options += '<option>' + (val === '' ? '[Vazio]' : val) + '</option>'; });
-          select.innerHTML = options;
-          select.addEventListener('change', applyFilters);
-          th.appendChild(select);
-        } else if (filterTypes[i] === 'input') {
-          const input = document.createElement('input');
-          input.placeholder = 'Filtrar';
-          input.addEventListener('input', applyFilters);
-          th.appendChild(input);
+    const inputs = ['filtroAnuncio', 'filtroTipo', 'filtroTelefone', 'filtroDescricao', 'filtroEntrada'];
+     inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+           el.addEventListener('input', applyFilters);
+           if (el.tagName === 'SELECT') el.addEventListener('change', applyFilters);
         }
-        filterRow.appendChild(th);
-      });
-    }
+     });
   }
 
   function updateSortIcons() {
-    const headerCells = document.querySelectorAll('#header-row th');
-    headerCells.forEach((th, i) => {
-      const icon = th.querySelector('.sort-icon');
-      if (!icon) return;
-      if (i === sortColumn) icon.textContent = (sortDirection === 1 ? '▲' : '▼');
-      else icon.textContent = '';
-    });
+    const icons = document.querySelectorAll('#header-row .sort-icon');
+     icons.forEach((icon, index) => {
+        if (index === sortColumn) {
+           icon.innerHTML = sortDirection === 1 ? '&#9660;' : '&#9650;'; // V (▼) ou V Invertido (▲)
+           icon.style.color = '#111';
+        } else {
+           icon.innerHTML = '&#8597;'; // Seta neutra (↕)
+           icon.style.color = '#ccc';
+        }
+     });
   }
 
+  window.ordenarTabela = function(colIndex) {
+     if (sortColumn === colIndex) {
+        sortDirection *= -1; // Se já está nesta coluna, inverte
+     } else {
+        sortColumn = colIndex;
+        sortDirection = 1; // Nova coluna, começa com V (crescente)
+     }
+     updateSortIcons();
+     applyFilters();
+  };
+
   function applyFilters() {
-    let filteredData = rawData.slice();
+    const fAnuncio = (document.getElementById('filtroAnuncio')?.value || '').toLowerCase();
+     const fTipo = (document.getElementById('filtroTipo')?.value || '').toLowerCase();
+     const fTelefone = (document.getElementById('filtroTelefone')?.value || '').toLowerCase();
+     const fDescricao = (document.getElementById('filtroDescricao')?.value || '').toLowerCase();
+     const fEntrada = (document.getElementById('filtroEntrada')?.value || '').toLowerCase();
 
-    const filterRow = document.querySelector('.filter-row');
-    const filters = Array.from(filterRow.querySelectorAll('input, select')).map(el => (el.value||'').trim().toLowerCase());
+     let filtered = rawData.filter(row => {
+        if (fAnuncio && !String(row[0]).toLowerCase().includes(fAnuncio)) return false;
+        if (fTipo && !String(row[1]).toLowerCase().includes(fTipo)) return false;
+        if (fTelefone && !String(row[2]).toLowerCase().replace(/\s/g,'').includes(fTelefone.replace(/\s/g,''))) return false;
+        if (fDescricao && !String(row[3]).toLowerCase().includes(fDescricao)) return false;
+        if (fEntrada && !String(row[4]).toLowerCase().includes(fEntrada)) return false;
+        return true;
+     });
 
-    filteredData = filteredData.filter(row => {
-      return row.every((cell, idx) => {
-        if (idx === 0) return true; // não há filtro na primeira coluna (data)
-        const filter = filters[idx-1];
-        if (!filter) return true;
-        const formatted = (formatCell(cell, idx) || '').toString().toLowerCase();
-        if (filter === '[vazio]') return formatted === '';
-        return formatted.includes(filter);
-      });
-    });
+     // Aplica a ordenação selecionada pelas setas
+     if (sortColumn >= 0) {
+        filtered.sort((a, b) => {
+           let valA = String(a[sortColumn] || '').toLowerCase();
+           let valB = String(b[sortColumn] || '').toLowerCase();
+           if (valA < valB) return -1 * sortDirection;
+           if (valA > valB) return 1 * sortDirection;
+           return 0;
+        });
+     }
 
-    if (sortColumn >= 0) {
-      filteredData.sort((a, b) => {
-        let valA = a[sortColumn], valB = b[sortColumn];
-        if (sortColumn === 0) { valA = new Date(valA); valB = new Date(valB); }
-        if (valA instanceof Date && !isNaN(valA) && valB instanceof Date && !isNaN(valB)) {
-          return (valA.getTime() - valB.getTime()) * sortDirection;
-        }
-        if (valA > valB) return sortDirection;
-        if (valA < valB) return -sortDirection;
-        return 0;
-      });
-    }
-
-    createTable(filteredData);
-    const contador = document.getElementById('contador');
-    if (contador) contador.textContent = 'Mostrando ' + filteredData.length + ' anúncios';
+     // renderTable é a sua função original que desenha as linhas da tabela no ecrã
+     renderTable(filtered);
   }
 
   function createTable(data) {

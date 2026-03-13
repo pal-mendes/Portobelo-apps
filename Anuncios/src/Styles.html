@@ -9,7 +9,21 @@
 }
 @keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
 
-body { margin: 0; background-color: #f9f9f9; }
+/* 1. Remove as margens de 6mm a toda a volta (Ocupa 100% do telemóvel) */
+body, html { margin: 0 !important; padding: 0 !important; width: 100%; overflow-x: hidden; }
+.fixed-header { width: 100%; box-sizing: border-box; }
+
+/* 2. O Segredo dos Filtros-Cabeçalho Camuflados */
+.th-filter-input, .th-filter-select {
+    width: 100%; border: none; background: transparent; 
+    font-size: 14px; color: #111; font-family: inherit; padding: 0; outline: none; box-sizing: border-box;
+}
+.th-filter-input::placeholder { color: #666; font-weight: 600; opacity: 1; }
+.th-filter-input:focus::placeholder { color: #aaa; }
+
+.th-filter-select { font-weight: 600; color: #666; appearance: none; cursor: pointer; }
+.th-filter-select.active { color: #111; font-weight: normal; }
+.th-filter-select option { color: #111; font-weight: normal; }
 
 h2 { margin: 0; font-size: 24px; }
 
