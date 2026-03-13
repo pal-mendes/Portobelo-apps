@@ -464,6 +464,49 @@ function renderMyAdsUI() {
      renderTable(filtered);
   }
 
+  // FUNÇÃO QUE DESENHA A TABELA NO ECRÃ
+  function renderTable(data) {
+     const tbody = document.querySelector('table tbody');
+     if (!tbody) {
+        console.error("Erro fatal: A etiqueta <tbody> não foi encontrada no Main.html!");
+        return;
+     }
+     
+     tbody.innerHTML = ''; // Limpa as linhas antigas
+     
+     // Atualiza o contador de anúncios visíveis lá em cima
+     const contador = document.getElementById('contador');
+     if (contador) contador.textContent = `Total: ${data.length} anúncio(s)`;
+     
+     if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 30px; text-align: center; color: #777; font-size: 15px;">Nenhum anúncio encontrado com estes filtros.</td></tr>';
+        return;
+     }
+     
+     // Desenha as linhas novas
+     data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #eaeaea';
+        
+        row.forEach((cellText, index) => {
+           const td = document.createElement('td');
+           td.style.padding = '12px 8px';
+           td.style.verticalAlign = 'top';
+           td.style.fontSize = '14px';
+           td.style.color = '#333';
+           
+           // A primeira coluna (Data) e a última (Entrada) não devem quebrar de linha
+           if (index === 0 || index === 4) {
+               td.style.whiteSpace = 'nowrap';
+           }
+           
+           td.textContent = cellText;
+           tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+     });
+  }
+
   function createTable(data) {
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';

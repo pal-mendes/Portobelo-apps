@@ -11,7 +11,6 @@
 
 /* 1. Remove as margens de 6mm a toda a volta (Ocupa 100% do telemóvel) */
 body, html { margin: 0 !important; padding: 0 !important; width: 100%; overflow-x: hidden; }
-.fixed-header { width: 100%; box-sizing: border-box; }
 
 /* 2. O Segredo dos Filtros-Cabeçalho Camuflados */
 .th-filter-input, .th-filter-select {
@@ -24,6 +23,25 @@ body, html { margin: 0 !important; padding: 0 !important; width: 100%; overflow-
 .th-filter-select { font-weight: 600; color: #666; appearance: none; cursor: pointer; }
 .th-filter-select.active { color: #111; font-weight: normal; }
 .th-filter-select option { color: #111; font-weight: normal; }
+
+/* 3. A MAGIA DA JANELA FLUTUANTE (Modal do Formulário) */
+#formulario {
+    position: fixed !important;
+    top: 30px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 94% !important;
+    max-width: 600px !important;
+    max-height: calc(100vh - 60px) !important;
+    overflow-y: auto !important;
+    background: #ffffff !important;
+    padding: 25px !important;
+    /* O box-shadow gigante cria o fundo escuro transparente por trás da janela! */
+    box-shadow: 0 0 0 100vw rgba(0,0,0,0.6), 0 15px 35px rgba(0,0,0,0.3) !important;
+    z-index: 9999 !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+}
 
 h2 { margin: 0; font-size: 24px; }
 

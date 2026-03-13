@@ -81,7 +81,7 @@ function findTelefoneIndex(numero) {
 **********************************************/
 
 
-const VERSION = "v6.1";
+const VERSION = "v6.3";
 
 // Folhas pertencentes APENAS a esta App
 const ANUNCIOS_SHEET = "Anúncios";
