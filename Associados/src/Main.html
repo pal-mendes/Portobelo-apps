@@ -285,7 +285,13 @@
 
   <body>
     <div class="header">
-      <div class="title">Área do Associado</div>
+      <a class="icon-btn" href="https://titulares-portobelo.pt" target="_top" title="Início" style="color: #333; display: flex; align-items: center;">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
+      </a>
+      <div class="title">
+        Área do Associado
+        <span style="font-size: 13px; color: #666; font-weight: normal;">(<?= VERSION ?>)</span>
+      </div>
       <div id="header-actions">
         <div class="small muted" id="who"></div>
         <a href="#" id="btn-logout" class="btn" style="font-size: 13px; padding: 4px 10px; border-color: #ccc;">Sair</a>
@@ -314,6 +320,8 @@
     </div>
 
     <script>
+      const VERSION = "<?= VERSION ?>";
+
       (function () {        
         // 1) persistir ticket e limpar o query ?ticket=
         (function () {
@@ -705,7 +713,7 @@
           </div>
           
           <div class="card muted small wraptext" style="background: #f9fafb; border-color: #d1d5db; line-height: 1.6; margin-top: 0;">
-            A quotização representa a soma da jóia e das quotas de cada ano desde a adesão. O seu pagamento pode ser feito por MB WAY ou Revolut para o número <b>+351 967 012 590</b>, ou através do IBAN <b>PT50 0018 0238 0020 0021 976 46</b> (dado ainda não existir conta bancária da associação). Por favor, indique no descritivo pelo menos uma das suas semanas (104/30, por exemplo).
+            A quotização total representa a soma da jóia e das quotas de cada ano desde a adesão. O seu pagamento pode ser feito por MB WAY ou Revolut para o número <b>+351 967 012 590</b>, ou através do IBAN <b>PT50 0018 0238 0020 0021 976 46</b> (dado ainda não existir conta bancária da associação). Por favor, indique no descritivo pelo menos uma das suas semanas (104/30, por exemplo).
           </div>`;
 
             $("#content").innerHTML = quotasHtml + cardsHtml + totalsHtml;

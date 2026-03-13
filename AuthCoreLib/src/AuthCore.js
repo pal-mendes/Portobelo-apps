@@ -371,15 +371,31 @@ function finishAuth_(e, cfg) {
   
   var status = resp.getResponseCode(),
     body = resp.getContentText();
-  //if (status < 200 || status >= 300) {
-  if (status >= 300) {
-    return HtmlService.createHtmlOutput(
-      "<pre>Falha a trocar o código por token (" +
-        status +
-        "):\n" +
-        body +
-        "</pre>",
-    );
+  // 400 Bad Request ou 401 Unauthorized
+  // a boa prática padrão (Standard) é aceitar qualquer código da "família dos 200" (2xx) como sucesso.
+  // Algumas APIs podem devolver 201 Created (Criado) ou 204 No Content (Sem conteúdo), que são sucessos
+  //if (status !== 200) {
+  //if (status >= 300) {
+  if (status < 200 || status >= 300) {
+    const errHtml = `<!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 30px 20px; text-align: center; color: #111; line-height: 1.5; max-width: 500px; margin: 0 auto; }
+      .box { background: #fee2e2; border: 1px solid #f87171; border-radius: 12px; padding: 20px; margin-top: 20px; }
+    </style>
+    </head><body>
+      <h2>Autenticação interrompida</h2>
+      <div class="box">
+        <p style="color: #991b1b; font-weight: 500; margin-top: 0;">O código de segurança expirou ou já foi utilizado.</p>
+        <p style="color: #7f1d1d; font-size: 14px; margin-bottom: 0;">Isto acontece frequentemente se a página for recarregada (refresh) durante o processamento no telemóvel.</p>
+      </div>
+      <p style="margin-top: 30px;"><b>Por favor, feche esta janela/aba e inicie o processo de login novamente na Área do Associado.</b></p>
+      <script>
+        setTimeout(function(){ try { window.close(); } catch(e){} }, 4000);
+      </script>
+    </body></html>`;
+    
+    return HtmlService.createHtmlOutput(errHtml).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
   var tok = {};

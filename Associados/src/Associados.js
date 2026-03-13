@@ -510,7 +510,7 @@ function buildAssociadosView_(loginEmail){
     if (key) ipsBySemanas[key] = r;
   });
 
-  const cards=[]; const tot={pago:0, quota:0, joia:0, saldo:0};
+  const cards=[]; const tot={joia:0, quota:0, pago:0, quotizacao:0, saldo:0};
   const allPhones=[]; const firstPhones=[];
 
   linhas.forEach(r=>{
@@ -546,7 +546,7 @@ function buildAssociadosView_(loginEmail){
     tot.quota      += quotaNum;
     tot.joia       += joiaNum;
     tot.saldo      += saldoNum;
-    tot.quotizacao = (tot.quotizacao || 0) + quotizacaoNum;
+    tot.quotizacao += quotizacaoNum;
 
     allPhones.push(...splitPhones_(telef));
     const fp = getFirstPhone_(telef); if (fp) firstPhones.push(fp);
@@ -560,7 +560,7 @@ function buildAssociadosView_(loginEmail){
     cards.push({
       semanas, t0, t1, t2, adesaoRaw, estado, dataIPS, statIPS, primIPS, outIPS,
       nomes, emails, telefones: telef, pago, quota, joia, saldo,
-      uotizacao: quotizacaoNum,
+      quotizacao: quotizacaoNum,
       rgpdOk, saldoNeg
     });
   });
@@ -623,7 +623,7 @@ function countAnunciosByPhones_(phones){
 }
 function fetchTransacoesByPhones_(phones){
   if (!phones || !phones.length) return [];
-  const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.quotas);
+  const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.transacoes);
   const col = indexByHeader_(header);
   const iDate = col["Date"]   ?? 1; // B
   const iNum  = col["Number"] ?? 3; // D

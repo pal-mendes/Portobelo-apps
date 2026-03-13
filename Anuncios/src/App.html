@@ -169,11 +169,17 @@
      return myPhones.some(my => my.endsWith(d) || d.endsWith(my));
   }
 
-  function renderMyAdsUI() {
+function renderMyAdsUI() {
      let container = document.getElementById('my-ads-container');
      if (!container) {
         container = document.createElement('div');
         container.id = 'my-ads-container';
+        
+        // Regras estritas para blindar contra estilos antigos do formulário
+        container.style.display = 'block';
+        container.style.width = '100%';
+        container.style.boxSizing = 'border-box';
+        container.style.textAlign = 'left';
         container.style.marginBottom = '25px';
         container.style.padding = '15px';
         container.style.backgroundColor = '#f9fafb';
@@ -188,22 +194,34 @@
      selectedMyAds = []; // Reseta seleções
      
      if (myAds.length === 0) {
-        container.innerHTML = '<p style="margin:0; color:#666; font-size:14px;">Não tem anúncios ativos associados aos seus telemóveis neste momento.</p>';
+        container.innerHTML = '<p style="margin:0; color:#666; font-size:14px; text-align:left;">Não tem anúncios ativos associados aos seus telemóveis neste momento.</p>';
      } else {
-        let html = '<h4 style="margin-top:0; margin-bottom:12px; color:#111; font-size:15px;">Os Meus Anúncios Ativos</h4>';
-        html += '<div style="display:flex; flex-direction:column; gap:10px;">';
+        let html = '<h4 style="margin-top:0; margin-bottom:12px; color:#111; font-size:15px; text-align:left;">Os Meus Anúncios Ativos</h4>';
+        
+        html += '<div style="display:block; width:100%;">';
+        
         myAds.forEach((ad, i) => {
-           let desc = ad[3].length > 70 ? ad[3].substring(0,70) + '...' : ad[3];
-           html += `<label style="display:flex; align-items:flex-start; gap:10px; font-size:14px; cursor:pointer; padding:8px; border-radius:6px; background:#fff; border:1px solid #ddd; transition: border 0.2s;">
-                      <input type="checkbox" class="my-ad-chk" data-idx="${i}" style="margin-top:3px; transform: scale(1.1);">
-                      <div style="line-height:1.4;">
-                        <div style="font-weight:600; color:#333;">${ad[1]} <span style="font-weight:normal; color:#666; margin-left:6px;">(${ad[2]})</span></div>
-                        <div style="color:#555;">${desc}</div>
+           let desc = ad[3].length > 160 ? ad[3].substring(0,160) + '...' : ad[3];
+           let dataPub = ad[0]; 
+           
+           // A MAGIA DA PROTEÇÃO: CSS Grid! O primeiro elemento tem 24px fixos, o texto tem o resto.
+           html += `<label style="display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; padding: 12px; border-radius: 6px; background: #fff; border: 1px solid #ddd; width: 100%; box-sizing: border-box; margin-bottom: 8px; cursor: pointer; text-align: left;">
+                      
+                      <div style="padding-top: 2px;">
+                         <input type="checkbox" class="my-ad-chk" data-idx="${i}" style="margin: 0; transform: scale(1.1);">
                       </div>
+                      
+                      <div style="display: block; width: 100%; overflow: hidden;">
+                        <div style="font-weight: 600; color: #333; margin-bottom: 4px; display: block;">
+                           <span style="color:#000;">${dataPub}</span> &middot; ${ad[1]} <span style="font-weight:normal; color:#666; margin-left:4px;">(${ad[2]})</span>
+                        </div>
+                        <div style="color: #555; display: block; line-height: 1.4; word-break: normal; overflow-wrap: break-word;">${desc}</div>
+                      </div>
+                      
                     </label>`;
         });
         html += '</div>';
-        html += '<div style="margin-top:10px; font-size:12px; color:#888;">(Selecione 1 anúncio para o Editar, ou vários para os Apagar)</div>';
+        html += '<div style="margin-top:10px; font-size:12px; color:#888; text-align:left;">(Selecione 1 anúncio para o Editar, ou vários para os Apagar)</div>';
         container.innerHTML = html;
         
         document.querySelectorAll('.my-ad-chk').forEach(chk => {

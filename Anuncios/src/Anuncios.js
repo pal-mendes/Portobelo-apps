@@ -81,7 +81,7 @@ function findTelefoneIndex(numero) {
 **********************************************/
 
 
-const VERSION = "v6.0";
+const VERSION = "v6.1";
 
 // Folhas pertencentes APENAS a esta App
 const ANUNCIOS_SHEET = "Anúncios";
@@ -466,15 +466,34 @@ function getAnunciosDataSess(ticket) {
     L("getAnunciosDataSess: Telemóveis válidos encontrados: " + Array.from(myPhones).join(', '));
     
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ANUNCIOS_SHEET);
-    const numRows = sheet.getLastRow() - ANUNCIOS_HEADER_ROW;
+    const numRows = Math.max(0, sheet.getLastRow() - ANUNCIOS_HEADER_ROW);
     L("getAnunciosDataSess: numRows=", numRows);
     
     let ads = [];
     if (numRows > 0) {
-      ads = sheet.getRange(ANUNCIOS_HEADER_ROW + 1, 1, numRows, 5).getDisplayValues().map(row => row.map(cell => {
-        if (typeof cell === 'string') return cell.replace(/[\r\n]+/g, ' ').trim();
-        return (cell !== undefined && cell !== null) ? cell.toString() : '';
-      }));
+      // Usamos getValues para capturar o objeto "Data" original e evitar a formatação americana
+      const rawValues = sheet.getRange(ANUNCIOS_HEADER_ROW + 1, 1, numRows, 5).getValues();
+      
+      ads = rawValues.map(row => {
+        let dataFormatada = "";
+        if (row[0] instanceof Date) {
+          dataFormatada = Utilities.formatDate(row[0], Session.getScriptTimeZone(), "yyyy-MM-dd");
+        } else {
+          // Fallback: se for um texto antigo como 20/10/2024, reorganiza
+          let s = String(row[0] || '').trim();
+          let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+          if (m) dataFormatada = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+          else dataFormatada = s.split(' ')[0];
+        }
+        
+        return [
+          dataFormatada,
+          String(row[1] || '').trim(),
+          String(row[2] || '').trim(),
+          String(row[3] || '').trim(),
+          String(row[4] || '').trim()
+        ];
+      }).filter(r => r.some(c => c !== '')); // Remove linhas vazias
     }
 
     const respostaFinal = { ads: ads, myPhones: Array.from(myPhones) };
@@ -560,7 +579,9 @@ function apiGestaoAnuncios(ticket, payload) {
     
     // Força o Google Sheets a aceitar o número como texto, preservando os espaços!
     payload.novo[2] = "'" + payload.novo[2];
-    sheet.appendRow([new Date(), ...payload.novo.slice(1)]);
+    // Grava a data já como texto formatado YYYY-MM-DD
+    const dataFormatada = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    sheet.appendRow([dataFormatada, ...payload.novo.slice(1)]);
     atualizarDataE1();
     SpreadsheetApp.flush();
     console.log("apiGestaoAnuncios: flush");
@@ -596,7 +617,8 @@ function apiGestaoAnuncios(ticket, payload) {
     
     // Força o formato de texto
     payload.novo[2] = "'" + payload.novo[2];
-    sheet.getRange(foundRow, 1, 1, 5).setValues([[new Date(), ...payload.novo.slice(1)]]);
+    const dataFormatada = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    sheet.getRange(foundRow, 1, 1, 5).setValues([[dataFormatada, ...payload.novo.slice(1)]]);
     atualizarDataE1();
     SpreadsheetApp.flush();
     console.log("apiGestaoAnuncios: flush");
