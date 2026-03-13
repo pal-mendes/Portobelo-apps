@@ -48,8 +48,9 @@
     <div class="loader"></div>
   </div>
 
-  <div id="main-page">
-    <div style="background: #fff; width: 100%;">
+  <div id="main-page" style="display: flex; flex-direction: column; height: 100vh; width: 100%;">
+
+    <div style="flex-shrink: 0; width: 100%; z-index: 20; position: relative;">
       
       <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; background: #fff; flex-wrap: wrap; gap: 12px;">
         
@@ -85,8 +86,8 @@
         </div>
         
       </div>
-      
-      <div style="overflow-x: auto; width: 100%;">
+    </div>
+      <div style="flex-grow: 1; overflow-y: auto; overflow-x: auto; width: 100%;">
         <table style="width: 100%; border-collapse: collapse; min-width: 800px; text-align: left;">
           <thead style="background: #f1f3f4; border-bottom: 2px solid #ddd; position: sticky; top: 0; z-index: 10;">
             <tr id="header-row">

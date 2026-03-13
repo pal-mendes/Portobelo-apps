@@ -9,8 +9,17 @@
 }
 @keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
 
-/* 1. Remove as margens de 6mm a toda a volta (Ocupa 100% do telemóvel) */
-body, html { margin: 0 !important; padding: 0 !important; width: 100%; overflow-x: hidden; }
+/* 1. Prepara a página para ocupar 100% do ecrã e cria uma coluna flexível */
+  body, html { 
+      margin: 0 !important; 
+      padding: 0 !important; 
+      width: 100%; 
+      height: 100vh; /* Altura exata do ecrã */
+      overflow: hidden; /* Proíbe a página inteira de rolar e misturar as coisas */
+      display: flex; 
+      flex-direction: column; 
+      font-family: system-ui, sans-serif;
+  }
 
 /* 2. O Segredo dos Filtros-Cabeçalho Camuflados */
 .th-filter-input, .th-filter-select {

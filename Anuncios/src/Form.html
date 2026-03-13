@@ -2,6 +2,8 @@
 <!-- Form.html em Anuncios -->
 <h2>Criar ou apagar anúncio</h2>
 
+<button type="button" onclick="toggleFormulario()" style="position: absolute; bottom: 15px; right: 15px; background: #f1f3f4; border: none; font-size: 22px; cursor: pointer; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #555; z-index: 10;">&times;</button>
+
 <div style="margin-bottom: 15px;">
   <label for="anuncioTelefone">Telemóvel</label>
   <select id="anuncioTelefone" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;">
@@ -12,12 +14,12 @@
 <label for="anuncioTipo">Tipo de anúncio:</label>
 <select id="anuncioTipo" required title="O intercâmbio é para trocas num só ano, e a permuta é definitiva. Para apagar, escolha o mesmo tipo que o do anúncio a apagar.">
   <option value="">Selecione o tipo de anúncio</option>
-  <option value="Aluguer a senhorio">Alugar - senhorio</option>
-  <option value="Aluguer a inquilino">Alugar - inquilino</option>
+  <option value="Aluguer a senhorio">Aluguer a senhorio</option>
+  <option value="Aluguer a inquilino">Aluguer a inquilino</option>
   <option value="Intercâmbio">Intercâmbio</option>
   <option value="Permuta">Permuta</option>
-  <option value="Venda">Vender</option>
-  <option value="Compra">Comprar</option>
+  <option value="Venda">Venda</option>
+  <option value="Compra">Compra</option>
 </select>
 
 <label for="anuncioEntrada">Dia de entrada:</label>
