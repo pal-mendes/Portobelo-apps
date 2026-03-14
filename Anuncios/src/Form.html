@@ -12,7 +12,7 @@
 </div>
 
 <label for="anuncioTipo">Tipo de anúncio:</label>
-<select id="anuncioTipo" required title="O intercâmbio é para trocas num só ano, e a permuta é definitiva. Para apagar, escolha o mesmo tipo que o do anúncio a apagar.">
+<select id="anuncioTipo" required title="O intercâmbio é para trocas num só ano, e a permuta é definitiva.">
   <option value="">Selecione o tipo de anúncio</option>
   <option value="Aluguer a senhorio">Aluguer a senhorio</option>
   <option value="Aluguer a inquilino">Aluguer a inquilino</option>
@@ -30,7 +30,7 @@
   <option value="Sábado">Sábado</option>
 </select>
 
-<textarea id="anuncioDescricao" rows="6" placeholder="Escreva aqui o que pretende…" title="Escreva pelo menos 10 caracteres com o que pretende." required></textarea>
+<textarea id="anuncioDescricao" rows="6" placeholder="Escreva aqui o que pretende, não deixando de identificar o tipo de apartamento (T0, T1, T2) e a(s) semana(s) do ano (por número da semana - 31 e 31, por exemplo - ou doutra forma - em agosto, por exemplo)…" title="Escreva pelo menos 10 caracteres com o que pretende." required></textarea>
 
 <button id="botaoSubmeter" onclick="enviarAnuncio()">📤 Submeter pedido</button>
 <p id="mensagem-submissao"></p>

@@ -36,16 +36,18 @@
 /* 3. A MAGIA DA JANELA FLUTUANTE (Modal do Formulário) */
 #formulario {
     position: fixed !important;
-    top: 30px !important;
+    top: 5vh !important; /* Desce ligeiramente para ser elegante */
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: 94% !important;
-    max-width: 600px !important;
-    max-height: calc(100vh - 60px) !important;
+    
+    /* AUMENTADO: Vai ocupar até 850px no computador! */
+    max-width: 850px !important; 
+    
+    max-height: 90vh !important;
     overflow-y: auto !important;
     background: #ffffff !important;
     padding: 25px !important;
-    /* O box-shadow gigante cria o fundo escuro transparente por trás da janela! */
     box-shadow: 0 0 0 100vw rgba(0,0,0,0.6), 0 15px 35px rgba(0,0,0,0.3) !important;
     z-index: 9999 !important;
     border-radius: 12px !important;

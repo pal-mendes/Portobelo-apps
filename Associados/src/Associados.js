@@ -195,7 +195,7 @@ function CALCULAR_SALDO(valorPago, numT0, numT1, numT2, dataAdesaoRaw, anoAtual,
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.2";
+const VERSION = "v1.4";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";

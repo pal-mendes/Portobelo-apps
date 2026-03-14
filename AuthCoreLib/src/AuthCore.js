@@ -786,13 +786,19 @@ function setRgpdForEmail_AuthCore_(info, cfg, want){
 
 
 function getProfileStats_(ticket, cfg) {
+  //console.log("getProfileStats_()");
   const sess = requireSession(ticket);
+  //console.log("getProfileStats_: email=", sess.email);
   cfg = __defCfg(cfg);
   const st = getRgpdStatusFor(ticket, cfg);
   const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
   
+  const idxPago = info.ix[cfg.cols.pago || "€"];
+
   let totalSaldo = 0;
+  //console.log("getProfileStats_: totalSaldo=", totalSaldo);
   const idxSaldo = info.ix[cfg.cols.saldo || "Saldo"];
+  //console.log("getProfileStats_: idxSaldo=", idxSaldo);
 
   // NOVO: Procurar a coluna dos telefones de forma flexível
   let idxTel = cfg.cols.telefones ? info.ix[cfg.cols.telefones] : null;
@@ -807,13 +813,22 @@ function getProfileStats_(ticket, cfg) {
   for (const r of info.matches) {
     if (idxSaldo != null) {
       totalSaldo += parsePtNumber_AuthCore_(info.values[r][idxSaldo]);
+      //console.log("getProfileStats_: Pago da linha=", info.values[r][idxPago]);
+      //console.log("getProfileStats_: Saldo da linha=", info.values[r][idxSaldo]);
+      //console.log("getProfileStats_: totalSaldo=", totalSaldo);
     }
     
     cardsLinhas.push({
       emails: info.iEmail != null ? String(info.values[r][info.iEmail]) : "",
       telefones: idxTel != null ? String(info.values[r][idxTel]) : ""
     });
+    //console.log("getProfileStats_: telefones=", String(info.values[r][idxTel]));
   }
+  //console.log("getProfileStats_: totalSaldo=", totalSaldo);
+  // A MAGIA DA LIMPEZA: Arredonda o saldo total para 2 casas decimais (ex: 0.00)
+  // Isto elimina os lixos de precisão decimal do JavaScript (ex: -1.776e-15)
+  totalSaldo = Math.round(totalSaldo * 100) / 100;
+  //console.log("getProfileStats_: totalSaldo=", totalSaldo);
 
   return {
     email: sess.email,

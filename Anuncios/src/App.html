@@ -409,15 +409,21 @@ function renderMyAdsUI() {
      });
   }
 
+  // 3. ATUALIZA AS SETAS (Cores Fortes e Lógica Corrigida)
   function updateSortIcons() {
-    const icons = document.querySelectorAll('#header-row .sort-icon');
+     const icons = document.querySelectorAll('#header-row .sort-icon');
      icons.forEach((icon, index) => {
         if (index === sortColumn) {
-           icon.innerHTML = sortDirection === 1 ? '&#9660;' : '&#9650;'; // V (▼) ou V Invertido (▲)
-           icon.style.color = '#111';
+           // Lógica invertida: Direção -1 (Decrescente / Mais recente primeiro) = Seta para Baixo (▼)
+           icon.innerHTML = sortDirection === 1 ? '&#9650;' : '&#9660;'; 
+           icon.style.color = '#2563eb'; // Azul forte para dar foco à coluna ativa
+           icon.style.fontWeight = 'bold';
+           icon.style.opacity = '1';
         } else {
-           icon.innerHTML = '&#8597;'; // Seta neutra (↕)
-           icon.style.color = '#ccc';
+           icon.innerHTML = '&#8597;'; // ↕
+           icon.style.color = '#777'; // Cinza escuro para ser claramente visível
+           icon.style.fontWeight = 'bold';
+           icon.style.opacity = '0.6';
         }
      });
   }

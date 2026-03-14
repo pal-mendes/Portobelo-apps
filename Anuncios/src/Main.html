@@ -50,10 +50,9 @@
 
   <div id="main-page" style="display: flex; flex-direction: column; height: 100vh; width: 100%;">
 
-    <div style="flex-shrink: 0; width: 100%; z-index: 20; position: relative;">
+    <div style="flex-shrink: 0; width: 100%; z-index: 20; position: relative; background: #fff;">
       
-      <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; background: #fff; flex-wrap: wrap; gap: 12px;">
-        
+      <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <a class="icon-btn" href="https://titulares-portobelo.pt" target="_top" title="Início" style="color: #333; display: flex; align-items: center;">
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
@@ -63,89 +62,86 @@
             <span style="font-size: 13px; color: #666; font-weight: normal;">(<?= VERSION ?>: Visitas = <span id="visitas"></span> &middot; Últ. 30 dias = <span id="visitas30"></span>)</span>
           </h2>
         </div>
-        
         <div style="display: flex; align-items: center; gap: 12px;">
-          <div id="who" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666;">
-            A carregar...
-          </div>
-          <button id="btn-logout" style="font-size: 13px; padding: 4px 10px; border: 1px solid #ccc; border-radius: 8px; background: #fff; color: #111; cursor: pointer; text-decoration: none;">Sair</button>
+          <div id="who" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666;">A carregar...</div>
+          <button id="btn-logout" style="font-size: 13px; padding: 4px 10px; border: 1px solid #ccc; border-radius: 8px; background: #fff; color: #111; cursor: pointer;">Sair</button>
         </div>
       </header>
 
-      <div style="padding: 12px 14px; border-bottom: 1px solid #eaeaea; background: #fafafa; text-align: left; width: 100%; box-sizing: border-box;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; padding: 12px 14px; border-bottom: 1px solid #eaeaea; background: #fafafa; width: 100%; box-sizing: border-box;">
         
-        <div style="display: flex; justify-content: flex-start; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px;">
           <button onclick="log('Atualizar lista clicked'); loadTable()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">🔄 Atualizar lista</button>
           <button onclick="log('Toggle formulário'); toggleFormulario()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">➕ Gerir anúncios</button>
-          
-          <div id="contador" style="font-weight: 600; color: #111; font-size: 14px;">Total: 0 anúncios</div>
+          <div id="contador" style="font-weight: 600; color: #111; font-size: 14px;">Total: 0 anúncio(s)</div>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 10px;">
-          <div style="font-size: 13px; color: #666; text-align: right; margin-left: auto;">Atualização: <span id="atualizacao" style="font-weight: 500; color: #111;">A carregar...</span></div>
+        <div style="font-size: 13px; color: #666; white-space: nowrap;">
+          Atualização: <span id="atualizacao" style="font-weight: 500; color: #111;">A carregar...</span>
         </div>
         
       </div>
     </div>
-      <div style="flex-grow: 1; overflow-y: auto; overflow-x: auto; width: 100%;">
-        <table style="width: 100%; border-collapse: collapse; min-width: 800px; text-align: left;">
-          <thead style="background: #f1f3f4; border-bottom: 2px solid #ddd; position: sticky; top: 0; z-index: 10;">
-            <tr id="header-row">
-              
-              <th style="padding: 10px 8px; min-width: 115px; width: 115px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                  <input type="text" id="filtroAnuncio" class="th-filter-input" placeholder="Publicado" onclick="event.stopPropagation();">
-                  <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(0)">↕</span>
-                </div>
-              </th>
-              
-              <th style="padding: 10px 8px; width: 145px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                  <select id="filtroTipo" class="th-filter-select" onclick="event.stopPropagation();" onchange="this.classList.toggle('active', this.value !== '')">
-                    <option value="">Tipo</option>
-                    <option value="Venda">Venda</option>
-                    <option value="Compra">Compra</option>
-                    <option value="Aluguer a inquilino">Aluguer a inquilino</option>
-                    <option value="Aluguer a senhorio">Aluguer a senhorio</option>
-                    <option value="Permuta">Permuta</option>
-                    <option value="Intercâmbio">Intercâmbio</option>
-                  </select>
-                  <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(1)">↕</span>
-                </div>
-              </th>
-              
-              <th style="padding: 10px 8px; width: 130px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                  <input type="text" id="filtroTelefone" class="th-filter-input" placeholder="Telemóvel" onclick="event.stopPropagation();">
-                  <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(2)">↕</span>
-                </div>
-              </th>
-              
-              <th style="padding: 10px 8px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                  <input type="text" id="filtroDescricao" class="th-filter-input" placeholder="Descrição com data de ocupação" onclick="event.stopPropagation();">
-                  <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(3)">↕</span>
-                </div>
-              </th>
-              
-              <th style="padding: 10px 8px; width: 130px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                  <select id="filtroEntrada" class="th-filter-select" onclick="event.stopPropagation();" onchange="this.classList.toggle('active', this.value !== '')">
-                    <option value="">Entrada</option>
-                    <option value="quinta-feira">quinta-feira</option>
-                    <option value="sábado">sábado</option>
-                    <option value="domingo">domingo</option>
-                  </select>
-                  <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(4)">↕</span>
-                </div>
-              </th>
-              
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
+
+    <div style="flex-grow: 1; overflow-y: auto; overflow-x: auto; width: 100%; background: #fff;">
+      
+      <table style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; text-align: left;">
+        <thead>
+          <tr id="header-row">
+            
+            <th style="padding: 10px 8px; min-width: 115px; width: 115px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <input type="text" id="filtroAnuncio" class="th-filter-input" placeholder="Publicado" onclick="event.stopPropagation();">
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(0)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; width: 145px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <select id="filtroTipo" class="th-filter-select" onclick="event.stopPropagation();" onchange="this.classList.toggle('active', this.value !== '')">
+                  <option value="">Tipo</option>
+                  <option value="Venda">Venda</option>
+                  <option value="Compra">Compra</option>
+                  <option value="Aluguer a inquilino">Aluguer a inquilino</option>
+                  <option value="Aluguer a senhorio">Aluguer a senhorio</option>
+                  <option value="Permuta">Permuta</option>
+                  <option value="Intercâmbio">Intercâmbio</option>
+                </select>
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(1)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; width: 130px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <input type="text" id="filtroTelefone" class="th-filter-input" placeholder="Telemóvel" onclick="event.stopPropagation();">
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(2)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <input type="text" id="filtroDescricao" class="th-filter-input" placeholder="Descrição com data de ocupação" onclick="event.stopPropagation();">
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(3)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; width: 130px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <select id="filtroEntrada" class="th-filter-select" onclick="event.stopPropagation();" onchange="this.classList.toggle('active', this.value !== '')">
+                  <option value="">Entrada</option>
+                  <option value="quinta-feira">quinta-feira</option>
+                  <option value="sábado">sábado</option>
+                  <option value="domingo">domingo</option>
+                </select>
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(4)">↕</span>
+              </div>
+            </th>
+            
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>    </div>
 
     <div id="formulario" style="display:none;">
       <?!= include('Form'); ?>
