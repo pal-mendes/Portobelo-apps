@@ -15,6 +15,103 @@
 // FUNÇÕES PERSONALIZADAS PARA O GOOGLE SHEETS
 // ====================================================================
 
+
+/**
+ * Gatilho simples que monitoriza edições no documento.
+ */
+function onEdit(e) {
+  if (!e) return;
+  const sheet = e.range.getSheet();
+  const sheetName = sheet.getName();
+  const row = e.range.getRow();
+  const col = e.range.getColumn();
+
+  // 1. Edição na aba Titulares (Apenas a partir da linha 7)
+  if (sheetName === "Titulares" && row >= 7) {
+    // Colunas de influência: C(3), E(5), F(6), G(7), H(8)
+    if ([3, 5, 6, 7, 8].includes(col)) {
+      updateTitularesRowValues_(sheet, row);
+    }
+  } 
+  
+  // 2. Edição na aba Quotas (Intervalo A2:D3)
+  else if (sheetName === "Quotas" && row >= 2 && row <= 3 && col <= 4) {
+    updateAllTitularesValues();
+  }
+}
+
+/**
+ * Adiciona um menu manual para forçar a sincronização de todos os valores.
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Associação Portobelo')
+    .addItem('Recalcular Quotas/Saldos (Titulares)', 'updateAllTitularesValues')
+    .addToUi();
+}
+
+/**
+ * Atualiza os valores estáticos de uma única linha na aba Titulares.
+ */
+function updateTitularesRowValues_(sheet, row) {
+  const ss = sheet.getParent();
+  const quotasSheet = ss.getSheetByName("Quotas");
+  const matrizQuotas = quotasSheet.getRange("A2:D3").getValues();
+  
+  // Lê os dados da linha (C até H)
+  const data = sheet.getRange(row, 1, 1, 8).getValues()[0];
+  const valorPago = data[2];     // C
+  const dataAdesao = data[4];    // E
+  const numT0 = data[5];         // F
+  const numT1 = data[6];         // G
+  const numT2 = data[7];         // H
+  const anoAtual = new Date().getFullYear();
+
+  // Reutiliza as funções de cálculo existentes
+  const quota = CALCULAR_QUOTA(numT0, numT1, numT2, anoAtual, matrizQuotas);
+  const joia = CALCULAR_JOIA(numT0, numT1, numT2, dataAdesao, matrizQuotas);
+  const saldo = CALCULAR_SALDO(valorPago, numT0, numT1, numT2, dataAdesao, anoAtual, matrizQuotas);
+
+  // Escreve valores nas colunas O(15), P(16), Q(17)
+  sheet.getRange(row, 15, 1, 3).setValues([[quota, joia, saldo]]);
+}
+
+/**
+ * Atualiza todas as linhas da tabela tblTitulares de uma só vez (Batch Update).
+ */
+function updateAllTitularesValues() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Titulares");
+  const quotasSheet = ss.getSheetByName("Quotas");
+  const matrizQuotas = quotasSheet.getRange("A2:D3").getValues();
+  
+  const startRow = 7;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < startRow) return;
+
+  const numRows = lastRow - startRow + 1;
+  const rangeIn = sheet.getRange(startRow, 1, numRows, 8); // A até H
+  const valuesIn = rangeIn.getValues();
+  const anoAtual = new Date().getFullYear();
+  
+  const results = [];
+
+  for (let i = 0; i < valuesIn.length; i++) {
+    const r = valuesIn[i];
+    const pago = r[2]; const adesao = r[4]; const t0 = r[5]; const t1 = r[6]; const t2 = r[7];
+    
+    const quota = CALCULAR_QUOTA(t0, t1, t2, anoAtual, matrizQuotas);
+    const joia = CALCULAR_JOIA(t0, t1, t2, adesao, matrizQuotas);
+    const saldo = CALCULAR_SALDO(pago, t0, t1, t2, adesao, anoAtual, matrizQuotas);
+    
+    results.push([quota, joia, saldo]);
+  }
+
+  // Escrita em massa para performance máxima
+  sheet.getRange(startRow, 15, numRows, 3).setValues(results);
+}
+
+
 /**
  * Helper interno para extrair o preço correto de um determinado ano
  */

@@ -218,9 +218,9 @@
             }
           })() || location.origin + location.pathname;
 
-        const UI_DELAY_BTN = 1200; // só mostramos o botão passado isto (auto)
         const UI_DELAY_HINT = 30000; // só mostramos um hint/fallback passado isto (auto)
-        const GIVE_UP = 45000; // depois disto mostramos tudo
+        const UI_DELAY_BTN = 60000; // só mostramos o botão passado isto (auto)
+        const GIVE_UP = 180000; // depois disto mostramos só a mensagem de recarregar a página
 
         function setStatus(s, asHTML) {
           if (!ST) return;
