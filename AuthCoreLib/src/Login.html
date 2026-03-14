@@ -218,9 +218,10 @@
             }
           })() || location.origin + location.pathname;
 
-        const UI_DELAY_HINT = 30000; // só mostramos um hint/fallback passado isto (auto)
-        const UI_DELAY_BTN = 60000; // só mostramos o botão passado isto (auto)
-        const GIVE_UP = 180000; // depois disto mostramos só a mensagem de recarregar a página
+        // Configuração centralizada de tempos (ms)
+        const UI_DELAY_HINT = 30000;  // Surge o aviso e a imagem
+        const UI_DELAY_BTN  = 60000;  // Surge o botão de fallback
+        const UI_DELAY_MAX  = 180000; // Desiste e pede refresh
 
         function setStatus(s, asHTML) {
           if (!ST) return;
@@ -334,7 +335,6 @@
         function startServerPolling(nonce, authUrl) {
           log("startServerPolling(" + nonce + ")");
           const t0 = Date.now();
-          const MAX = 180000;
           let delay = 1800;
           let done = false;
 
@@ -344,15 +344,27 @@
             if (!done) {
               setStatus(
                 '<div class="alert-box">' +
-                  "<b>Aviso:</b> O processo está a demorar. Se o ecrã do Google não abriu, o seu navegador pode ter bloqueado a janela (muito comum em telemóveis, mas não só) - precisa de autorizar popups e redirecionamentos para esta página.<br><br>" +
-                  '<b>No telemóvel:</b> Se o ecrã ficar branco ou der erro, clique nos 3 pontinhos no canto superior direito e escolha "Abrir no navegador / Chrome / Firefox".<br><br>' +
-                  '<a href="' +
-                  authUrl +
-                  '" target="_top" class="btn btn-primary">Clique aqui para Entrar</a></div>',
+                  "<b>Aviso:</b> O processo está a demorar. Se o ecrã do Google não abriu, o seu navegador pode ter bloqueado a janela (muito comum em telemóveis, mas não só). " +
+                  " Precisa de autorizar popups, redirecionamentos e cookies de terceiros.<br><br>" +
+                  // Imagem das permissões (ajuste o ID abaixo com o ID real do ficheiro JPG)
+                  '<img src="https://drive.google.com/uc?export=view&id=1O8ZUhwGsBxHI-Ud9ZaknAp1Q9SkiZxYh" style="width:100%; border-radius:8px; margin: 10px 0; border: 1px solid #ddd;">' +
+                  '<br><b>No telemóvel:</b> Se o ecrã ficar branco ou der erro, clique nos 3 pontinhos, normalmente no canto superior direito e escolha "Abrir no navegador ...".<br><br>' +
+                  '<div id="fallback-btn-container"></div>' + // Contentor vazio para o botão
+                '</div>',
                 true,
               );
             }
           }, UI_DELAY_HINT);
+
+          // 2. Mostrar o BOTÃO (aos 60s)
+          const btnTimer = setTimeout(function () {
+            if (!done) {
+              const btnContainer = document.getElementById("fallback-btn-container");
+              if (btnContainer) {
+                btnContainer.innerHTML = '<a href="' + authUrl + '" target="_top" class="btn btn-primary">Clique aqui para Entrar</a>';
+              }
+            }
+          }, UI_DELAY_BTN);
 
           (function tick() {
             if (done) return;
@@ -362,6 +374,7 @@
                 if (ticket) {
                   done = true;
                   clearTimeout(hintTimer);
+                  clearTimeout(btnTimer); // Limpa também o timer do botão
                   log("server → ticket (" + String(ticket).slice(0, 12) + "…)");
                   try {
                     if (popupRef && !popupRef.closed) popupRef.close();
@@ -369,7 +382,7 @@
                   goWithTicket(ticket);
                   return;
                 }
-                if (Date.now() - t0 > MAX) {
+                if (Date.now() - t0 > UI_DELAY_MAX) {
                   done = true;
                   setStatus("Tempo esgotado. Por favor, tente recarregar a página.");
                   return;
@@ -380,7 +393,7 @@
               })
               .withFailureHandler(function () {
                 if (done) return;
-                if (Date.now() - t0 > MAX) {
+                if (Date.now() - t0 > UI_DELAY_MAX) {
                   done = true;
                   setStatus("Tempo esgotado. Por favor, tente recarregar a página.");
                   return;
