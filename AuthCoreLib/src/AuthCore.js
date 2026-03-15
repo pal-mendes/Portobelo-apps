@@ -43,7 +43,7 @@ const NONCE_TTL_SEC = 180; // 3 min para nonce→ticket
 var LIB_SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
 var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:V" } };
 var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", semanas:"Semanas" };
-var LIB_NOTIFY = { to:"secretario-direcao@titulares-portobelo.pt", ccAllRows:true };
+var LIB_NOTIFY = { to:"log-apps@titulares-portobelo.pt", ccAllRows:true };
 
 function __defCfg(cfgParam){
   const out = cfgParam || {};
@@ -94,7 +94,7 @@ function setScriptProp_(k, v) { return PropertiesService.getScriptProperties().s
 
 // ===== URL canónico do deployment =====
 function canonicalAppUrl_() {
-  var url = ScriptApp.getService().getUrl();
+  var url = ScriptApp.getService().getUrl().replace(/\/a\/[^\/]+\/macros\//, "/macros/");
   // Mantém o URL canónico real do deployment.
   // Em contas Workspace, isto inclui /a/<domínio>/ e deve ser preservado.
   //return url.replace(/\/a\/[^/]+\/macros/, "/macros"); // força .../macros/s/ID/exec
@@ -465,14 +465,6 @@ function finishAuth_(e, cfg) {
 // AuthCoreLib — Gates (membership + RGPD)
 // =========================
 
-// Espera um objeto cfg vindo do host:
-// {
-//   ssTitularesId: "…",
-//   ranges: { titulares:{name|sheet|a1}, quotas:{name|sheet|a1} },
-//   cols: { email:"e-mail", pago:"€", rgpd:"RGPD" },
-//   mailTo: "geral@titulares-portobelo.pt"
-// }
-
 function logFailedAccessToSheet_(email, name, saldo, semanas, reason, cfg) {
   try {
     const ss = SpreadsheetApp.openById(cfg.ssTitularesId);
@@ -574,7 +566,7 @@ function isAllowedEmail_AuthCore_(email){
 }
 
 function renderNotAllowed_AuthCore_(email, DBG){
-  const canon = ScriptApp.getService().getUrl();
+  const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^\/]+\/macros\//, "/macros/");
   return HtmlService.createHtmlOutput('<meta charset="utf-8"><h3>Acesso não autorizado</h3><p>Este endereço não está na lista da fase de validação.</p><p><a href="'+canon+'?action=login'+(DBG?'&debug=1':'')+'">Voltar</a></p>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -919,7 +911,7 @@ function hostSaveRgpdRowsFor_(ticket, acceptedRows, cfg) {
 
   // 2. ENVIO DO E-MAIL CENTRALIZADO
   try {
-      const toEmail = cfg.notify.to || "secretario-direcao@titulares-portobelo.pt";
+      const toEmail = cfg.notify.to || "log-apps@titulares-portobelo.pt";
       let bodyText = "O associado " + (sess.name ? sess.name + " (" + sess.email + ")" : sess.email) + " atualizou o seu consentimento do RGPD da Associação.\n\n";
    
       if (acceptedSemanas.length > 0) {

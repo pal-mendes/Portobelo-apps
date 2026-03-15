@@ -688,10 +688,10 @@
               `T2: <b>${fmtEUR(QUOTAS.T2)}</b>`,
             ].join(sep);
             const quotasHtml = `
-          <div class="info">
-            <div class="badge">Quotas por tipo</div>
-            <div class="box euro nowrap">${quotasLine}</div>
-          </div>`;
+              <div class="info">
+                <div class="badge">Quotas por tipo</div>
+                <div class="box euro nowrap">${quotasLine}</div>
+              </div>`;
 
             const T = data?.totais || {
               pago: 0,
@@ -701,20 +701,22 @@
               saldo: 0,
             };
             const totalsHtml = `
-          <div class="info">
-            <div class="badge">Totais</div>
-            <div class="box euro">
-              Jóias: <b>${fmtEUR(T.joia)}</b> ·
-              Quotas deste ano: <b>${fmtEUR(T.quota)}</b> ·
-              Quotizações totais: <b>${fmtEUR(T.quotizacao)}</b> ·
-              Pagamentos: <b>${fmtEUR(T.pago)}</b> ·
-              Saldo: <b>${fmtEUR(T.saldo)}</b>
-            </div>
-          </div>
-          
-          <div class="card muted small wraptext" style="background: #f9fafb; border-color: #d1d5db; line-height: 1.6; margin-top: 0;">
-            A quotização total representa a soma da jóia e das quotas de cada ano desde a adesão. O seu pagamento pode ser feito por MB WAY ou Revolut para o número <b>+351 967 012 590</b>, ou através do IBAN <b>PT50 0018 0238 0020 0021 976 46</b> (dado ainda não existir conta bancária da associação). Por favor, indique no descritivo pelo menos uma das suas semanas (104/30, por exemplo).
-          </div>`;
+              <div class="info">
+                <div class="badge">Totais</div>
+                <div class="box euro">
+                  Jóias: <b>${fmtEUR(T.joia)}</b> ·
+                  Quotas deste ano: <b>${fmtEUR(T.quota)}</b> ·
+                  Quotizações totais: <b>${fmtEUR(T.quotizacao)}</b> ·
+                  Pagamentos: <b>${fmtEUR(T.pago)}</b> ·
+                  Saldo: <b>${fmtEUR(T.saldo)}</b>
+                </div>
+              </div>
+              
+              <div class="card muted small" style="background: #f9fafb; border-color: #d1d5db; line-height: 1.6; margin-top: 0;">
+              A quotização total representa a soma da jóia e das quotas de cada ano desde a adesão.<br>
+              O saldo é calculado pela subtração das quotizações aos pagamentos. <b>Se o saldo for negativo</b>, o associado deve transferir o montante do saldo através de <b>MB WAY</b> ou <b>Revolut</b> para o número <b>+351 967 012 590</b>, ou através do <b>IBAN PT50 0018 0238 0020 0021 976 46</b> (dado ainda não existir conta bancária da associação). Por favor, indique no descritivo pelo menos uma das suas semanas (104/30, por exemplo).<br>
+              Os pagamentos já feitos, mostrados acima, podem ser temporariamente superiores ao total das transações bancárias, mostradas abaixo, enquanto estas últimas ainda não foram atualizadas.
+              </div>`;
 
             $("#content").innerHTML = quotasHtml + cardsHtml + totalsHtml;
 
@@ -728,10 +730,10 @@
                 )
                 .join(" ");
               const html = `
-            <div class="info">
-              <div class="badge">Anúncios</div>
-              <div class="box">${chips}</div>
-            </div>`;
+                <div class="info">
+                  <div class="badge">Anúncios</div>
+                  <div class="box">${chips}</div>
+                </div>`;
               document
                 .querySelector("#content")
                 .insertAdjacentHTML("beforeend", html);

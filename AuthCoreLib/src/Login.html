@@ -17,7 +17,7 @@
       body {
         font-family: system-ui, sans-serif;
         padding: 20px;
-        max-width: 600px;
+        max-width: 800px;
         margin: 0 auto;
       }
       .btn {
@@ -332,31 +332,39 @@
         });
 
         // Polling de fallback (3 min)
-        function startServerPolling(nonce, authUrl) {
+        function startServerPolling(nonce, authUrl, popupBlocked) {
           log("startServerPolling(" + nonce + ")");
           const t0 = Date.now();
           let delay = 1800;
           let done = false;
+
+          // Se o popup foi bloqueado, mostramos o aviso quase logo (ex: 2 segundos)
+          // Caso contrário, esperamos os 30s/60s normais
+          const effectiveHintDelay = popupBlocked ? 2000 : UI_DELAY_HINT;
+          const effectiveBtnDelay  = popupBlocked ? 3000 : UI_DELAY_BTN;
 
           // UI atrasada (hint) só se nada acontecer
           log("hintTimer=setTimeout()");
           const hintTimer = setTimeout(function () {
             if (!done) {
               setStatus(
-                '<div class="alert-box">' +
+                '<div class="alert-boxstyle="padding: 20px;">' + // Aumentado o padding interno
                   "<b>Aviso:</b> O processo está a demorar. Se o ecrã do Google não abriu, o seu navegador pode ter bloqueado a janela (muito comum em telemóveis, mas não só). " +
-                  " Precisa de autorizar popups, redirecionamentos e cookies de terceiros.<br><br>" +
-                  // Imagem das permissões (ajuste o ID abaixo com o ID real do ficheiro JPG)
-                  '<img src="https://drive.google.com/uc?export=view&id=1O8ZUhwGsBxHI-Ud9ZaknAp1Q9SkiZxYh" style="width:100%; border-radius:8px; margin: 10px 0; border: 1px solid #ddd;">' +
-                  '<br><b>No telemóvel:</b> Se o ecrã ficar branco ou der erro, clique nos 3 pontinhos, normalmente no canto superior direito e escolha "Abrir no navegador ...".<br><br>' +
+                  "É conveniente autorizar popups, redirecionamentos e cookies de terceiros, somente para esta aplicação.<br>" +
+                  // Imagem das permissões (ajuste o ID abaixo com o ID real do ficheiro JPG) e use thumbnail. max-width pode ficar igual ao do body
+                  '<img src="https://drive.google.com/thumbnail?id=1O8ZUhwGsBxHI-Ud9ZaknAp1Q9SkiZxYh&sz=w1000"' +
+                  'style="width:100%; max-width:800px; border-radius:8px; display:block; margin: 15px auto; border: 1px solid #ddd;">' +
+                  '<b>No telemóvel:</b> Se o ecrã ficar branco ou der erro, clique nos 3 pontinhos, normalmente no canto superior direito e escolha "Abrir no navegador...".<br>' +
+                  '<b>No iPhone, a autorização é global.</b> Se não se importar, vá a Definições > Apps > Safari e desligue "Bloquear janelas pop-up" e "Impedir seguimento entre sites"<br>' +
+                  '<br><b>Pode também esperar mais um pouco e carregar no botão que vai surgir aqui, que pode funcionar.</b><br>' +
                   '<div id="fallback-btn-container"></div>' + // Contentor vazio para o botão
                 '</div>',
                 true,
               );
             }
-          }, UI_DELAY_HINT);
+          }, effectiveHintDelay);
 
-          // 2. Mostrar o BOTÃO (aos 60s)
+          // 2. Mostrar o BOTÃO
           const btnTimer = setTimeout(function () {
             if (!done) {
               const btnContainer = document.getElementById("fallback-btn-container");
@@ -364,7 +372,7 @@
                 btnContainer.innerHTML = '<a href="' + authUrl + '" target="_top" class="btn btn-primary">Clique aqui para Entrar</a>';
               }
             }
-          }, UI_DELAY_BTN);
+          }, effectiveBtnDelay);
 
           (function tick() {
             if (done) return;
@@ -422,7 +430,7 @@
                 log("popupRef / null");
                 popupRef = null;
               }
-
+              /*
               if (!popupRef) {
                 // Se popup bloqueada:
                 log("popup blocked");
@@ -443,6 +451,9 @@
               log("popup opened OK");
               setStatus("A autenticação abriu numa nova janela. Conclua o login nessa janela.");
               startServerPolling(nonce, authUrl);
+              */
+              log("popup opened " + (popupRef ? "OK" : "BLOCKED"));
+              startServerPolling(nonce, authUrl, !popupRef);
             })
             .withFailureHandler(function (err) {
               log("buildAuthUrlFor fail: " + (err && err.message ? err.message : err));

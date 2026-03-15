@@ -292,7 +292,7 @@ function CALCULAR_SALDO(valorPago, numT0, numT1, numT2, dataAdesaoRaw, anoAtual,
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.4";
+const VERSION = "v1.8";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
@@ -400,7 +400,7 @@ function gatesCfg_(){
     ssTitularesId: SS_TITULARES_ID,
     ranges: { titulares: RANGES.titulares },
     cols:   { email: COLS_TITULARES.L_EMAIL, rgpd: COLS_TITULARES.RGPD, pago: COLS_TITULARES.C_PAGO },
-    notify: { to: "secretario-direcao@titulares-portobelo.pt", ccAllRows: true },
+    notify: { to: "log-apps@titulares-portobelo.pt", ccAllRows: true },
     canon: canon,
     appName: "Associados",
   };

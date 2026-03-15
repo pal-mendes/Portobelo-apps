@@ -81,7 +81,7 @@ function findTelefoneIndex(numero) {
 **********************************************/
 
 
-const VERSION = "v6.7";
+const VERSION = "v6.10";
 
 // Folhas pertencentes APENAS a esta App
 const ANUNCIOS_SHEET = "Anúncios";
@@ -588,7 +588,7 @@ function apiGestaoAnuncios(ticket, payload) {
     
     try {
       MailApp.sendEmail({
-        to: 'geral@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
+        to: 'log-apps@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
         subject: 'Novo anúncio AUTOMÁTICO: ' + payload.novo[2],
         body: 'Um titular publicou um anúncio diretamente na plataforma.\n\nTelemóvel: ' + payload.novo[2] + '\nTipo: ' + payload.novo[1] + '\nDescrição: ' + payload.novo[3]
       });
@@ -625,7 +625,7 @@ function apiGestaoAnuncios(ticket, payload) {
 
     try {
       MailApp.sendEmail({
-        to: 'geral@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
+        to: 'log-apps@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
         subject: 'Anúncio ATUALIZADO pelo titular: ' + payload.novo[2],
         body: 'Um titular atualizou o seu anúncio.\n\nTelemóvel: ' + payload.novo[2] + '\nTipo: ' + payload.novo[1] + '\nNova Descrição: ' + payload.novo[3]
       });
@@ -657,7 +657,7 @@ function apiGestaoAnuncios(ticket, payload) {
     
     try {
       MailApp.sendEmail({
-        to: 'geral@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
+        to: 'log-apps@titulares-portobelo.pt', cc: ccEmails, replyTo: 'geral@titulares-portobelo.pt',
         subject: 'Anúncio(s) APAGADO(S) pelo titular',
         body: 'Um titular removeu ' + toDelete.length + ' anúncio(s) da plataforma.'
       });
