@@ -1,0 +1,322 @@
+
+<!-- RGPD.html (em AuthCoreLib) -->
+<!doctype html>
+<html>
+  <head>
+    <base target="_self" />
+    <meta charset="utf-8" />
+    <title>RGPD</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 820px;
+        margin: 18px auto;
+        padding: 0 14px;
+        line-height: 1.45;
+      }
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      button {
+        padding: 8px 12px;
+        border: 1px solid #999;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+    </style>
+
+    <script>
+    /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
+    (function () {
+      // Defensivo: usar typeof para evitar ReferenceError no template
+      var SV = { //usar como __SERVER_VARS. no código
+        canonUrl:   "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
+        ticket:     "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
+        autostart:  "<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>",   // '1' | ''
+        debugServer:"<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" === "1",
+        serverLog:  `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
+        wipe:       "<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>",   // '1' | ''
+        pageTag:    "<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>" // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
+      };
+
+      // Flags calculadas no cliente
+      SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
+
+      const CANON_SELF = location.origin + location.pathname;
+
+      SV.canonSelf = CANON_SELF;
+      window.CANON_SELF = CANON_SELF;
+
+      // Persistir
+      try { localStorage.setItem("appSelfUrl", CANON_SELF); } catch(_) {}
+      try { if ((SV.canonUrl || "").trim()) localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim()); } catch(_) {}
+
+      // Expor de forma limpa
+      window.__SERVER_VARS = Object.freeze(SV);
+
+      // Ponte mínima (se quiser eliminar depois, pode)
+      window.CANON_URL      = SV.canonUrl;
+      window.SESSION_TICKET = SV.ticket;
+      window.SERVER_LOG     = SV.serverLog;
+
+      // --- Stubs anti-erro: garantem que log/dbg existem MESMO antes do logger carregar
+      window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
+      window.dbg = window.dbg || function(){};
+  })();
+  </script>
+
+  <!-- Logger global único (consola apenas) - no head dos html e servido pela AuthCoreLib. -->
+  <script>
+    <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
+  </script>
+    
+  </head>
+  <body>
+    <? if (typeof BLOCK_MSG !== 'undefined' && BLOCK_MSG) { ?>
+    <div style="max-width: 600px; margin: 20px auto 0; background-color: #fef2f2; border: 1px solid #f87171; color: #991b1b; padding: 16px; border-radius: 8px; text-align: center; font-family: sans-serif;">
+      <h3 style="margin-top: 0; color: #dc2626;">Acesso Restrito</h3>
+      <p style="margin-bottom: 16px; line-height: 1.4;"><strong><?= BLOCK_MSG ?></strong></p>
+      <? if (typeof BLOCK_BTN_LABEL !== 'undefined' && BLOCK_BTN_LABEL) { ?>
+        <a href="<?= BLOCK_BTN_URL ?>" target="_top" style="display:inline-block; padding:10px 20px; background:#111; color:#fff; text-decoration:none; border-radius:6px; font-weight:500; font-size:14px;"><?= BLOCK_BTN_LABEL ?></a>
+      <? } ?>
+    </div>
+    <? } ?>
+    <div class="container">
+      <h2>Proteção de dados (RGPD)</h2>
+      <div class="card">
+        <p><b>REGULAMENTO DA ASSOCIAÇÃO DOS TITULARES DE DRHP DO PORTOBELO</b></p>
+        <p><b>Artigo 9.º — Proteção de dados</b></p>
+        <ol>
+          <li>
+            A Associação recolhe e trata dados pessoais dos associados
+            estritamente necessários ao cumprimento dos seus fins, designadamente
+            identificação, contactos e dados relativos às semanas detidas.
+          </li>
+          <li>
+            A Associação compromete-se a adotar medidas técnicas e organizativas
+            adequadas para a proteção desses dados.
+          </li>
+          <li>
+            Os dados serão usados apenas para fins associativos, com respeito pelo
+            RGPD e legislação nacional.
+          </li>
+          <li>
+            Os associados têm direito a aceder, retificar e solicitar a eliminação
+            dos seus dados, salvo os que sejam legalmente obrigatórios para o
+            funcionamento da Associação.
+          </li>
+        </ol>
+        <div id="rgpd-multi" style="display: none; margin: 12px 0"></div>
+        <div id="rgpd-multi-actions" style="display: none; margin: 12px 0">
+          <div style="background: #fff3cd; color: #856404; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; font-weight: 500;">
+            A não aceitação do RGPD resultaria no fornecimento apenas parcial dos serviços da Associação.
+          </div>
+          <button id="rgpd-save" class="btn">Guardar</button>
+        </div>
+      </div>
+    </div>
+    <!-- Script de Limpeza de Sessão (Se solicitado) -->
+    <script>
+      (function () {
+        const WIPE = (__SERVER_VARS.wipe === '1');
+        if (!WIPE) return;
+        try {
+          localStorage.removeItem("sessTicket");
+          log("RGPD.html wipe: localStorage ok");
+        } catch (e) {
+          log("RGPD.html wipe ls ERR " + e);
+        }
+        try {
+          document.cookie = "sessTicket=; Max-Age=0; Path=/; Secure; SameSite=Lax";
+          log("RGPD.html wipe: cookie ok");
+        } catch (e) {
+          log("RGPD.html wipe cookie ERR " + e);
+        }
+      })();
+    </script>
+    <script>
+      (function () {
+
+        log(`RGPD page`);
+
+        // Avaliação correta de DEBUG
+        const qs = new URLSearchParams(location.search);
+        const WANT_DEBUG = (__SERVER_VARS.debugServer === true || qs.get("debug") === "1" || qs.get("Debug") === "1");
+
+        function canonExec() {
+          const sv = window.__SERVER_VARS || {};
+          let url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
+          
+          if (!url) {
+            try { url = localStorage.getItem('appCanonicalUrl') || ""; } catch(_) {}
+          }
+          if (!url && document.referrer && document.referrer.indexOf('script.google.com/macros/s/') !== -1) {
+            url = document.referrer.split('?')[0];
+          }
+          
+          return url || (location.origin + location.pathname);
+        }
+
+        let TICKET = (__SERVER_VARS.ticket || (new URL(location.href).searchParams.get('ticket') || (function(){ try{return localStorage.getItem('sessTicket')}catch(_){return ''} })()));
+        if (!TICKET) {
+          // 1) tenta apanhar do URL (vindo do Main com ?ticket=…)
+          try { TICKET = new URL(location.href).searchParams.get('ticket') || ''; } catch(_) {}
+        }
+        if (!TICKET) {
+          // 2) último recurso: localStorage (só funciona se mesma origem)
+          try { TICKET = localStorage.getItem('sessTicket') || ''; } catch(_) {}
+        }
+
+        // Se foi solicitado WIPE, não consideramos o ticket válido para persistência.
+        if (__SERVER_VARS.wipe === '1') {
+            TICKET = '';
+        }
+        log(`RGPD page ready; CANON=${canonExec()}; have TICKET=${!!TICKET}`);
+
+        function persistTicket(t) {
+          try { localStorage.setItem("sessTicket", t); } catch (e) {}
+          try {
+            document.cookie =
+              "sessTicket=" + encodeURIComponent(t) +
+              "; Path=/; Max-Age=2592000; SameSite=Lax; Secure";
+          } catch (e) {}
+        }
+
+        if (TICKET) persistTicket(TICKET);
+
+        function spanChip(txt){
+          return `<span style="display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;background:#eef2ff;font-family:ui-monospace,monospace">${String(txt||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</span>`;
+        }
+
+
+
+        function navReplace(where) {
+          const url = String(where || '');
+          log("[RGPD] navReplace (top) → " + url);
+          try {
+            if (window.top !== window.self) {
+              window.top.location.href = url;
+            } else {
+              location.replace(url);
+            }
+          } catch (e) {
+            window.open(url, "_top");
+          }
+        }
+		
+        function renderMulti(rows){
+          log("[RGPD/multi] entrada");
+          try { log("[RGPD/multi] rows=" + JSON.stringify(rows)); } catch(_){}
+          if (!rows || !rows.length){
+            log("[RGPD/multi] nenhuma linha para este utilizador");
+            const box = document.getElementById('rgpd-multi');
+            box.style.display = '';
+            box.innerHTML = `
+              <div class="card">
+                <div class="muted">Não há linhas para gerir o RGPD neste e-mail.</div>
+                <div style="margin-top:8px">
+                  <button id="rgpd-back">Voltar</button>
+                </div>
+              </div>`;
+            document.getElementById('rgpd-back')?.addEventListener('click', () => {
+              const u = new URL(canonExec());
+              if (TICKET) u.searchParams.set("ticket", TICKET);
+              if (WANT_DEBUG) u.searchParams.set("debug", "1");
+              if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
+              navReplace(u.toString());
+            });
+            return;
+          }
+
+          log("[RGPD/multi] criar html");
+          // constroi cards com checkboxes
+          const html = rows.map(r => `
+            <div class="card" style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin:8px 0">
+              <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
+                <input type="checkbox" data-row="${r.row}" ${r.rgpd ? "checked":""}>
+                <div>
+                  <div><b>Semana(s)</b> ${spanChip(r.semanas)}</div>
+                  <div class="muted small rgpd-label">RGPD: ${r.rgpd ? "Aceite" : "Rejeitado"}</div>
+                </div>
+              </label>
+            </div>
+          `).join("");
+
+          const box = document.getElementById('rgpd-multi');
+          box.innerHTML = html;
+          box.style.display = '';
+
+          // Atualiza rótulo “RGPD: …” em tempo real
+          box.querySelectorAll('input[type="checkbox"][data-row]').forEach(cb => {
+            const row = +cb.getAttribute('data-row');
+            const lab = cb.closest('.card')?.querySelector('.rgpd-label');
+            const update = () => {
+              const on = !!cb.checked;
+              if (lab) lab.textContent = 'RGPD: ' + (on ? 'Aceite' : 'Rejeitado');
+              log(`[RGPD/multi] toggle row=${row} → ${on ? 'Aceite' : 'Rejeitado'}`);
+            };
+            cb.addEventListener('change', update);
+          });
+
+          const actions = document.getElementById('rgpd-multi-actions');
+          actions.style.display = '';
+
+          const btn = document.getElementById("rgpd-save");
+
+          btn.disabled = false;
+          btn.textContent = "Guardar";
+          // O SEGREDO ESTÁ AQUI: Navegação imediata ao clicar (síncrona)
+          btn.addEventListener("click", function () {
+
+            const accepted = Array.from(box.querySelectorAll('input[type="checkbox"][data-row]'))
+              .filter(el => el.checked)
+              .map(el => Number(el.dataset.row))
+              .filter(n => Number.isFinite(n));
+            log("[RGPD/multi] save click: accepted rows = " + JSON.stringify(accepted));
+            //if (!accepted.length) return;
+
+            btn.disabled = true;
+            btn.textContent = "A gravar…";
+
+            try { localStorage.setItem("rgpdAccepted", "1"); } catch(_) {}
+            const base = canonExec();
+            const u = new URL(base);
+            // Ao enviar action=postrgpd, o servidor Associados.js vai invocar a gravação setRgpdRowsFor(ticket, rows) no Google Sheets!
+            u.searchParams.set("action", "postrgpd");
+            //log("[RGPD/multi] save resp=", resp); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp= {ok: true, touched: 1}
+            //log("[RGPD/multi] save resp=" + JSON.stringify(resp)); //userCodeAppPanel?createOAuthDialog=true:34 [RGPD] [RGPD/multi] save resp={"ok":true,"touched":1}
+
+            u.searchParams.set("ticket", TICKET);
+            if (accepted.length) u.searchParams.set("rows", accepted.join(","));
+            // Garantir que debug não entra sem razão
+			if (WANT_DEBUG) u.searchParams.set("debug", "1");
+            u.searchParams.set("ts", Date.now());
+            
+            log("[RGPD/multi] navegar SÍNCRONO (top) → " + u.toString());
+            navReplace(u.toString());
+          });
+
+        }
+
+        // Não tenta carregar dados se estivermos no modo wipe (limpeza)
+        if (__SERVER_VARS.wipe !== '1') {
+            log("RGPD about to call listRgpdRowsFor (host)");
+            google.script.run
+              .withSuccessHandler(renderMulti)
+              .withFailureHandler(function(err){
+                alert("Erro a carregar linhas: " + (err && err.message ? err.message : String(err)));
+              })
+              .listRgpdRowsFor(TICKET);
+        }
+      })();
+    </script>
+  </body>
+</html>

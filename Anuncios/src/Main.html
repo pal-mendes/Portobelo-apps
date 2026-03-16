@@ -1,0 +1,268 @@
+
+
+<!-- Main.html (Anúncios) -->
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Anúncios Portobelo</title>
+  <style>
+    <?!= include('Styles'); ?>
+  </style>
+
+  <script>
+    (function () {
+      var SV = {
+        canonUrl:   "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
+        ticket:     "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
+        debugServer:"<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" === "1",
+        serverLog:  `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
+        wipe:       "<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>",
+        pageTag:    "<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : 'MAIN') ?>"
+      };
+      SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
+      const CANON_SELF = location.origin + location.pathname;
+      SV.canonSelf = CANON_SELF;
+      window.CANON_SELF = CANON_SELF;
+      try { localStorage.setItem("appSelfUrl", CANON_SELF); } catch(_) {}
+      try { if ((SV.canonUrl || "").trim()) localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim()); } catch(_) {}
+      window.__SERVER_VARS = Object.freeze(SV);
+      window.CANON_URL      = SV.canonUrl;
+      window.SESSION_TICKET = SV.ticket;
+      window.SERVER_LOG     = SV.serverLog;
+      window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
+      window.dbg = window.dbg || function(){};
+    })();
+  </script>
+
+
+
+  <!-- Se por acaso entrar com /u/{n}, tenta corrigir (só funciona se HTML carregar) -->
+  <script>
+    <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
+  </script>
+</head>
+
+<body style="font-family: sans-serif; padding: 2em;">
+  <div id="spinner" style="display:none; text-align: center; margin-top: 2em;">
+    <div class="loader"></div>
+  </div>
+
+  <div id="main-page" style="display: flex; flex-direction: column; height: 100vh; width: 100%;">
+
+    <div style="flex-shrink: 0; width: 100%; z-index: 20; position: relative; background: #fff;">
+      
+      <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <a class="icon-btn" href="https://titulares-portobelo.pt" target="_top" title="Início" style="color: #333; display: flex; align-items: center;">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
+          </a>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: baseline; gap: 8px; color: #111;">
+            Consulta de Anúncios 
+            <span style="font-size: 13px; color: #666; font-weight: normal;">(<?= VERSION ?>: Visitas = <span id="visitas"></span> &middot; Últ. 30 dias = <span id="visitas30"></span>)</span>
+          </h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="who" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666;">A carregar...</div>
+          <button id="btn-logout" style="font-size: 13px; padding: 4px 10px; border: 1px solid #ccc; border-radius: 8px; background: #fff; color: #111; cursor: pointer;">Sair</button>
+        </div>
+      </header>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; padding: 12px 14px; border-bottom: 1px solid #eaeaea; background: #fafafa; width: 100%; box-sizing: border-box;">
+        
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px;">
+          <button onclick="log('Atualizar lista clicked'); loadTable()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">🔄 Atualizar lista</button>
+          <button onclick="log('Toggle formulário'); toggleFormulario()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">➕ Gerir anúncios</button>
+          <div id="contador" style="font-weight: 600; color: #111; font-size: 14px;">Total: 0 anúncio(s)</div>
+        </div>
+
+        <div style="font-size: 13px; color: #666; white-space: nowrap;">
+          Atualização: <span id="atualizacao" style="font-weight: 500; color: #111;">A carregar...</span>
+        </div>
+        
+      </div>
+    </div>
+
+    <div style="flex-grow: 1; overflow-y: auto; overflow-x: auto; width: 100%; background: #fff;">
+      
+      <table style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; text-align: left;">
+        <thead>
+          <tr id="header-row">
+            
+            <th style="padding: 10px 8px; min-width: 115px; width: 115px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <input type="text" id="filtroAnuncio" class="th-filter-input" placeholder="Publicado" onclick="event.stopPropagation();">
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(0)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; width: 145px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <select id="filtroTipo" class="th-filter-select" onclick="event.stopPropagation();" onchange="this.classList.toggle('active', this.value !== '')">
+                  <option value="">Tipo</option>
+                  <option value="Venda">Venda</option>
+                  <option value="Compra">Compra</option>
+                  <option value="Aluguer a inquilino">Aluguer a inquilino</option>
+                  <option value="Aluguer a senhorio">Aluguer a senhorio</option>
+                  <option value="Permuta">Permuta</option>
+                  <option value="Intercâmbio">Intercâmbio</option>
+                </select>
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(1)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; width: 130px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <input type="text" id="filtroTelefone" class="th-filter-input" placeholder="Telemóvel" onclick="event.stopPropagation();">
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(2)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <input type="text" id="filtroDescricao" class="th-filter-input" placeholder="Descrição com data de ocupação" onclick="event.stopPropagation();">
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(3)">↕</span>
+              </div>
+            </th>
+            
+            <th style="padding: 10px 8px; width: 130px; position: sticky; top: 0; background: #f1f3f4; border-bottom: 2px solid #ddd; z-index: 10;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                <select id="filtroEntrada" class="th-filter-select" onclick="event.stopPropagation();" onchange="this.classList.toggle('active', this.value !== '')">
+                  <option value="">Entrada</option>
+                  <option value="quinta-feira">quinta-feira</option>
+                  <option value="sábado">sábado</option>
+                  <option value="domingo">domingo</option>
+                </select>
+                <span class="sort-icon" style="cursor: pointer; padding: 4px; font-size: 14px;" onclick="ordenarTabela(4)">↕</span>
+              </div>
+            </th>
+            
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>    </div>
+
+    <div id="formulario" style="display:none;">
+      <?!= include('Form'); ?>
+    </div>
+
+
+    <div id="anuncios-wrapper">
+      <table id="anuncios-table">
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const VERSION = "<?= VERSION ?>";
+    const TOTAL_VISITAS = "<?= count ?>";
+    const TOTAL_VISITAS_30 = "<?= count30 ?>";
+
+    document.addEventListener("DOMContentLoaded", function() {
+      try { document.getElementById("visitas").innerText = TOTAL_VISITAS; } catch(e){}
+      try { document.getElementById("visitas30").innerText = TOTAL_VISITAS_30; } catch(e){}
+    });
+
+    // 1) Persistir ticket e lidar com URLs
+    (function () {
+      try {
+        if (SESSION_TICKET) {
+          localStorage.setItem("sessTicket", SESSION_TICKET);
+          document.cookie = "sessTicket=" + encodeURIComponent(SESSION_TICKET) + "; Path=/; SameSite=Lax; Secure";
+          const u = new URL(location.href);
+          if (u.searchParams.has("ticket")) {
+            u.searchParams.delete("ticket");
+            u.searchParams.delete("ts"); // Limpa também o timestamp para ficar limpo
+            history.replaceState({}, document.title, u.toString());
+          }
+        }
+      } catch (_) {}
+    })();
+
+    // 2) Lógica do Botão Sair simplificada com navegação para a Sandbox Principal
+    document.getElementById("btn-logout").addEventListener("click", function(ev) {
+      ev.preventDefault();
+      log("[MAIN] Iniciando processo de Sair... (9/3/2026 12:03)");
+      
+      // Eliminação Agressiva Antecipada na App Cliente
+      try { localStorage.setItem("sessTicket", ""); localStorage.removeItem("sessTicket"); localStorage.clear(); } catch (_) {}
+      try { sessionStorage.setItem("sessTicket", ""); sessionStorage.removeItem("sessTicket"); sessionStorage.clear(); } catch (_) {}
+      try { 
+        const paths = ['/', '/macros/s/', location.pathname];
+        paths.forEach(function(p) {
+          document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + "; SameSite=Lax; Secure";
+          document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + ";";
+        });
+      } catch (_) {}
+  
+      // 3. Ocultar a app e mostrar feedback imediato DENTRO do iframe
+      document.body.innerHTML = "<div style='text-align:center; padding:60px 20px; font-family:sans-serif;'>" +
+                                      "<h3 style='color:#333;'>A encerrar sessão com segurança...</h3>" +
+                                      "<p style='color:#777;'>A limpar dados do navegador.</p></div>";
+
+      const sv = window.__SERVER_VARS || {};
+      let url = (sv.canonUrl || window.CANON_URL || sv.canonSelf || location.origin + location.pathname).trim();
+      // O TRUQUE MESTRE: Enviar para a Root URL com Hash #logout
+      const u = new URL(url);
+      if (window.location.search.includes('debug=1') || u.searchParams.has('debug')) {
+          u.searchParams.set("debug", "1");
+      }
+      //u.hash = "logout"; // <-- Garante a abertura da Sandbox original
+      // 2. Avisar o servidor para travar a Autenticação
+      u.searchParams.set("action", "logout");
+      
+      log("[MAIN] A navegar para a sandbox base de logout...");
+      // O SEGREDO ESTÁ AQUI: Dar tempo para o browser gravar a eliminação antes de destruir o iframe!
+      setTimeout(function() {
+        log("[MAIN] A navegar para: " + u.toString());
+        try {
+          if (window.top !== window.self) window.top.location.href = u.toString();
+          else location.replace(u.toString());
+        } catch (e) {
+          window.open(u.toString(), "_top");
+        }
+      }, 600);
+    });
+
+  </script>
+
+  <script>
+      document.addEventListener("DOMContentLoaded", function() {
+          try {
+              const ticket = window.SESSION_TICKET || localStorage.getItem("sessTicket") || "";
+              if (ticket && ticket.includes(".")) {
+                  let base64Url = ticket.split('.')[0];
+                  let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                  let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                  }).join(''));
+                  
+                  let payload = JSON.parse(jsonPayload);
+                  const whoDiv = document.getElementById("who");
+                  
+                  if (whoDiv) {
+                      let htmlStr = "";
+                      if (payload.picture) {
+                          htmlStr += `<img src="${payload.picture}" alt="" style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #e5e7eb; object-fit: cover;">`;
+                      }
+                      // Adiciona o Nome
+                      htmlStr += `<span style="color: #111; font-weight: 500;">${payload.name || payload.email}</span>`;
+                      // Adiciona o Ponto e o Email (se tiver ambos)
+                      if (payload.email && payload.name) {
+                          htmlStr += ` <span style="color: #666;">· ${payload.email}</span>`;
+                      }
+                      whoDiv.innerHTML = htmlStr;
+                  }
+              }
+          } catch(e) {
+              log("Erro a processar perfil visual: " + e);
+          }
+      });
+    </script>
+
+  <?!= include('App'); ?>
+
+</body>
+</html>

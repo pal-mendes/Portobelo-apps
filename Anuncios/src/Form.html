@@ -1,0 +1,36 @@
+
+<!-- Form.html em Anuncios -->
+<h2>Criar ou apagar anúncio</h2>
+
+<button type="button" onclick="toggleFormulario()" style="position: absolute; bottom: 15px; right: 15px; background: #f1f3f4; border: none; font-size: 22px; cursor: pointer; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #555; z-index: 10;">&times;</button>
+
+<div style="margin-bottom: 15px;">
+  <label for="anuncioTelefone">Telemóvel</label>
+  <select id="anuncioTelefone" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;">
+    <option value="">A carregar telemóveis...</option>
+  </select>
+</div>
+
+<label for="anuncioTipo">Tipo de anúncio:</label>
+<select id="anuncioTipo" required title="O intercâmbio é para trocas num só ano, e a permuta é definitiva.">
+  <option value="">Selecione o tipo de anúncio</option>
+  <option value="Aluguer a senhorio">Aluguer a senhorio</option>
+  <option value="Aluguer a inquilino">Aluguer a inquilino</option>
+  <option value="Intercâmbio">Intercâmbio</option>
+  <option value="Permuta">Permuta</option>
+  <option value="Venda">Venda</option>
+  <option value="Compra">Compra</option>
+</select>
+
+<label for="anuncioEntrada">Dia de entrada:</label>
+<select id="anuncioEntrada" title="Se o anúncio for de semanas sempre com o mesmo dia semanal de entrada, indique-o.">
+  <option value="">Selecione o dia de entrada</option>
+  <option value="Domingo">Domingo</option>
+  <option value="Quinta-feira">Quinta-feira</option>
+  <option value="Sábado">Sábado</option>
+</select>
+
+<textarea id="anuncioDescricao" rows="6" placeholder="Escreva aqui o que pretende, não deixando de identificar o tipo de apartamento (T0, T1, T2) e a(s) semana(s) do ano (por número da semana - 31 e 31, por exemplo - ou doutra forma - em agosto, por exemplo)…" title="Escreva pelo menos 10 caracteres com o que pretende." required></textarea>
+
+<button id="botaoSubmeter" onclick="enviarAnuncio()">📤 Submeter pedido</button>
+<p id="mensagem-submissao"></p>

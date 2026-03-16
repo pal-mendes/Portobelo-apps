@@ -1,0 +1,12 @@
+# macOS / Windows / Node
+.DS_Store
+Thumbs.db
+node_modules/
+
+# Logs temporários
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Por precaução: não versionar artefactos locais do clasp fora das pastas de projeto
+#.clasp.json

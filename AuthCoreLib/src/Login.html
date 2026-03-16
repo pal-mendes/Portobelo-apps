@@ -1,0 +1,546 @@
+
+<!-- Login.html (AuthCoreLib) -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- NOVO: Garante que a página não fica minúscula no telemóvel -->
+
+    <meta
+      http-equiv="Cache-Control"
+      content="no-store, no-cache, must-revalidate, max-age=0"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Área reservada</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .btn {
+        display: inline-block;
+        padding: 12px 20px; /* Botões maiores para dedos no telemóvel */
+        border: 1px solid #999;
+        border-radius: 8px;
+        text-decoration: none;
+        background: #fff;
+        color: #111;
+        font-weight: 500;
+        text-align: center;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .btn-primary {
+        background: #111;
+        color: #fff;
+        border: none;
+      }
+      #status {
+        margin: 1.5em 0 0;
+        color: #555;
+        line-height: 1.5;
+      }
+      /* Novo estilo para o aviso de bloqueio no telemóvel */
+      .alert-box {
+        background: #fff3cd;
+        color: #856404;
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid #ffeeba;
+        margin-top: 20px;
+      }
+    </style>
+
+    <script>
+      /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
+      (function () {
+        // Defensivo: usar typeof para evitar ReferenceError no template
+        var SV = {
+          //usar como __SERVER_VARS. no código
+          canonUrl:"<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
+          ticket:"<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
+          autostart:"<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>", // '1' | ''
+          debugServer:"<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" === "1",
+          serverLog:`<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
+          wipe:"<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>", // '1' | ''
+          pageTag:"<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>", // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
+        };
+
+        // Flags calculadas no cliente
+        SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
+
+        const CANON_SELF = location.origin + location.pathname;
+
+        SV.canonSelf = CANON_SELF;
+        window.CANON_SELF = CANON_SELF;
+
+        // Persistir: self (embed) e canon (/exec) se existir
+        try {
+          localStorage.setItem("appSelfUrl", CANON_SELF);
+        } catch (_) {}
+        try {
+          if ((SV.canonUrl || "").trim())
+            localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim());
+        } catch (_) {}
+
+        // Expor de forma limpa
+        window.__SERVER_VARS = Object.freeze(SV);
+
+        // Ponte mínima (se quiser eliminar depois, pode)
+        window.CANON_URL = SV.canonUrl;
+        window.SESSION_TICKET = SV.ticket;
+        window.SERVER_LOG = SV.serverLog;
+
+        // --- Stubs anti-erro: garantem que log/dbg existem MESMO antes do logger carregar
+        window.log =
+          window.log ||
+          function () {
+            try {
+              console.log.apply(console, arguments);
+            } catch (_) {}
+          };
+        window.dbg = window.dbg || function () {};
+      })();
+    </script>
+
+    <!-- Logger global único(consola apenas) - no head dos html e servido pela AuthCoreLib. -->
+    <script>
+      <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
+    </script>
+
+    <script>
+      // FUNÇÃO UNIVERSAL DE DESTRUIÇÃO DE SESSÃO
+      function killLocalSession() {
+        log("killLocalSession: Executando limpeza de localStorage e cookies (versão 9/3/2026 11:34)...");
+
+        // 1. Matar LocalStorage e SessionStorage
+        try {
+          localStorage.setItem("sessTicket", "");
+          localStorage.removeItem("sessTicket");
+          localStorage.clear();
+        } catch (e) {
+          log("ERRO localStorage wipe: " + e);
+        }
+        try {
+          sessionStorage.setItem("sessTicket", "");
+          sessionStorage.removeItem("sessTicket");
+          sessionStorage.clear();
+        } catch (e) {
+          log("ERRO sessionStorage wipe: " + e);
+        }
+
+        // 2. Matar Cookies em TODAS as combinações de paths possíveis do Google
+        try {
+          // Destrói cookies varrendo as combinações prováveis de domínios/paths do Google
+          const paths = ["/", "/macros/s/", location.pathname];
+          paths.forEach(function (p) {
+            document.cookie =
+              "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" +
+              p +
+              "; SameSite=Lax; Secure";
+            document.cookie =
+              "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" +
+              p +
+              ";";
+          });
+        } catch (e) {
+          log("ERRO cookie wipe: " + e);
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <h2>Área reservada a associados</h2>
+    <p>
+      <a id="login-link" class="btn" href="#" style="display: none"
+        >Entrar com conta Google</a
+      >
+    </p>
+    <div id="status"></div>
+
+    <!-- 1)Limpeza de Sessão (WIPE) -->
+    <script>
+      (function () {
+        const WIPE = __SERVER_VARS.wipe === "1";
+        log("WIPE=" + WIPE);
+        if (!WIPE) return;
+
+        log("proceed with WIPE");
+        window.STOP_LOGIN_FLOW = true; // Impede que o ecrã tente fazer o login
+        killLocalSession(); // Chama a função universal
+
+        // Obter o URL canónico correto para o botão de reentrar
+        const loginUrl = __SERVER_VARS.canonUrl || location.origin + location.pathname;
+
+        document.addEventListener("DOMContentLoaded", function () {
+          // Substitui toda a página pelo ecrã de saída limpo, mantendo na mesma aba
+          document.body.innerHTML =
+            '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
+            '<h2 style="margin-bottom:20px;">Sessão terminada com sucesso.</h2>' +
+            '<p style="color:#555; margin-bottom: 30px;">Pode fechar esta página ou entrar novamente.</p>' +
+            '<a href="' +
+            loginUrl +
+            '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
+            '</div>';
+        });
+      })();
+    </script>
+
+    <!-- 2)Fluxo de autenticação -->
+    <script>
+      (function () {
+        log("fluxo de autenticação");
+        if (window.STOP_LOGIN_FLOW) {
+          log("STOP_LOGIN_FLOW");
+          return; // Aborta a procura de tickets locais se for para limpar
+        }
+        log("prossegue fluxo de autenticação");
+
+        const BTN = document.getElementById("login-link");
+        const ST = document.getElementById("status");
+        // Correção do Debug: Avalia de forma segura se o debug foi ativado pelo servidor ou pelo URL atual
+        const qs = new URLSearchParams(location.search);
+        const WANT_DEBUG =
+          __SERVER_VARS.debugServer === true ||
+          qs.get("debug") === "1" ||
+          qs.get("Debug") === "1";
+        const CANON_URL =
+          __SERVER_VARS.canonUrl ||
+          (function () {
+            try {
+              return localStorage.getItem("appCanonicalUrl");
+            } catch (_) {
+              return "";
+            }
+          })() || location.origin + location.pathname;
+
+        // Configuração centralizada de tempos (ms)
+        const UI_DELAY_HINT = 30000;  // Surge o aviso e a imagem
+        const UI_DELAY_BTN  = 60000;  // Surge o botão de fallback
+        const UI_DELAY_MAX  = 180000; // Desiste e pede refresh
+
+        function setStatus(s, asHTML) {
+          if (!ST) return;
+          if (asHTML) ST.innerHTML = s;
+          else ST.textContent = s;
+        }
+
+        function canonExec() {
+          try {
+            // Lê o URL exato onde o utilizador está (ex: .../dev ou .../exec)
+            if (document.referrer && document.referrer.indexOf('script.google.com/macros/s/') !== -1) {
+              log("canonExec: referrer script.google.com/macros/s/");
+              return document.referrer.split('?')[0].split('#')[0];
+            }
+          } catch(e) {}
+          const sv = window.__SERVER_VARS || {};
+          log("canonExec: sv.canonUrl=", sv.canonUrl);
+          log("canonExec: sv.CANON_URL=", sv.CANON_URL);
+          log("canonExec: window.CANON_URL=", window.CANON_URL);
+          log("canonExec: window.CANON=", window.CANON);
+          let url = (
+            sv.canonUrl ||
+            sv.CANON_URL ||
+            window.CANON_URL ||
+            window.CANON ||
+            ""
+          ).trim();
+          log("canonExec (sv): url=", url);
+          if (url) return url;
+
+          // 1. Tentar ler da cache (Main.html costuma guardar lá)
+          try {
+            url = localStorage.getItem("appCanonicalUrl") || "";
+          } catch (_) {}
+          log("canonExec (localStorage): url=", url);
+          log("canonExec location=", location.origin + location.pathname);
+
+          // 3. Fallback final
+          return url || location.origin + location.pathname;
+        }
+
+        function persistTicket(t) {
+          try {
+            localStorage.setItem("sessTicket", t);
+          } catch (e) {}
+          try {
+            document.cookie =
+              "sessTicket=" +
+              encodeURIComponent(t) +
+              "; Path=/; Max-Age=2592000; SameSite=Lax; Secure";
+          } catch (e) {}
+        }
+
+        function bestLocalTicket() {
+          try {
+            const t = localStorage.getItem("sessTicket");
+            if (t) { log("bestLocalTicket: Ticket encontrado no LocalStorage!"); return t; }
+          } catch (_) {}
+          try {
+            const m = (document.cookie || "").match(/(?:^|;\s*)sessTicket=([^;]+)/);
+            if (m && m[1]) {
+                log("bestLocalTicket: Ticket zombie encontrado no Cookie!");
+                return decodeURIComponent(m[1]);
+            }
+          } catch (_) {}
+          log("bestLocalTicket: Nenhum ticket local encontrado (Limpeza com sucesso).");
+          return "";
+        }
+
+        function goWithTicket(ticket) {
+          persistTicket(ticket); // IMPORTANTÍSSIMO: antes de mexer no location
+          const u = new URL(canonExec());
+          u.searchParams.set("ticket", ticket);
+
+          // Usar a variável WANT_DEBUG corrigida (impede que debug=1 apareça do nada)
+          if (WANT_DEBUG) u.searchParams.set("debug", "1");
+          if (!u.searchParams.has("ts"))
+            u.searchParams.set("ts", String(Date.now()));
+
+          log("[LOGIN] goWithTicket preparado -> " + u.toString());
+
+          // SOLUÇÃO SANDBOX: O Chrome bloqueia navegações do window.top após callbacks assíncronos.
+          // Em vez de redirecionar automaticamente, mostramos um botão "Entrar" para forçar um clique do utilizador.
+          if (BTN) BTN.style.display = "none";
+          setStatus(
+            '<div style="text-align:center; padding: 20px 0;">' +
+              '<div style="font-size: 40px; margin-bottom: 10px;">✅</div>' +
+              '<h3 style="margin-top:0;">Sessão validada</h3>' +
+              '<a href="' +
+              u.toString() +
+              '" target="_top" class="btn btn-primary">Entrar</a>' +
+              "</div>",
+            true,
+          );
+        }
+
+        // Receber ticket via postMessage
+        let popupRef = null;
+        window.addEventListener("message", function (ev) {
+          const d = (ev && ev.data) || {};
+          if (d && d.type === "portobelo_ticket" && d.ticket) {
+            log("ticket via postMessage");
+            try {
+              if (popupRef && !popupRef.closed) popupRef.close();
+            } catch (_) {}
+            goWithTicket(d.ticket);
+          }
+        });
+
+        // Polling de fallback (3 min)
+        function startServerPolling(nonce, authUrl, popupBlocked) {
+          log("startServerPolling(" + nonce + ")");
+          const t0 = Date.now();
+          let delay = 1800;
+          let done = false;
+
+          // Se o popup foi bloqueado, mostramos o aviso quase logo (ex: 2 segundos)
+          // Caso contrário, esperamos os 30s/60s normais
+          const effectiveHintDelay = popupBlocked ? 2000 : UI_DELAY_HINT;
+          const effectiveBtnDelay  = popupBlocked ? 3000 : UI_DELAY_BTN;
+
+          // UI atrasada (hint) só se nada acontecer
+          log("hintTimer=setTimeout()");
+          const hintTimer = setTimeout(function () {
+            if (!done) {
+              setStatus(
+                '<div class="alert-boxstyle="padding: 20px;">' + // Aumentado o padding interno
+                  "<b>Aviso:</b> O processo está a demorar. Se o ecrã do Google não abriu, o seu navegador pode ter bloqueado a janela (muito comum em telemóveis, mas não só). " +
+                  "É conveniente autorizar popups, redirecionamentos e cookies de terceiros, somente para esta aplicação.<br>" +
+                  // Imagem das permissões (ajuste o ID abaixo com o ID real do ficheiro JPG) e use thumbnail. max-width pode ficar igual ao do body
+                  '<img src="https://drive.google.com/thumbnail?id=1O8ZUhwGsBxHI-Ud9ZaknAp1Q9SkiZxYh&sz=w1000"' +
+                  'style="width:100%; max-width:800px; border-radius:8px; display:block; margin: 15px auto; border: 1px solid #ddd;">' +
+                  '<b>No telemóvel:</b> Se o ecrã ficar branco ou der erro, clique nos 3 pontinhos, normalmente no canto superior direito e escolha "Abrir no navegador...".<br>' +
+                  '<b>No iPhone, a autorização é global.</b> Se não se importar, vá a Definições > Apps > Safari e desligue "Bloquear janelas pop-up" e "Impedir seguimento entre sites"<br>' +
+                  '<br><b>Pode também esperar mais um pouco e carregar no botão que vai surgir aqui, que pode funcionar.</b><br>' +
+                  '<div id="fallback-btn-container"></div>' + // Contentor vazio para o botão
+                '</div>',
+                true,
+              );
+            }
+          }, effectiveHintDelay);
+
+          // 2. Mostrar o BOTÃO
+          const btnTimer = setTimeout(function () {
+            if (!done) {
+              const btnContainer = document.getElementById("fallback-btn-container");
+              if (btnContainer) {
+                btnContainer.innerHTML = '<a href="' + authUrl + '" target="_top" class="btn btn-primary">Clique aqui para Entrar</a>';
+              }
+            }
+          }, effectiveBtnDelay);
+
+          (function tick() {
+            if (done) return;
+            google.script.run
+              .withSuccessHandler(function (ticket) {
+                if (done) return;
+                if (ticket) {
+                  done = true;
+                  clearTimeout(hintTimer);
+                  clearTimeout(btnTimer); // Limpa também o timer do botão
+                  log("server → ticket (" + String(ticket).slice(0, 12) + "…)");
+                  try {
+                    if (popupRef && !popupRef.closed) popupRef.close();
+                  } catch (_) {}
+                  goWithTicket(ticket);
+                  return;
+                }
+                if (Date.now() - t0 > UI_DELAY_MAX) {
+                  done = true;
+                  setStatus("Tempo esgotado. Por favor, tente recarregar a página.");
+                  return;
+                }
+                delay = Math.min(delay * 1.35, 6500);
+                log("pollTicket success setTimeout()");
+                setTimeout(tick, delay + Math.random() * 250);
+              })
+              .withFailureHandler(function () {
+                if (done) return;
+                if (Date.now() - t0 > UI_DELAY_MAX) {
+                  done = true;
+                  setStatus("Tempo esgotado. Por favor, tente recarregar a página.");
+                  return;
+                }
+                delay = Math.min(delay * 1.35, 6500);
+                log("pollTicket failure setTimeout()");
+                setTimeout(tick, delay);
+              })
+              .pollTicket(nonce);
+          })();
+        }
+
+        function beginAuthFlow(manualClick) {
+          log("beginAuthFlow");
+          const nonce = crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now() + "." + Math.random();
+          if (BTN) BTN.style.display = "none";
+          setStatus("A preparar autenticação…");
+
+          google.script.run
+            .withSuccessHandler(function (authUrl) {
+              log("[DEBUG-OAUTH] URL gerado para a Google: " + authUrl);
+              // Tentativa 1: POPUP
+              try {
+                popupRef = window.open(authUrl, "portobeloAuth", "width=520,height=720");
+              } catch (_) {
+                log("popupRef / null");
+                popupRef = null;
+              }
+              /*
+              if (!popupRef) {
+                // Se popup bloqueada:
+                log("popup blocked");
+                // A SALVAGUARDA GIGANTE PARA O FIREFOX MOBILE / SAFARI
+                setStatus(
+                  '<div class="alert-box">' +
+                    "<b>Ação necessária:</b> O seu navegador de telemóvel bloqueou a janela de autenticação da Google.<br><br>" +
+                    '<b>No telemóvel:</b> Se, ao prosseguir, o ecrã ficar branco ou der erro, clique nos 3 pontinhos no canto superior direito e escolha "Abrir no navegador / Chrome / Firefox".<br><br>' +
+                    '<a href="' +
+                    authUrl +
+                    '" target="_top" class="btn btn-primary">Prosseguir para a Google</a></div>',
+                  true,
+                );
+                return;
+              }
+
+              // Popup OK
+              log("popup opened OK");
+              setStatus("A autenticação abriu numa nova janela. Conclua o login nessa janela.");
+              startServerPolling(nonce, authUrl);
+              */
+              log("popup opened " + (popupRef ? "OK" : "BLOCKED"));
+              startServerPolling(nonce, authUrl, !popupRef);
+            })
+            .withFailureHandler(function (err) {
+              log("buildAuthUrlFor fail: " + (err && err.message ? err.message : err));
+              setStatus("Não foi possível iniciar a autenticação. Tente novamente.");
+              if (BTN) BTN.style.display = "";
+            })
+            // AQUI É QUE PASSAMOS O URL DO CLIENTE (/dev ou /exec) PARA O SERVIDOR!
+            .buildAuthUrlFor(nonce, WANT_DEBUG, window.top !== window, canonExec());
+        }
+
+        // Botão (para quando a pop-up automática falha ou NOREDIRECT)
+        BTN.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          beginAuthFlow(true);
+        });
+
+        // Bootstrap “seguro”: se já houver ticket local/cookie válido, vai direto
+        (function bootstrap() {
+          log("function bootstrap…");
+          if (__SERVER_VARS.noRedirect) {
+            if (BTN) BTN.style.display = "";
+            return;
+          }
+
+          // O SEGREDO: Detetar o cavalo de troia (HASH) usando JS nativo (Sem causar erros na API da Google)
+          let isLogout = false;
+          try {
+              if (window.location.hash.indexOf('logout') !== -1 || window.location.href.indexOf('#logout') !== -1) {
+                  isLogout = true;
+              }
+          } catch(e) {}
+
+          if (isLogout) {
+            log("Cavalo de Troia: Hash #logout detetado na Sandbox principal! Destruindo memória...");
+            window.STOP_LOGIN_FLOW = true;
+            killLocalSession();
+
+            // Tentar limpar o URL para não ficar sujo visualmente
+            try { history.replaceState(null, null, ' '); } catch(e){}
+
+            const loginUrl = __SERVER_VARS.canonUrl || location.origin + location.pathname;
+            document.body.innerHTML =
+              '<div style="text-align:center; padding: 50px 20px; font-family: system-ui, sans-serif;">' +
+              '<h2 style="margin-bottom:20px; color:#22c55e;">Sessão terminada com sucesso.</h2>' +
+              '<p style="color:#555; margin-bottom: 30px;">A sua sessão foi encerrada de forma estanque e segura.</p>' +
+              '<a href="' + loginUrl + '" target="_top" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:8px; font-weight:500;">Entrar Novamente</a>' +
+              '</div>';
+            return;
+          }
+
+          // Se não for wipe, continua com o login normal
+          const t = bestLocalTicket();
+          if (!t) {
+            // sem ticket → podemos autostartar popup (se AUTOSTART=1)
+            const AUTOSTART = __SERVER_VARS.autostart;
+            if (AUTOSTART) {
+              // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
+              beginAuthFlow(false);
+            } else {
+              if (BTN) BTN.style.display = "";
+            }
+            return;
+          }
+
+          log("bootstrap Found local ticket/cookie — validating…");
+          google.script.run
+            .withSuccessHandler(function (valid) {
+              if (valid) {
+                goWithTicket(t);
+                return;
+              }
+              log("ticket inválido → wipe");
+              killLocalSession(); // CHAMADA ADICIONADA AQUI TAMBÉM!
+              setStatus("A sua sessão expirou.");
+              if (BTN) BTN.style.display = "";
+            })
+            .withFailureHandler(function (err) {
+              log(
+                "validate fail: " +
+                  (err && err.message ? err.message : err),
+              );
+              setStatus("Não foi possível validar a sessão.");
+              if (BTN) BTN.style.display = "";
+            })
+            .isTicketValid(t, WANT_DEBUG ? 1 : 0);
+        })();
+      })();
+    </script>
+  </body>
+</html>
