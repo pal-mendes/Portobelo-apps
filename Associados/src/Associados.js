@@ -59,7 +59,7 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.11";
+const VERSION = "v1.13";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
