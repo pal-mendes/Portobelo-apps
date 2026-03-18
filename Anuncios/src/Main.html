@@ -71,8 +71,9 @@
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; padding: 12px 14px; border-bottom: 1px solid #eaeaea; background: #fafafa; width: 100%; box-sizing: border-box;">
         
         <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px;">
-          <button onclick="log('Atualizar lista clicked'); loadTable()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">🔄 Atualizar lista</button>
-          <button onclick="log('Toggle formulário'); toggleFormulario()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">➕ Gerir anúncios</button>
+          <div style="font-size: 13px; color: #666; font-weight: normal;">(Clique título da coluna para filtrar e à direita para ordenar)<span id="clique"></span></div>
+          <button onclick="log('Atualizar lista clicked'); loadTable()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">🔄 Atualizar</button>
+          <button onclick="log('Toggle formulário'); toggleFormulario()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px;">➕ Gerir</button>
           <div id="contador" style="font-weight: 600; color: #111; font-size: 14px;">Total: 0 anúncio(s)</div>
         </div>
 

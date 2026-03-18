@@ -818,7 +818,7 @@ function getProfileStats_(ticket, cfg) {
     if (idxSaldo != null) {
       console.log("getProfileStats_: Pago da linha=", info.values[r][idxPago]);
       totalPago += parsePtNumber_AuthCore_(info.values[r][idxPago]);
-      console.log("getProfileStats_: totalPagoo=", totalPagoo);
+      console.log("getProfileStats_: totalPago=", totalPago);
 
       console.log("getProfileStats_: Saldo da linha=", info.values[r][idxSaldo]);
       totalSaldo += parsePtNumber_AuthCore_(info.values[r][idxSaldo]);
