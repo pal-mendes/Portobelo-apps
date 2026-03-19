@@ -1,19 +1,27 @@
 
 // =========================
-// Associados.gs
+// Titulares.gs
+// Utilizado para fórmulas a usar no spreadsheet
 // =========================
 
-/*************************
- * 
- * Utilizado para fórmulas a usar no spreadsheet, mas também para a web app
- * 
- ************************/
 
+function getTitularesColumns_(sheet) {
+  const headerRow = 6;
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return {};
 
-
-// ====================================================================
-// FUNÇÕES PERSONALIZADAS PARA O GOOGLE SHEETS
-// ====================================================================
+  const headers = sheet.getRange(headerRow, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const map = {};
+  
+  // Mapeamento dos nomes exatos das colunas para o seu número (1-based)
+  const targets = ["€", "Adesão", "T0", "T1", "T2", "Fim", "Quota", "Jóia", "Saldo"];
+  headers.forEach((label, index) => {
+    if (targets.includes(label)) {
+      map[label] = index + 1;
+    }
+  });
+  return map;
+}
 
 
 /**
@@ -28,9 +36,13 @@ function onEdit(e) {
 
   // 1. Edição na aba Titulares (Apenas a partir da linha 7)
   if (sheetName === "Titulares" && row >= 7) {
-    // Colunas de influência: F(6)=€ pagos, H(8)=Adesão, I(9)=T0, J(10)=T1, K(11)=T2
-    if ([6, 8, 9, 10, 11].includes(col)) {
-      updateTitularesRowValues_(sheet, row);
+    const cols = getTitularesColumns_(sheet);
+    const editedCol = e.range.getColumn();   
+
+    // Verifica se a coluna editada é uma das que afeta os cálculos
+    const influenceCols = [cols["€"], cols["Adesão"], cols["T0"], cols["T1"], cols["T2"], cols["Fim"]];
+    if (influenceCols.includes(editedCol)) {
+      updateTitularesRowValues_(sheet, row, cols);
     }
   } 
   
@@ -51,29 +63,54 @@ function onOpen() {
 }
 
 /**
+ * Determina o ano limite para o cálculo de quotas com base na coluna "Fim".
+ */
+function getAnoReferencia_(valorFim) {
+  const anoAtual = new Date().getFullYear();
+  if (!valorFim) return anoAtual;
+
+  let anoFim;
+  if (valorFim instanceof Date) {
+    anoFim = valorFim.getFullYear();
+  } else {
+    anoFim = parseInt(valorFim);
+  }
+  
+  // Se o ano de fim for válido, o cálculo deve parar nesse ano (até 31 de dezembro)
+  return (!isNaN(anoFim) && anoFim > 0) ? Math.min(anoAtual, anoFim) : anoAtual;
+}
+
+/**
  * Atualiza os valores estáticos de uma única linha na aba Titulares.
  */
-function updateTitularesRowValues_(sheet, row) {
+function updateTitularesRowValues_(sheet, row, cols) {
+  if (!cols) cols = getTitularesColumns_(sheet);
+
   const ss = sheet.getParent();
   const quotasSheet = ss.getSheetByName("Quotas");
   const matrizQuotas = quotasSheet.getRange("A2:D3").getValues();
   
-  // Lê os dados da linha (C até H)
-  const data = sheet.getRange(row, 1, 1, 8).getValues()[0];
-  const valorPago = data[6];     // F
-  const dataAdesao = data[8];    // H
-  const numT0 = data[9];         // I
-  const numT1 = data[10];         // J
-  const numT2 = data[11];         // K
-  const anoAtual = new Date().getFullYear();
+  // Captura os dados necessários usando o mapeamento
+  const rowData = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  const valorPago = rowData[cols["€"] - 1];
+  const dataAdesao = rowData[cols["Adesão"] - 1];
+  const t0 = rowData[cols["T0"] - 1];
+  const t1 = rowData[cols["T1"] - 1];
+  const t2 = rowData[cols["T2"] - 1];
+  const dataFim = rowData[cols["Fim"] - 1];
 
-  // Reutiliza as funções de cálculo existentes
-  const quota = CALCULAR_QUOTA(numT0, numT1, numT2, anoAtual, matrizQuotas);
-  const joia = CALCULAR_JOIA(numT0, numT1, numT2, dataAdesao, matrizQuotas);
-  const saldo = CALCULAR_SALDO(valorPago, numT0, numT1, numT2, dataAdesao, anoAtual, matrizQuotas);
+  let anoReferencia = getAnoReferencia_(dataFim);
 
-  // Escreve valores nas colunas O(15)=Quota, P(16)=Jóia, Q(17)=Saldo
-  sheet.getRange(row, 18, 1, 3).setValues([[quota, joia, saldo]]);
+  const quota = CALCULAR_QUOTA(t0, t1, t2, anoReferencia, matrizQuotas);
+  const joia = CALCULAR_JOIA(t0, t1, t2, dataAdesao, matrizQuotas);
+  // Nota: A função CALCULAR_SALDO deve ser ajustada para aceitar o anoReferencia calculado
+  const saldo = CALCULAR_SALDO(valorPago, t0, t1, t2, dataAdesao, anoReferencia, matrizQuotas);
+
+  // Escrita nas colunas de destino
+  sheet.getRange(row, cols["Quota"]).setValue(quota);
+  sheet.getRange(row, cols["Jóia"]).setValue(joia);
+  sheet.getRange(row, cols["Saldo"]).setValue(saldo);
 }
 
 /**
@@ -82,33 +119,28 @@ function updateTitularesRowValues_(sheet, row) {
 function updateAllTitularesValues() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Titulares");
-  const quotasSheet = ss.getSheetByName("Quotas");
-  const matrizQuotas = quotasSheet.getRange("A2:D3").getValues();
+  const cols = getTitularesColumns_(sheet);
+  const matrizQuotas = ss.getSheetByName("Quotas").getRange("A2:D3").getValues();
   
   const startRow = 7;
   const lastRow = sheet.getLastRow();
   if (lastRow < startRow) return;
 
-  const numRows = lastRow - startRow + 1;
-  const rangeIn = sheet.getRange(startRow, 1, numRows, 8); // A até H
-  const valuesIn = rangeIn.getValues();
-  const anoAtual = new Date().getFullYear();
+  const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getLastColumn()).getValues();
+  const anoCivil = new Date().getFullYear();
   
-  const results = [];
+  const output = data.map(row => {
+    const anoRef = getAnoReferencia_(row[cols["Fim"] - 1]);
+    const q = CALCULAR_QUOTA(row[cols["T0"]-1], row[cols["T1"]-1], row[cols["T2"]-1], anoCivil, matrizQuotas);
+    const j = CALCULAR_JOIA(row[cols["T0"]-1], row[cols["T1"]-1], row[cols["T2"]-1], row[cols["Adesão"]-1], matrizQuotas);
+    const s = CALCULAR_SALDO(row[cols["€"]-1], row[cols["T0"]-1], row[cols["T1"]-1], row[cols["T2"]-1], row[cols["Adesão"]-1], anoRef, matrizQuotas);
+    return [q, j, s];
+  });
 
-  for (let i = 0; i < valuesIn.length; i++) {
-    const r = valuesIn[i];
-    const pago = r[5]; const adesao = r[7]; const t0 = r[8]; const t1 = r[9]; const t2 = r[10];
-    
-    const quota = CALCULAR_QUOTA(t0, t1, t2, anoAtual, matrizQuotas);
-    const joia = CALCULAR_JOIA(t0, t1, t2, adesao, matrizQuotas);
-    const saldo = CALCULAR_SALDO(pago, t0, t1, t2, adesao, anoAtual, matrizQuotas);
-    
-    results.push([quota, joia, saldo]);
-  }
-
-  // Escrita em massa para performance máxima
-  sheet.getRange(startRow, 15, numRows, 3).setValues(results);
+  // Escreve os resultados nas colunas corretas (Quota é a primeira das 3 consecutivas)
+  sheet.getRange(startRow, cols["Quota"], output.length, 1).setValues(output.map(r => [r[0]]));
+  sheet.getRange(startRow, cols["Jóia"], output.length, 1).setValues(output.map(r => [r[1]]));
+  sheet.getRange(startRow, cols["Saldo"], output.length, 1).setValues(output.map(r => [r[2]]));
 }
 
 
@@ -196,7 +228,7 @@ function CALCULAR_JOIA(numT0, numT1, numT2, dataAdesaoRaw, matrizQuotas) {
  *
  * @customfunction
  */
-function CALCULAR_QUOTIZACAO(numT0, numT1, numT2, dataAdesaoRaw, anoAtual, matrizQuotas) {
+function CALCULAR_QUOTIZACAO(numT0, numT1, numT2, dataAdesaoRaw, anoLimite, matrizQuotas) {
   numT0 = Number(numT0) || 0; numT1 = Number(numT1) || 0; numT2 = Number(numT2) || 0;
   let total = CALCULAR_JOIA(numT0, numT1, numT2, dataAdesaoRaw, matrizQuotas);
   
@@ -208,9 +240,9 @@ function CALCULAR_QUOTIZACAO(numT0, numT1, numT2, dataAdesaoRaw, anoAtual, matri
 
   // O primeiro ano completo de quotas é o ano seguinte ao da adesão (que pagou jóia)
   let primeiroAnoCheio = dataAdesao.getFullYear() + 1;
-  if (!anoAtual) anoAtual = new Date().getFullYear();
+  if (!anoLimite) anoLimite = new Date().getFullYear();
 
-  for (let ano = primeiroAnoCheio; ano <= anoAtual; ano++) {
+  for (let ano = primeiroAnoCheio; ano <= anoLimite; ano++) {
     let p = getPrecosAno_(ano, matrizQuotas);
     total += (numT0 * p.t0) + (numT1 * p.t1) + (numT2 * p.t2);
   }

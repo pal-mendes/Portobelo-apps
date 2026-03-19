@@ -59,7 +59,7 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.14";
+const VERSION = "v1.16";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
@@ -69,37 +69,45 @@ const IPS_FOLDER_ID   = "1TXL942FE_Z05gSCJ_f_1lj_nEPnD5DWv";
 
 // === CONFIG: ranges nomeados ou A1 (fallback) ===
 const RANGES = {
-  titulares: { name: "tblTitulares", sheet: "Titulares", a1: "A6:V" },
-  anuncios:  { name: "tbl",         sheet: "Anúncios",   a1: "A4:J" },
-  ips:       { name: "tblIPS",      sheet: "IPS",        a1: "A4:M" },
+  titulares: { name: "tblTitulares", sheet: "Titulares", a1: "A6:Z" },
+  anuncios:  { name: "tblAnuncios",         sheet: "Anúncios",   a1: "A4:H" },
+  ips:       { name: "tblIPS",      sheet: "IPS",        a1: "A4:N" },
   transacoes:    { name: "tblTransacoes",   sheet: "Transações",     a1: "A2:L" },
 };
 
 // Cabeçalhos esperados
 const COLS_TITULARES = {
-  A_NOME: "Nome membros (e titulares representados)",
-  C_PAGO: "€",
-  D_SEMANAS: "Semanas",
-  E_ADESAO: "Adesão",
-  K_TEL: "Telemóvel",
-  L_EMAIL: "e-mail",
-  M_ESTADO: "Estado",
-  RGPD: "RGPD",
-  O_QUOTA: "Quota",
-  P_JOIA: "Jóia",
-  Q_SALDO: "Saldo",
+  CT_MEMBROS: "Nome membros (e titulares representados)",
+  CT_NUM: "Num.",
+  CT_NIF: "NIF",
+  CT_NOMEFISCAL: "Nome fiscal",
+  CT_PAGO: "€",
+  CT_SEMANAS: "Semanas",
+  CT_ADESAO: "Adesão",
+  CT_TEL: "Telemóvel",
+  CT_EMAIL: "e-mail",
+  CT_FIM: "Fim",
+  CT_ESTADO: "Estado",
+  CT_RGPD: "RGPD",
+  CT_QUOTA: "Quota",
+  CT_JOIA: "Jóia",
+  CT_SALDO: "Saldo",
 };
 
 const COLS_IPS = {
-  A_SEMANAS: "Semanas",
-  I_DATA: "Data IPS",
-  J_STATUS: "IPS",
-  L_PRIMEIRO: "Primeiro titular",
-  M_OUTROS: "Outros titulares",
+  CI_NUM: "Num.",   //Esta é a chave, e a identificação do registo de titulares é feita por aqui.
+  CI_SEMANAS: "Semanas",    // Deixa de ser necessário, porque se usa CI_NUM para saber quem é o titular
+  CI_DATA: "Data IPS",
+  CI_STATUS: "IPS",  //Estado da IPS
+  CI_PRIMEIRO: "Primeiro titular",
+  CI_OUTROS: "Outros titulares",
 };
 
-// Coluna Telefone dos anúncios (C = 3)
-const COL_ANUNCIOS_TEL_IDX = 3;
+// Coluna Telefone dos anúncios para mostrar na Área do Associado quais os anúncios que publicou, e a que telemóveis estão associados.
+const COLS_ANUNCIOS = {
+  CA_EMAIL: "e-mail",   //Coluna nova, onde se deve escrever (na web app dos anúncios) o e-mail do associado que publicou o anúncio
+  CA_TEL: "Telemóvel", 
+};
 
 // ---------- Auth wrappers chamados pelo Login.html (biblioteca) ----------
 // Lê as Script Properties do host e constrói a cfg
@@ -167,10 +175,10 @@ function gatesCfg_(){
     ssTitularesId: SS_TITULARES_ID,
     ranges: { titulares: RANGES.titulares },
     cols:   { 
-      email: COLS_TITULARES.L_EMAIL, 
-      rgpd: COLS_TITULARES.RGPD, 
-      pago: COLS_TITULARES.C_PAGO,
-      saldo: COLS_TITULARES.Q_SALDO
+      email: COLS_TITULARES.CT_EMAIL, 
+      rgpd: COLS_TITULARES.CT_RGPD, 
+      pago: COLS_TITULARES.CT_PAGO,
+      saldo: COLS_TITULARES.CT_SALDO
     },
     notify: { to: "log-apps@titulares-portobelo.pt", ccAllRows: true },
     canon: canon,
@@ -291,8 +299,8 @@ function listWeeksForEmail_(email){
   const emailLC = String(email||"").trim().toLowerCase();
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
   const col = indexByHeader_(header);
-  const iEmail = col[COLS_TITULARES.L_EMAIL];
-  const iSem   = col[COLS_TITULARES.D_SEMANAS];
+  const iEmail = col[COLS_TITULARES.CT_EMAIL];
+  const iSem   = col[COLS_TITULARES.CT_SEMANAS];
   if (iEmail==null || iSem==null) return [];
   const weeks = [];
   rows.forEach(r=>{
@@ -347,8 +355,8 @@ function isRgpdAccepted(ticket){
   const emailLC = String(sess.email||"").trim().toLowerCase();
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
   const col = indexByHeader_(header);
-  const iEmail = col[COLS_TITULARES.L_EMAIL];
-  const iRGPD  = col[COLS_TITULARES.RGPD];
+  const iEmail = col[COLS_TITULARES.CT_EMAIL];
+  const iRGPD  = col[COLS_TITULARES.CT_RGPD];
   if (iEmail==null || iRGPD==null) return false;
   for (const r of rows){
     if (cellHasEmail_(r[iEmail], emailLC) && String(r[iRGPD]||"").trim().toLowerCase()==="sim")
@@ -367,15 +375,15 @@ function buildAssociadosView_(loginEmail){
   const col = indexByHeader_(th); const H = COLS_TITULARES;
 
   const emailLC = String(loginEmail).trim().toLowerCase();
-  const linhas = titulares.filter(r => cellHasEmail_(r[col[H.L_EMAIL]], emailLC));
+  const linhas = titulares.filter(r => cellHasEmail_(r[col[H.CT_EMAIL]], emailLC));
   D("linhas:", linhas.length);
-  const semanasTodas = dedupe_(linhas.flatMap(r => splitSemanas_(r[col[H.D_SEMANAS]] || "")));
+  const semanasTodas = dedupe_(linhas.flatMap(r => splitSemanas_(r[col[H.CT_SEMANAS]] || "")));
 
   const { header: ih, rows: ipsRows } = fetchTable_(SS_IPS_ID, RANGES.ips);
   const icol = indexByHeader_(ih);
-  const ipsBySemanas = {};
+  const ipsBySemanas = {}; //Isto é para deixar de ser assim, e passar-e a usar numA
   ipsRows.forEach(r => {
-    const key = String(r[icol[COLS_IPS.A_SEMANAS]]||"").trim();
+    const key = String(r[icol[COLS_IPS.CI_SEMANAS]]||"").trim();
     if (key) ipsBySemanas[key] = r;
   });
 
@@ -383,22 +391,27 @@ function buildAssociadosView_(loginEmail){
   const allPhones=[]; const firstPhones=[];
 
   linhas.forEach(r=>{
-    const nomes   = r[col[H.A_NOME]] || "";
-    const pago    = r[col[H.C_PAGO]] || "";
-    const semanas = r[col[H.D_SEMANAS]] || "";
+    const nomes   = r[col[H.CT_MEMBROS]] || "";
+    const numA   = r[col[H.CT_NUM]] || "";
+    const nif   = r[col[H.CT_NIF]] || "";
+    const nomeFiscal   = r[col[H.CT_NOMEFISCAL]] || "";
+
+    const pago    = r[col[H.CT_PAGO]] || "";
+    const semanas = r[col[H.CT_SEMANAS]] || "";
 
     const iT0 = col["T0"] ?? 5, iT1 = col["T1"] ?? 6, iT2 = col["T2"] ?? 7;
     const t0 = parseInt(r[iT0],10)||0, t1 = parseInt(r[iT1],10)||0, t2 = parseInt(r[iT2],10)||0;
 
-    const adesaoRaw = r[col[H.E_ADESAO]] || "";
-    const telef     = r[col[H.K_TEL]]    || "";
-    const emails    = r[col[H.L_EMAIL]]  || "";
-    const estado    = col[H.M_ESTADO] >= 0 ? r[col[H.M_ESTADO]] || "" : "";
-    const quota     = r[col[H.O_QUOTA]] || "";
-    const joia      = r[col[H.P_JOIA]]  || "";
-    const saldo     = r[col[H.Q_SALDO]] || "";
+    const adesaoRaw = r[col[H.CT_ADESAO]] || "";
+    const telef     = r[col[H.CT_TEL]]    || "";
+    const emails    = r[col[H.CT_EMAIL]]  || "";
+    const fimRaw    = r[col[H.CT_FIM]]  || "";
+    const estado    = col[H.CT_ESTADO] >= 0 ? r[col[H.CT_ESTADO]] || "" : "";
+    const quota     = r[col[H.CT_QUOTA]] || "";
+    const joia      = r[col[H.CT_JOIA]]  || "";
+    const saldo     = r[col[H.CT_SALDO]] || "";
 
-    const rgpdOk    = String(r[col[H.RGPD]]||"").trim().toLowerCase()==="sim";
+    const rgpdOk    = String(r[col[H.CT_RGPD]]||"").trim().toLowerCase()==="sim";
 
     // Obter valores numéricos para efetuar a matemática
     const pagoNum  = parsePtNumber_(pago);
@@ -420,14 +433,14 @@ function buildAssociadosView_(loginEmail){
     allPhones.push(...splitPhones_(telef));
     const fp = getFirstPhone_(telef); if (fp) firstPhones.push(fp);
 
-    const ip = ipsBySemanas[String(semanas).trim()];
-    const dataIPS = ip ? (ip[icol[COLS_IPS.I_DATA]]||"") : "";
-    const statIPS = ip ? (ip[icol[COLS_IPS.J_STATUS]]||"") : "";
-    const primIPS = ip ? (ip[icol[COLS_IPS.L_PRIMEIRO]]||"") : "";
-    const outIPS  = ip ? (ip[icol[COLS_IPS.M_OUTROS]]||"") : "";
+    const ip = ipsBySemanas[String(semanas).trim()]; //Substituir por IpsByNumA
+    const dataIPS = ip ? (ip[icol[COLS_IPS.CI_DATA]]||"") : "";
+    const statIPS = ip ? (ip[icol[COLS_IPS.CI_STATUS]]||"") : "";
+    const primIPS = ip ? (ip[icol[COLS_IPS.CI_PRIMEIRO]]||"") : "";
+    const outIPS  = ip ? (ip[icol[COLS_IPS.CI_OUTROS]]||"") : "";
 
     cards.push({
-      semanas, t0, t1, t2, adesaoRaw, estado, dataIPS, statIPS, primIPS, outIPS,
+      numA, nif, nomeFiscal, semanas, t0, t1, t2, adesaoRaw, fimRaw, estado, dataIPS, statIPS, primIPS, outIPS,
       nomes, emails, telefones: telef, pago, quota, joia, saldo,
       quotizacao: quotizacaoNum,
       rgpdOk, saldoNeg
@@ -436,8 +449,8 @@ function buildAssociadosView_(loginEmail){
 
   const telefonesAssociados = dedupe_(allPhones);
   const primeirosTelefones  = dedupe_(firstPhones);
-  const anunciosPorTelefone = countAnunciosByPhones_(telefonesAssociados);
-  const transacoes          = fetchTransacoesByPhones_(primeirosTelefones);
+  const anunciosPorTelefone = countAnunciosByPhones_(telefonesAssociados); //OK assim.
+  const transacoes          = fetchTransacoesByPhones_(primeirosTelefones); //Este é para deixar de ser usado ainda não agora quando as transações passarem a ter numA em vez de primeiroTelefone
 
   return {
     user: { email: loginEmail },
@@ -481,10 +494,11 @@ function apiGetWeekIpsBase64(ticket, week){
 function countAnunciosByPhones_(phones){
   if (!phones || !phones.length) return {};
   const phoneSet = new Set(phones);
-  const { rows } = fetchTable_(SS_ANUNCIOS_ID, RANGES.anuncios);
+  const { header: th, rows} = fetchTable_(SS_ANUNCIOS_ID, RANGES.anuncios);
+  const col = indexByHeader_(th); const H = COLS_ANUNCIOS;
   const counts = {};
   rows.forEach(r=>{
-    const raw  = r[COL_ANUNCIOS_TEL_IDX-1];
+    const raw  = r[col[H.CA_TEL]];
     const norm = String(raw||"").replace(/[^\d]/g,"");
     if (norm && phoneSet.has(norm)) counts[norm] = (counts[norm]||0) + 1;
   });

@@ -326,7 +326,7 @@
             <thead>
               <tr>
                 <th>Data</th>
-                <th>Telefone</th>
+                <th>Num. registo</th>
                 <th>Montante</th>
               </tr>
             </thead>
@@ -500,14 +500,16 @@
 
         function cardLinha(c) {
           //Só se chega aqui quando houve uma contribuição de pelo menos um euro, o que significa que o estado é:
-          // - 6: falta informação - pode-se exibir tudo.
-          // - 9: já não é titular
-          // - OK: tudo em ordem
+          // - 6: falta informação - pode-se exibir tudo. => Vai passar para 0V-Incompleto
+          // - 9: já não é titular => Vai passar para 0Y-NãoTitular
+          // - OK: tudo em ordem => Vai passar para 0Y-Associado
 
+
+ 
           //log?.(`[cardLinha] entrada`); //também funciona
           log?.("[cardLinha] entrada");
 
-          const naoTitular = String(c.estado || "").trim() === "9";
+          const naoTitular = String(c.estado || "").trim() === "9" || String(c.estado || "").trim() === "0Y-NãoTitular";
           const rgpdAceite = !!c.rgpdOk;
           const saldoNeg = !!c.saldoNeg;
 
@@ -536,7 +538,7 @@
           }
 
           // Texto de RGPD por cartão
-          const rgpdTxt = rgpdAceite ? "Aceite" : "Rejeitado";
+          const rgpdTxt = rgpdAceite ? "Aceite" : '<span class="stat-nok">Rejeitado</span>';
 
           // IPS “data”/“estado” mantém a tua lógica atual (respeita o naoTitular)
           const dataIPSTxt = naoExibir ? "---" : c.dataIPS || "---";
@@ -551,18 +553,21 @@
 
           log?.("[cardLinha] adesão e estado");
 
-          // quando já não é titular (estado = 9) mostra placeholders ‘---’ e não a legenda “Tem tudo em dia”
           // const adesaoTxt = naoTitular ? "---" : c.adesaoRaw || "---";
           const adesaoTxt = c.adesaoRaw || "---";
           log?.("[cardLinha] adesaoTxt=" + adesaoTxt);
+
+          const numATxt = c.numA || "---";
+          const nifTxt = c.nif || "---";
+          const nomeFiscalTxt = c.nomeFiscal || "---";
+          const fimTxt = c.fimRaw || "---";
+
           const estadoTxt = naoTitular
-            ? "9 (Já não é titular)"
-            : String(c.estado || "")
-                  .trim()
-                  .toUpperCase() === "OK"
-              ? "OK (Tem tudo em dia)"
-              : (c.estado || "") === "6"
-                ? "6 (Falta informação)"
+            ? '<span class="stat-nok">Deixou de ser titular</span>'
+            : (String(c.estado || "").trim().toUpperCase() === "OK" || String(c.estado || "").trim() === "0Y-Associado")
+              ? "Disponibilizou toda a informação"
+              : (String(c.estado || "").trim() === "6" || String(c.estado || "").trim() === "0V-Incompleto")
+                ? '<span class="stat-pend">Falta informação</span>'
                 : c.estado || "?";
 
           log?.("[cardLinha] estadoTxt=" + estadoTxt);
@@ -577,23 +582,37 @@
           return `
             <div class="card">
               <div class="line">
+                <div class="label">Registo: Número · Adesão · Fim · Estado · RGPD</div>
+                <div class="value">
+                  ${numATxt}
+                   · ${adesaoTxt}
+                   · ${fimTxt}
+                   · ${estadoTxt}
+                   · RGPD: <b>${rgpdTxt}</b> (${rgpdLinkHtml()})
+                </div>
+              </div>
+
+              <div class="line">
                 <div class="label">Semana(s)</div>
                 <div class="value">${fmtSemanasText(c.semanas || "", naoExibir)}</div>
               </div>
 
               <div class="line">
-                <div class="label">Adesão · Estado · IPS · RGPD</div>
-                <div class="value">
-                  ${adesaoTxt} · ${estadoTxt}
-                  · Data IPS: ${dataIPSTxt}
-                  · Estado IPS: ${statIPSTxt}
-                  · RGPD: <b>${rgpdTxt}</b> (${rgpdLinkHtml()})
-                </div>
+                <div class="label">Identificação fiscal do associado: NIF · Nome completo</div>
+                <div class="value">${nifTxt}· ${nomeFiscalTxt}</div>
               </div>
 
+              <div class="line">
+                <div class="label">IPS: Emissão · Validação</div>
+                <div class="value">
+                  · ${dataIPSTxt}
+                  · ${statIPSTxt}
+                </div>
+              </div>
               <div class="line"><div class="label">Primeiro titular (IPS)</div><div class="value wraptext">${primTxt}</div></div>
               <div class="line"><div class="label">Outros titulares (IPS)</div><div class="value wraptext">${outTxt}</div></div>
-              <div class="line"><div class="label">Nome(s)</div><div class="value wraptext">${c.nomes || ""}</div></div>
+              
+              <div class="line"><div class="label">Nome(s) relacionado(s)</div><div class="value wraptext">${c.nomes || ""}</div></div>
               <div class="line"><div class="label">E-mail(s)</div><div class="value wraptext">${c.emails || ""}</div></div>
               <div class="line"><div class="label">Telemóvel(eis)</div><div class="value wraptext">${c.telefones || ""}</div></div>
 
@@ -629,7 +648,7 @@
           // subtítulo <h4>
           const h4 = document.getElementById("tr-hint");
           if (h4) {
-            h4.textContent = `Os movimentos associados aos primeiros números de telemóvel (${phones.join(", ")}) totalizam ${fmtEUR(total)}`;
+            h4.textContent = `Os movimentos associados ao(s) registo(s) na associação totalizam ${fmtEUR(total)}`;
           }
 
           const tb = document.querySelector("#tx-table tbody");
