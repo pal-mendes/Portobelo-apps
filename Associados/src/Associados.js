@@ -72,6 +72,7 @@ const RANGES = {
   titulares: { name: "tblTitulares", sheet: "Titulares", a1: "A6:Z" },
   anuncios:  { name: "tblAnuncios",         sheet: "Anúncios",   a1: "A4:H" },
   ips:       { name: "tblIPS",      sheet: "IPS",        a1: "A4:N" },
+  quotas:    { name: "tblQuotas",   sheet: "Quotas",     a1: "A1:D" },
   transacoes:    { name: "tblTransacoes",   sheet: "Transações",     a1: "A2:L" },
 };
 
@@ -369,15 +370,18 @@ function isRgpdAccepted(ticket){
 // ===== Página principal: view/API =====
 function buildAssociadosView_(loginEmail){
   const dbg=[]; function D(){ try{ dbg.push([(new Date()).toISOString().slice(11,19), [].map.call(arguments,String).join(" ")].join(" ")); }catch(_){ } }
-  D("build view for", loginEmail);
+  //D("build view for ", loginEmail);
+  console.log("build view for ", loginEmail);
 
   const { header: th, rows: titulares } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
   const col = indexByHeader_(th); const H = COLS_TITULARES;
 
   const emailLC = String(loginEmail).trim().toLowerCase();
   const linhas = titulares.filter(r => cellHasEmail_(r[col[H.CT_EMAIL]], emailLC));
-  D("linhas:", linhas.length);
+  console.log("linhas do email:", linhas.length);
+  
   const semanasTodas = dedupe_(linhas.flatMap(r => splitSemanas_(r[col[H.CT_SEMANAS]] || "")));
+  console.log("semanasTodas:", semanasTodas);
 
   const { header: ih, rows: ipsRows } = fetchTable_(SS_IPS_ID, RANGES.ips);
   const icol = indexByHeader_(ih);
@@ -388,7 +392,7 @@ function buildAssociadosView_(loginEmail){
   });
 
   const cards=[]; const tot={joia:0, quota:0, pago:0, quotizacao:0, saldo:0};
-  const allPhones=[]; const firstPhones=[];
+  const allPhones=[]; const firstPhones=[]; const allNumA=[];
 
   linhas.forEach(r=>{
     const nomes   = r[col[H.CT_MEMBROS]] || "";
@@ -428,7 +432,14 @@ function buildAssociadosView_(loginEmail){
     tot.quota      += quotaNum;
     tot.joia       += joiaNum;
     tot.saldo      += saldoNum;
-    tot.quotizacao += quotizacaoNum;
+    //tot.quotizacao += quotizacaoNum;
+    tot.quotizacao = (tot.quotizacao || 0) + quotizacaoNum;
+
+    console.log("numA=", numA, ", pago=", pago, ", tot.pago=", tot.pago); //Só mostra a linha do registo.
+
+    if (numA) allNumA.push(String(numA).trim().toUpperCase());
+    //console.log("allNumA=", JSON(allNumA));
+    console.log("allNumA=", "????");
 
     allPhones.push(...splitPhones_(telef));
     const fp = getFirstPhone_(telef); if (fp) firstPhones.push(fp);
@@ -449,14 +460,16 @@ function buildAssociadosView_(loginEmail){
 
   const telefonesAssociados = dedupe_(allPhones);
   const primeirosTelefones  = dedupe_(firstPhones);
+  const registosAssociados  = dedupe_(allNumA);
+  console.log("registosAssociados=", "????");
   const anunciosPorTelefone = countAnunciosByPhones_(telefonesAssociados); //OK assim.
-  const transacoes          = fetchTransacoesByPhones_(primeirosTelefones); //Este é para deixar de ser usado ainda não agora quando as transações passarem a ter numA em vez de primeiroTelefone
+  const transacoes          = fetchTransacoes_(registosAssociados);
 
   return {
     user: { email: loginEmail },
     cardsLinhas: cards,
     totais: tot,
-    telefonesAssociados, primeirosTelefones,
+    telefonesAssociados, primeirosTelefones, registosAssociados,
     anunciosPorTelefone, transacoes,
     semanasTodas,
   };
@@ -504,19 +517,29 @@ function countAnunciosByPhones_(phones){
   });
   return counts;
 }
-function fetchTransacoesByPhones_(phones){
-  if (!phones || !phones.length) return [];
+
+function fetchTransacoes_(registos){
+   if (!registos || !registos.length) return [];
+  const want = new Set((registos||[]).map(r => String(r).trim().toUpperCase()).filter(Boolean));
+  
+  if (want.size === 0) return [];
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.transacoes);
   const col = indexByHeader_(header);
   const iDate = col["Date"]   ?? 1; // B
   const iNum  = col["Number"] ?? 3; // D
   const iAmt  = col["Amount"] ?? 6; // G
-  const want = new Set(phones);
+
   const out=[];
   rows.forEach(r=>{
-    const rawPhone = String(r[iNum]||"").replace(/[^\d]/g,"");
-    if (!rawPhone || !want.has(rawPhone)) return;
-    out.push({ date:r[iDate]||"", phone:rawPhone, amount:r[iAmt]||"", raw:{row:r} });
+    const raw = String(r[iNum]||"").trim();
+    dbgLog('fetchTransacoes_: date=', r[iDate], ', ref=', r[iNum], ', amount=', r[iAmt]);
+    if (!raw) return;
+    
+    const asRegisto = raw.toUpperCase();
+    
+    if (asRegisto && want.has(asRegisto)) {
+      out.push({ date:r[iDate]||"", ref:raw, amount:r[iAmt]||"", raw:{row:r} });
+    }
   });
   return out;
 }

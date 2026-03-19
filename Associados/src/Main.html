@@ -502,7 +502,7 @@
           //Só se chega aqui quando houve uma contribuição de pelo menos um euro, o que significa que o estado é:
           // - 6: falta informação - pode-se exibir tudo. => Vai passar para 0V-Incompleto
           // - 9: já não é titular => Vai passar para 0Y-NãoTitular
-          // - OK: tudo em ordem => Vai passar para 0Y-Associado
+          // - OK: tudo em ordem => Vai passar para 0Z-Completo
 
 
  
@@ -564,9 +564,9 @@
 
           const estadoTxt = naoTitular
             ? '<span class="stat-nok">Deixou de ser titular</span>'
-            : (String(c.estado || "").trim().toUpperCase() === "OK" || String(c.estado || "").trim() === "0Y-Associado")
+            : String(c.estado || "").trim() === "0Z-Completo"
               ? "Disponibilizou toda a informação"
-              : (String(c.estado || "").trim() === "6" || String(c.estado || "").trim() === "0V-Incompleto")
+              : String(c.estado || "").trim() === "0U-Incompleto"
                 ? '<span class="stat-pend">Falta informação</span>'
                 : c.estado || "?";
 
