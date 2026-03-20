@@ -26,21 +26,50 @@
         background: #fff;
         color: var(--fg);
       }
-      .header {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background: #fff;
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 14px;
-      }
       .title {
         font-size: 18px;
         font-weight: 600;
       }
+      /* --- Estilos para o Cabeçalho Triplo --- */
+      .header-grid {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+      }
+      .header-left { text-align: left; color: #6b7280; font-size: 14px; }
+      .header-center { text-align: center; font-weight: bold; font-size: 16px; color: #111827; }
+      .header-right { text-align: right; font-size: 14px; }
+
+      /* Adaptação para telemóveis na vertical */
+      @media (max-width: 768px) {
+        .header-grid {
+          grid-template-columns: 1fr; /* Passa a uma única coluna */
+          text-align: center;
+          gap: 5px;
+        }
+        .header-left, .header-right { text-align: center; }
+        .header-center { order: -1; margin-bottom: 8px; } /* Força o título a aparecer em primeiro lugar no topo */
+      }
+
+      /* --- Estilo para o Rodapé --- */
+      .footer-correcoes {
+        text-align: center;
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 14px;
+      }
+      .footer-correcoes a {
+        color: #2563eb;
+        text-decoration: none;
+      }
+      .footer-correcoes a:hover { text-decoration: underline; }
+
       .wrap {
         max-width: 1080px;
         margin: 16px auto;
@@ -301,13 +330,18 @@
   </head>
 
   <body>
-    <div class="header">
-      <a class="icon-btn" href="https://titulares-portobelo.pt" target="_top" title="Início" style="color: #333; display: flex; align-items: center;">
-        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
-      </a>
+    <div class="header-grid">
+      <div class="header-left">
+        <a class="icon-btn" href="https://titulares-portobelo.pt" target="_top" title="Início" style="color: #333; display: flex; align-items: center;">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
+        </a>
+      </div>  
       <div class="title">
         Área do Associado
         <span style="font-size: 13px; color: #666; font-weight: normal;">(<?= VERSION ?>)</span>
+      </div>
+      <div class="header-center">
+        Associação dos Titulares de DRHP do Portobelo
       </div>
       <div id="header-actions">
         <div class="small muted" id="who"></div>
@@ -334,6 +368,9 @@
           </table>
         </div>
       </div>
+    </div>
+    <div class="footer-correcoes">
+      Para corrigir os seus dados, contacte, por favor, <a href="mailto:geral@titulares-portobelo.pt">geral@titulares-portobelo.pt</a>.
     </div>
 
     <script>
@@ -630,7 +667,7 @@
             </div>`;
         }
 
-        function renderTransacoes(tx, phones) {
+        function renderTransacoes(tx) {
           if (!tx || !tx.length) return;
           document.getElementById("transacoes-sec").style.display = "";
 
@@ -657,7 +694,7 @@
               (t) => `
             <tr>
               <td>${t.date || ""}</td>
-              <td>${t.phone || ""}</td>
+              <td>${t.ref || ""}</td>
               <td class="euro">${t.amount || ""}</td>
             </tr>
           `,
@@ -771,7 +808,6 @@
             // Transações
             renderTransacoes(
               data?.transacoes || [],
-              data?.primeirosTelefones || [],
             );
             log?.("[render] content updated");
           } catch (e) {

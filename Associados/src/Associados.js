@@ -59,7 +59,7 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.16";
+const VERSION = "v1.17";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
@@ -438,8 +438,8 @@ function buildAssociadosView_(loginEmail){
     console.log("numA=", numA, ", pago=", pago, ", tot.pago=", tot.pago); //Só mostra a linha do registo.
 
     if (numA) allNumA.push(String(numA).trim().toUpperCase());
-    //console.log("allNumA=", JSON(allNumA));
-    console.log("allNumA=", "????");
+    console.log("allNumA=", JSON.stringify(allNumA));
+    console.log("allNumA=", allNumA);
 
     allPhones.push(...splitPhones_(telef));
     const fp = getFirstPhone_(telef); if (fp) firstPhones.push(fp);
@@ -461,9 +461,12 @@ function buildAssociadosView_(loginEmail){
   const telefonesAssociados = dedupe_(allPhones);
   const primeirosTelefones  = dedupe_(firstPhones);
   const registosAssociados  = dedupe_(allNumA);
-  console.log("registosAssociados=", "????");
+  console.log("registosAssociados=", registosAssociados);
+  console.log("registosAssociados=", JSON.stringify(registosAssociados));
   const anunciosPorTelefone = countAnunciosByPhones_(telefonesAssociados); //OK assim.
   const transacoes          = fetchTransacoes_(registosAssociados);
+  console.log("transacoes=", JSON.stringify(transacoes));
+  console.log("transacoes=", transacoes);
 
   return {
     user: { email: loginEmail },
@@ -521,6 +524,7 @@ function countAnunciosByPhones_(phones){
 function fetchTransacoes_(registos){
    if (!registos || !registos.length) return [];
   const want = new Set((registos||[]).map(r => String(r).trim().toUpperCase()).filter(Boolean));
+  console.log("fetchTransacoes_ -> want:", Array.from(want));
   
   if (want.size === 0) return [];
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.transacoes);
@@ -532,12 +536,13 @@ function fetchTransacoes_(registos){
   const out=[];
   rows.forEach(r=>{
     const raw = String(r[iNum]||"").trim();
-    dbgLog('fetchTransacoes_: date=', r[iDate], ', ref=', r[iNum], ', amount=', r[iAmt]);
+    //dbgLog('fetchTransacoes_: date=', r[iDate], ', ref=', r[iNum], ', amount=', r[iAmt]);
     if (!raw) return;
     
     const asRegisto = raw.toUpperCase();
     
     if (asRegisto && want.has(asRegisto)) {
+      console.log("fetchTransacoes_ push");
       out.push({ date:r[iDate]||"", ref:raw, amount:r[iAmt]||"", raw:{row:r} });
     }
   });
