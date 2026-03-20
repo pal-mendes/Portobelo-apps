@@ -26,10 +26,6 @@
         background: #fff;
         color: var(--fg);
       }
-      .title {
-        font-size: 18px;
-        font-weight: 600;
-      }
       /* --- Estilos para o Cabeçalho Triplo --- */
       .header-grid {
         display: grid;
@@ -40,7 +36,7 @@
         border-bottom: 1px solid #e5e7eb;
         margin-bottom: 20px;
       }
-      .header-left { text-align: left; color: #6b7280; font-size: 14px; }
+      .header-left { text-align: left; color: #6b7280; font-size: 18px; font-weight: 600; }
       .header-center { text-align: center; font-weight: bold; font-size: 16px; color: #111827; }
       .header-right { text-align: right; font-size: 14px; }
 
@@ -334,11 +330,8 @@
       <div class="header-left">
         <a class="icon-btn" href="https://titulares-portobelo.pt" target="_top" title="Início" style="color: #333; display: flex; align-items: center;">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
-        </a>
-      </div>  
-      <div class="title">
-        Área do Associado
-        <span style="font-size: 13px; color: #666; font-weight: normal;">(<?= VERSION ?>)</span>
+        </a> Área do Associado
+        <span style="font-size: 13px; color: #666; font-weight: normal;">(<?= VERSION ?>)</span>      
       </div>
       <div class="header-center">
         Associação dos Titulares de DRHP do Portobelo
