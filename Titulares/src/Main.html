@@ -1,0 +1,187 @@
+
+<!-- Main.html (Titulares) -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+<style>
+    /* Estilos Globais 14px */
+    body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; font-size: 14px; }
+    header { padding: 10px; background: #f3f4f6; border-bottom: 1px solid #ccc; display: flex; gap: 15px; align-items: center; }
+    
+    /* Selector mais pequeno e Status fixo */
+    #selRegisto { width: 200px; font-size: 14px; }
+    #status { font-size: 13px; color: #059669; font-weight: bold; min-width: 200px; }
+
+    main { display: flex; flex: 1; overflow: hidden; }
+    #editor-pane { width: 400px; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; background: #fafafa; }
+    #pdf-pane { flex: 1; background: #525659; display: flex; flex-direction: column; }
+    
+    /* Barra de ferramentas do PDF para ajudar no Clipboard */
+    #pdf-tools { background: #333; color: white; padding: 5px 15px; font-size: 12px; display: flex; justify-content: space-between; }
+    #pdf-tools a { color: #60a5fa; text-decoration: none; }
+
+    .field { margin-bottom: 15px; }
+    label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+    input, textarea, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    .readonly { background: #eee; color: #555; border: none; padding: 8px; border-radius: 4px; }
+    
+    button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; }
+    button:disabled { background: #cbd5e1; cursor: not-allowed; }
+    iframe { flex: 1; border: none; width: 100%; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Edição de associados</strong>
+    <select id="selRegisto" onchange="loadRecord()">
+      <option value="">Selecione um registo...</option>
+    </select>
+    <div id="status"></div>
+  </header>
+
+  <main>
+    <div id="editor-pane">
+      <div class="field">
+        <label>Semanas</label>
+        <div id="viewSemanas" class="readonly">---</div>
+      </div>
+
+      <div class="field">
+        <label>Nome Membros</label>
+        <textarea id="editNomeMembros" rows="3" class="editable"></textarea>
+      </div>
+
+      <div class="field">
+        <label>NIF</label>
+        <input type="text" id="editNIF" class="editable">
+      </div>
+
+      <div class="field">
+        <label>Nome Fiscal</label>
+        <input type="text" id="editNomeFiscal" class="editable">
+      </div>
+
+      <div class="field">
+        <label>Estado IPS</label>
+        <div id="viewIpsEstado" class="readonly">---</div>
+      </div>
+
+      <div class="field">
+        <label>Comentário IPS</label>
+        <textarea id="editIpsComentario" rows="2" class="editable"></textarea>
+      </div>
+    
+      <div class="field">
+        <label>Titulares (IPS)</label>
+        <div id="viewTitularesIps" class="small muted" style="font-size: 11px; color: #777;"></div>
+      </div>
+
+      <button id="btnSave" onclick="saveData()" disabled>Gravar Alterações</button>
+    </div>
+
+    <div id="pdf-pane">
+      <div id="pdf-tools" style="display:none;">
+        <span id="pdf-filename"></span>
+        <a id="pdf-link" href="#" target="_blank">Abrir em nova aba ↗ (para copiar texto)</a>
+      </div>
+      <div id="pdf-msg" style="color: white; padding: 20px; text-align: center;">Selecione um registo...</div>
+      <iframe id="pdf-frame" style="display:none;"></iframe>
+    </div>
+  </main>
+
+  <script>
+    const TICKET = "<?= ticket ?>";
+    const btnSave = document.getElementById("btnSave");
+
+    // Monitorizar alterações para ativar o botão de gravar
+    document.querySelectorAll('.editable').forEach(el => {
+      el.addEventListener('input', () => { btnSave.disabled = false; });
+    });
+
+    window.onload = function() {
+      google.script.run.withSuccessHandler(data => {
+        const sel = document.getElementById("selRegisto");
+        data.list.forEach(num => {
+          let opt = document.createElement("option");
+          opt.value = num; opt.textContent = num;
+          sel.appendChild(opt);
+        });
+      }).getEditorInitialData(TICKET);
+    };
+
+    function loadRecord() {
+      const numA = document.getElementById("selRegisto").value;
+      if (!numA) return;
+
+      btnSave.disabled = true;
+      showStatus("A carregar...");
+      
+      document.getElementById("btnSave").disabled = true;
+      document.getElementById("status").textContent = "A carregar...";
+
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById("editNomeMembros").value = res.nomeMembros;
+        document.getElementById("editNIF").value = res.nif;
+        document.getElementById("editNomeFiscal").value = res.nomeFiscal;
+        document.getElementById("viewSemanas").textContent = res.semanas;
+        document.getElementById("viewIpsEstado").textContent = res.ipsEstado;
+        document.getElementById("editIpsComentario").value = res.ipsComentario;
+        document.getElementById("viewTitularesIps").innerHTML = `<b>P:</b> ${res.primTitular}<br><b>O:</b> ${res.outrosTitulares}`;
+        
+        showStatus("");
+
+        // Carregar PDF da primeira semana
+        const primeiraSemana = res.semanas.split(/[+,\s]+/)[0];
+        loadPdf(primeiraSemana);
+      }).loadRecordData(TICKET, numA);
+    }
+
+    function loadPdf(semana) {
+      const frame = document.getElementById("pdf-frame");
+      const msg = document.getElementById("pdf-msg");
+      const tools = document.getElementById("pdf-tools");
+      
+      msg.style.display = "block";
+      msg.textContent = "A procurar PDF...";
+      frame.style.display = "none";
+      tools.style.display = "none";
+      
+      google.script.run.withSuccessHandler(res => {
+        if (res) {
+          msg.style.display = "none";
+          tools.style.display = "flex";
+          document.getElementById("pdf-filename").textContent = res.name;
+          document.getElementById("pdf-link").href = "https://drive.google.com/file/d/" + res.id + "/view";
+          frame.src = res.url;
+          frame.style.display = "block";
+        } else {
+          msg.textContent = "PDF não encontrado.";
+        }
+      }).findPdfPreview(TICKET, semana, true);
+    }
+
+    function saveData() {
+      const numA = document.getElementById("selRegisto").value;
+      const payload = {
+        nomeMembros: document.getElementById("editNomeMembros").value,
+        nif: document.getElementById("editNIF").value,
+        nomeFiscal: document.getElementById("editNomeFiscal").value,
+        ipsComentario: document.getElementById("editIpsComentario").value
+      };
+
+      btnSave.disabled = true;
+      showStatus("A gravar...");
+
+      google.script.run.withSuccessHandler(() => {
+        showStatus("✅ Gravado com sucesso!");
+        setTimeout(() => showStatus(""), 3000);
+      }).saveRecordData(TICKET, numA, payload);
+    }
+
+    function showStatus(text) {
+      document.getElementById("status").textContent = text;
+    }
+  </script>
+</body>
+</html>

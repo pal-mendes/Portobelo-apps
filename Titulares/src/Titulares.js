@@ -1,9 +1,14 @@
 
 // =========================
-// Titulares.gs
-// Utilizado para fórmulas a usar no spreadsheet
+// Titulares.gs - uso duplo: spreadsheet e web app de edição de titulares
 // =========================
 
+
+/******
+ * 
+ * Código Utilizado para fórmulas a usar no spreadsheet
+ * 
+ **************/
 
 function getTitularesColumns_(sheet) {
   const headerRow = 6;
@@ -272,7 +277,7 @@ function CALCULAR_SALDO(valorPago, numT0, numT1, numT2, dataAdesaoRaw, anoAtual,
 // ====================================================================
 
 
-
+/*
 function dumpScriptProps(){
   const sp = PropertiesService.getScriptProperties();
   const cfg = authCfg_();
@@ -283,6 +288,7 @@ function dumpScriptProps(){
     sampleAuthUrl: AuthCoreLib.buildAuthUrlFor("diag-"+Date.now(), false, false, cfg),
   };
 }
+*/
 
 function pingDrive() {
   const it = DriveApp.getRootFolder().getFiles();
@@ -304,4 +310,262 @@ function debugFetchAuth(){
 function autorizarEmail() {
   MailApp.sendEmail(Session.getActiveUser().getEmail(), "Autorização", "O script já pode enviar e-mails!");
 }
+
+
+
+
+
+/******************************
+ * 
+ * web app para edição de informação dos associados
+ * 
+ ******************************/
+
+const VERSION = "v1.0";
+
+// ====================================================================
+// NOVAS FUNÇÕES PARA A WEB APP DE GESTÃO (ÓRGÃOS SOCIAIS)
+// ====================================================================
+
+const MODO_PROC = true
+const MODO_IPS = false
+const FOLDER_PROCURACOES = "18LFaOcQ53pJ6FVQ6mhq6RO_PxQIK1fsx"; //https://drive.google.com/drive/folders/18LFaOcQ53pJ6FVQ6mhq6RO_PxQIK1fsx?usp=sharing
+const FOLDER_IPS = "1TXL942FE_Z05gSCJ_f_1lj_nEPnD5DWv"; //https://drive.google.com/drive/folders/1TXL942FE_Z05gSCJ_f_1lj_nEPnD5DWv?usp=sharing
+const SS_IPS_ID = "1rsxlHYHrXfSdpgjfhA193xYkhi3r-RMK9cc04l7Sqq8"; // ID da folha IPS
+
+function buildAuthUrlFor(nonce, dbg, embed, clientUrl) { return AuthCoreLib.buildAuthUrlFor(nonce, dbg, embed, authCfg_(), clientUrl); }
+function pollTicket(nonce)                  { return AuthCoreLib.pollTicket(nonce); }
+function isTicketValid(ticket, dbg)              { return AuthCoreLib.isTicketValid(ticket, dbg); }
+
+function doGet(e) {
+  const DBG = !!(e && e.parameter && e.parameter.debug === '1');
+  const ticket = (e && e.parameter && e.parameter.ticket) || "";
+  //console.log("doGet(e): DBG=", DBG, ", ticket=", ticket);
+  
+  if (e && e.parameter && e.parameter.code) return AuthCoreLib.finishAuth(e, authCfg_());
+
+  var opts = { ticket: ticket, debug: DBG, serverLog: ["Gestão Titulares"], wipe: false };
+
+  if (ticket) {
+    try {
+      const sess = AuthCoreLib.requireSession(ticket);
+
+      const editorCfg = getEditorConfig_(sess.email);
+      if (!editorCfg) return HtmlService.createHtmlOutput("<h3>Acesso não autorizado para este editor.</h3>");
+      return renderMainPage_(ticket, DBG);
+    } catch(err) {
+      opts.wipe = true;
+      return AuthCoreLib.renderLoginPage(opts);
+    }
+  }
+  return AuthCoreLib.renderLoginPage(opts);
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+function authCfg_() {
+  const sp = PropertiesService.getScriptProperties();
+  return { clientId: sp.getProperty("CLIENT_ID"), clientSecret: sp.getProperty("CLIENT_SECRET") };
+}
+
+function getEditorConfig_(email) {
+  console.log("getEditorConfig_(" + email + ")"); 
+  const sp = PropertiesService.getScriptProperties();
+  const whitelist = (sp.getProperty("WHITELIST_CSV") || "").toLowerCase().split(",");
+  //console.log("whitelist=", whitelist); 
+  if (!whitelist.includes(email.toLowerCase())) return null;
+
+  // Lógica de mapeamento: email=A0001-A0049
+  const mappingStr = sp.getProperty("EDITOR_MAPPING") || "";
+  //console.log("mappingStr=", mappingStr); 
+  const lines = mappingStr.split(";");
+  for (let line of lines) {
+    //console.log("line=", line); 
+    const [mEmail, range] = line.split("=");
+    if (mEmail && mEmail.trim().toLowerCase() === email.toLowerCase()) {
+      const [start, end] = range.split("-");
+      console.log("start=" + start + ", " + start.trim());
+      console.log("end=" + end + ", " + end.trim());
+      return { start: start.trim(), end: end.trim() };
+    }
+  }
+  return null;
+}
+
+function renderMainPage_(ticket, DBG) {
+  const t = HtmlService.createTemplateFromFile('Main');
+  t.ticket = ticket;
+  t.DEBUG = DBG ? '1' : '';
+  return t.evaluate().setTitle("Gestão de Titulares").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// API chamada pelo Frontend
+function getEditorInitialData(ticket) {
+  const sess = AuthCoreLib.requireSession(ticket);
+  const cfg = getEditorConfig_(sess.email);
+  //console.log("getEditorInitialData: start=",cfg.start,", end=",cfg.end);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Titulares");
+  const data = sheet.getRange("B7:B").getValues(); // Coluna B = Num.
+  //console.log("data=", data);
+  const filtered = data.flat().filter(num => num >= cfg.start && num <= cfg.end);
+  console.log("filtered=" + filtered);
+  return { range: cfg, list: filtered };
+}
+
+function loadRecordData(ticket, numA) {
+  console.log("loadRecordData(" + numA + ")");
+  AuthCoreLib.requireSession(ticket);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const shT = ss.getSheetByName("Titulares");
+  const shI = SpreadsheetApp.openById(SS_IPS_ID).getSheetByName("IPS");
+
+  const dataT = shT.getRange("A7:G").getValues();
+  const dataI = shI.getRange("A4:N").getValues();
+
+  const rowT = dataT.find(r => String(r[1]) === numA); // Col CT_NUM
+  const rowI = dataI.find(r => String(r[0]) === numA); // Col CI_NUM
+
+  if (!rowT) throw new Error("Registo não encontrado em Titulares.");
+
+  console.log("rowT=" + rowT);
+  console.log("rowI=" + rowI);
+
+  return {
+    nomeMembros: rowT[0],
+    nif: rowT[2],
+    nomeFiscal: rowT[3],
+    semanas: rowT[6], // Coluna I
+    ipsEstado: rowI ? rowI[10] : "N/D",
+    ipsComentario: rowI ? rowI[11] : "",
+    primTitular: rowI ? rowI[12] : "",
+    outrosTitulares: rowI ? rowI[13] : ""
+  };
+}
+
+
+/**
+ * Função auxiliar para pesquisar ficheiros em toda a árvore de subpastas.
+ */
+function getAllFilesRecursive_(folder, query) {
+  let results = [];
+  
+  // Procura na pasta atual
+  const files = folder.searchFiles(query);
+  while (files.hasNext()) {
+    results.push(files.next());
+  }
+  
+  // Procura recursivamente em todas as subpastas
+  const subfolders = folder.getFolders();
+  while (subfolders.hasNext()) {
+    const sub = subfolders.next();
+    results = results.concat(getAllFilesRecursive_(sub, query));
+  }
+  
+  return results;
+}
+
+function findPdfPreview(ticket, semana, modo) {
+  console.log("findPdfPreview(" + semana + ", " + modo + ")");
+  AuthCoreLib.requireSession(ticket);
+  
+  const prefix = semana.replace("/", "-");
+  console.log("findPdfPreview: prefix=" + prefix);
+
+  // Mantemos a query larga para o Drive encontrar os candidatos
+  if (modo === MODO_PROC) {
+    ///Localizar ficheiros das procurações dos titulares: 
+    // "915-26-2025 Procuração_signed.pdf" ou
+    // "114-33 2025 Procuração_Marta.pdf" ou
+    // "210-31-2025.pdf"
+    //const query = `title contains '${prefix}' and title contains '2025' and mimeType = 'application/pdf' and trashed = false`;
+    const query = `title contains '${prefix}' and mimeType = 'application/pdf' and trashed = false`;
+    const rootFolder = DriveApp.getFolderById(FOLDER_PROCURACOES);
+  } else {
+    //Localizar ficheiros das IPS:
+    //"101-29 FT-IPS 2025.pdf"
+    //"101-31 FT-IPS 2025-01-18.pdf"
+    //"104-29 FT-IPS 2024x.pdf"
+    //"319-27 CP-FT 2024x.pdf", "319-28 CP-FT 2024x.pdf", "319-27 CP-FT 2024x.pdf"  - e não há nenhuma FT-IPS nem FT-IPS
+    //"603-30 IPS 2020x.pdf"
+    //const query = `title contains '${prefix}' and title contains 'FT-IPS' and mimeType = 'application/pdf' and trashed = false`;
+    const query = `title contains '${prefix}' and mimeType = 'application/pdf' and trashed = false`;
+    const rootFolder = DriveApp.getFolderById(FOLDER_IPS);
+  }
+  const candidates = getAllFilesRecursive_(rootFolder, query);
+    
+  if (candidates.length > 0) {
+
+    if (modo === MODO_PROC) {
+      //Localizar ficheiros das procurações dos titulares
+      // RegEx: Começa com o prefixo, seguido de '-' ou ' ', seguido do ano, como '2025'
+      // Exemplo: ^116-36[- ]202.
+      const strictPattern = new RegExp("^" + prefix + "[- ]202.", "i");
+    } else {
+      //Localizar ficheiros das IPS:
+      // RegEx: Começa com o prefixo, e mais nada (nem era preciso o strictPattern neste caso)
+      // Exemplo: ^116-36
+      const strictPattern = new RegExp("^" + prefix, "i");
+    }
+
+    // Filtramos os candidatos pelo padrão exato
+    const matches = candidates.filter(f => strictPattern.test(f.getName()));
+    
+    if (matches.length > 0) {
+      // Se houver mais de um (ex: com e sem "Procuração"), damos prioridade ao mais curto ou ao primeiro
+      // Gostava que fosse dada prioridade ao mais recente.
+      const bestMatch = matches[0];
+      return { 
+        name: bestMatch.getName(), 
+        id: bestMatch.getId(),
+        url: `https://drive.google.com/file/d/${bestMatch.getId()}/preview` 
+      };
+    }
+  }
+  
+  console.warn("Aviso: Nenhum ficheiro PDF encontrado para: " + prefix + " (mesmo em subpastas)");
+  return null;
+}
+
+function saveRecordData(ticket, numA, payload) {
+  console.log("saveRecordData(" + numA + "," + payload + ")");
+  AuthCoreLib.requireSession(ticket);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const shT = ss.getSheetByName("Titulares");
+  const shI = SpreadsheetApp.openById(SS_IPS_ID).getSheetByName("IPS");
+
+  // Update Titulares
+  // Procuramos o numA na coluna B (B7:B)
+  const dataT = shT.getRange("B7:B").getValues().flat();
+  console.log("dataT=" + dataT);
+  const idxT = dataT.indexOf(numA);
+  if (idxT !== -1) {
+  // Para atualizar A, C e D sem corromper o ID na coluna B,
+    // escrevemos o bloco de 4 colunas (A a D), reinserindo o numA na coluna B.
+    const rowNumberT = idxT + 7;
+    shT.getRange(rowNumberT, 1, 1, 4).setValues([[
+      payload.nomeMembros, // Coluna A (index 0 no load)
+      numA,                // Coluna B (ID - mantemos o valor original)
+      payload.nif,         // Coluna C (index 2 no load)
+      payload.nomeFiscal   // Coluna D (index 3 no load)
+    ]]);
+  }
+
+  // Update IPS
+  const dataI = shI.getRange("A4:A").getValues().flat();
+  const idxI = dataI.indexOf(numA);
+  if (idxI !== -1) {
+    // No loadRecordData, o ipsComentario é rowI[11].
+    // O index 11 num array que começa em A corresponde à 12ª coluna (Coluna L).
+    const rowNumberI = idxI + 4;
+    shI.getRange(rowNumberI, 12).setValue(payload.ipsComentario);
+  }
+  
+  return { ok: true };
+}
+
+
 
