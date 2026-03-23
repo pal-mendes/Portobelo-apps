@@ -6,29 +6,44 @@
   <meta charset="utf-8">
 <style>
     /* Estilos Globais 14px */
-    body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; font-size: 14px; }
-    header { padding: 10px; background: #f3f4f6; border-bottom: 1px solid #ccc; display: flex; gap: 15px; align-items: center; }
+    body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; font-size: 14px; color: #333; }
+    header { padding: 8px 15px; background: #f3f4f6; border-bottom: 1px solid #ccc; display: flex; gap: 10px; align-items: center; }
     
     /* Selector mais pequeno e Status fixo */
     #selRegisto { width: 200px; font-size: 14px; }
-    #status { font-size: 13px; color: #059669; font-weight: bold; min-width: 200px; }
+    #status { font-size: 13px; color: #059669; font-weight: bold; margin-left: 10px; min-width: 200px; }
 
     main { display: flex; flex: 1; overflow: hidden; }
-    #editor-pane { width: 400px; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; background: #fafafa; }
+    #editor-pane { width: 500px; padding: 15px 20px; border-right: 1px solid #ccc; overflow-y: auto; background: #fafafa; }
     #pdf-pane { flex: 1; background: #525659; display: flex; flex-direction: column; }
     
     /* Barra de ferramentas do PDF para ajudar no Clipboard */
-    #pdf-tools { background: #333; color: white; padding: 5px 15px; font-size: 12px; display: flex; justify-content: space-between; }
-    #pdf-tools a { color: #60a5fa; text-decoration: none; }
+    #pdf-tools { background: #333; color: white; padding: 4px 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+    #pdf-tools a { color: #60a5fa; text-decoration: none; font-weight: bold; }
 
-    .field { margin-bottom: 15px; }
-    label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
-    input, textarea, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-    .readonly { background: #eee; color: #555; border: none; padding: 8px; border-radius: 4px; }
-    
-    button { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; }
+    .field { margin-bottom: 8px; }
+    label { display: block; font-size: 11px; color: #666; margin-bottom: 2px; text-transform: uppercase; font-weight: bold; }
+    input, textarea, select { width: 100%; padding: 5px 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    .readonly { background: #e5e7eb; color: #4b5563; border: 1px solid #d1d5db; padding: 5px 8px; border-radius: 4px; font-weight: 500; }
+
+    /* Garante que os campos fiquem lado a lado */
+    .field-row { 
+      display: flex; 
+      gap: 12px; 
+      width: 100%; 
+      align-items: flex-end; /* Alinha o fundo das caixas */
+    }
+
+    .field-row .field { 
+      flex: 1; /* Faz com que ambos ocupem o mesmo espaço */
+      min-width: 0; /* Evita que o flexbox quebre em ecrãs pequenos */
+    }
+
+    button { margin-top: 10px; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; transition: background 0.2s;}
+	button:hover:not(:disabled) { background: #1d4ed8; }
     button:disabled { background: #cbd5e1; cursor: not-allowed; }
     iframe { flex: 1; border: none; width: 100%; }
+	.small-msg { color: #666; font-size: 11px; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -37,6 +52,13 @@
     <select id="selRegisto" onchange="loadRecord()">
       <option value="">Selecione um registo...</option>
     </select>
+
+    <span style="font-size: 14px; margin-left: 10px;">Modo:</span>
+    <select id="selModo" onchange="refreshPdf()" style="width: 130px; font-size: 14px;">
+      <option value="PROC">Procurações</option>
+      <option value="IPS">IPS</option>
+    </select>
+
     <div id="status"></div>
   </header>
 
@@ -44,37 +66,98 @@
     <div id="editor-pane">
       <div class="field">
         <label>Semanas</label>
-        <div id="viewSemanas" class="readonly">---</div>
+        <textarea id="viewSemanas" rows="1" class="readonly"></textarea>
       </div>
 
       <div class="field">
         <label>Nome Membros</label>
-        <textarea id="editNomeMembros" rows="3" class="editable"></textarea>
+        <textarea id="editNomeMembros" rows="2" class="editable" placeholder="Nome completo..."></textarea>
       </div>
 
       <div class="field">
-        <label>NIF</label>
-        <input type="text" id="editNIF" class="editable">
+        <label>Telemóveis</label>
+        <div id="viewTelemoveis" class="readonly" style="font-size: 12px; color: #1e40af; background: #dbeafe;">---</div>
       </div>
 
       <div class="field">
-        <label>Nome Fiscal</label>
-        <input type="text" id="editNomeFiscal" class="editable">
+        <label>E-mails</label>
+        <div id="viewEmails" class="readonly" style="font-size: 12px; color: #1e40af; background: #dbeafe;">---</div>
       </div>
 
-      <div class="field">
-        <label>Estado IPS</label>
-        <div id="viewIpsEstado" class="readonly">---</div>
-      </div>
+      <div class="field-row">
+        <div class="field" style="flex: 0 0 90px;">
+          <label>Adesão</label>
+          <div id="viewAdesao" class="readonly" maxlength="10"  style="font-family: monospace;">
+        </div>
+        <div class="field" style="flex: 0 0 90px;">
+          <label>Fim</label>
+          <div id="viewFim" class="readonly" maxlength="10"  style="font-family: monospace;">
+        </div>
+        <div class="field" style="flex: 0 0 110px;">
+          <label>Estado</label>
+          <select id="editEstado" class="editable">
+            <option value="">(Selecionar...)</option>
+            <option value="0U-Incompleto">Incompleto</option>
+            <option value="0Y-NãoTitular">Não titular</option>
+            <option value="0Z-Completo">Completo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Pago</label>
+          <div id="viewPago" class="readonly">
+        </div>
+        <div class="field" style="flex: 0 0 70px;">
+          <label>Saldo</label>
+          <div id="viewSaldo" class="readonly">
+        </div>
+	    </div>
 
+      <div class="field-row">
+        <div class="field" style="flex: 0 0 100px;">
+          <label>NIF (9 dígitos)</label>
+          <input type="text" id="editNIF" class="editable" maxlength="9">
+        </div>
+        <div class="field">
+          <label>Nome Fiscal</label>
+          <input type="text" id="editNomeFiscal" class="editable">
+        </div>
+	    </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Data IPS (AAAA-MM-DD)</label>
+          <input type="text" 
+            id="editIpsData" 
+            class="editable" 
+            placeholder="2025-12-31" 
+            maxlength="10"
+            pattern="\d{4}-\d{2}-\d{2}"
+            style="font-family: monospace;">
+        </div>
+        <div class="field">
+          <label>Estado IPS</label>
+          <select id="editIpsEstado" class="editable">
+            <option value="">(Selecionar...)</option>
+            <option value="OK">OK</option>
+            <option value="NOK">NOK</option>
+            <option value="Wait">Wait</option>
+          </select>
+        </div>
+      </div>
+      
       <div class="field">
         <label>Comentário IPS</label>
-        <textarea id="editIpsComentario" rows="2" class="editable"></textarea>
+        <textarea id="editIpsComentario" rows="1" class="editable"></textarea>
       </div>
     
       <div class="field">
-        <label>Titulares (IPS)</label>
-        <div id="viewTitularesIps" class="small muted" style="font-size: 11px; color: #777;"></div>
+        <label>Primeiro Titular (IPS)</label>
+        <input type="text" id="editPrimTitular" class="editable">
+      </div>
+
+      <div class="field">
+        <label>Outros Titulares (IPS)</label>
+        <textarea id="editOutrosTitulares" rows="2" class="editable"></textarea>
       </div>
 
       <button id="btnSave" onclick="saveData()" disabled>Gravar Alterações</button>
@@ -82,10 +165,10 @@
 
     <div id="pdf-pane">
       <div id="pdf-tools" style="display:none;">
-        <span id="pdf-filename"></span>
+        <span id="pdf-filename" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;"></span>
         <a id="pdf-link" href="#" target="_blank">Abrir em nova aba ↗ (para copiar texto)</a>
       </div>
-      <div id="pdf-msg" style="color: white; padding: 20px; text-align: center;">Selecione um registo...</div>
+      <div id="pdf-msg" style="color: white; padding: 40px; text-align: center;">Selecione um registo para visualizar o documento.</div>
       <iframe id="pdf-frame" style="display:none;"></iframe>
     </div>
   </main>
@@ -97,6 +180,14 @@
     // Monitorizar alterações para ativar o botão de gravar
     document.querySelectorAll('.editable').forEach(el => {
       el.addEventListener('input', () => { btnSave.disabled = false; });
+	    el.addEventListener('change', () => { btnSave.disabled = false; });
+    });
+    
+    document.getElementById("editIpsData").addEventListener('input', function (e) {
+      let v = e.target.value.replace(/\D/g, ""); // Remove tudo o que não é dígito
+      if (v.length > 4) v = v.slice(0,4) + "-" + v.slice(4);
+      if (v.length > 7) v = v.slice(0,7) + "-" + v.slice(7,9);
+      e.target.value = v;
     });
 
     window.onload = function() {
@@ -110,6 +201,20 @@
       }).getEditorInitialData(TICKET);
     };
 
+    // Função para carregar o PDF isoladamente (útil ao trocar apenas o modo)
+    function refreshPdf() {
+      const numA = document.getElementById("selRegisto").value;
+      const semanas = document.getElementById("viewSemanas").textContent;
+      console.log("refreshPdf: semanas=" + semanas);
+      if (!numA || semanas === "---") return;
+      
+      const modo = document.getElementById("selModo").value === "PROC"; // true se PROC
+      const primeiraSemana = semanas.split(/[+,\s]+/)[0];
+      console.log("refreshPdf: semanas=" + semanas + ", primeiraSemana=" + primeiraSemana);
+      loadPdf(primeiraSemana, modo);
+    }
+
+    // Atualização da função loadRecord existente
     function loadRecord() {
       const numA = document.getElementById("selRegisto").value;
       if (!numA) return;
@@ -117,33 +222,46 @@
       btnSave.disabled = true;
       showStatus("A carregar...");
       
-      document.getElementById("btnSave").disabled = true;
-      document.getElementById("status").textContent = "A carregar...";
-
       google.script.run.withSuccessHandler(res => {
-        document.getElementById("editNomeMembros").value = res.nomeMembros;
-        document.getElementById("editNIF").value = res.nif;
-        document.getElementById("editNomeFiscal").value = res.nomeFiscal;
+        console.log("loadRecord success - start");
         document.getElementById("viewSemanas").textContent = res.semanas;
-        document.getElementById("viewIpsEstado").textContent = res.ipsEstado;
+        document.getElementById("editNomeMembros").value = res.nomeMembros;
+        document.getElementById("viewTelemoveis").textContent = res.telemoveis; // Atualiza telemóveis
+        document.getElementById("viewEmails").textContent = res.emails; 
+        console.log("loadRecord Adesao=" + res.adesao);
+        document.getElementById("viewAdesao").textContent = res.adesao; 
+        console.log("loadRecord Fim=" + res.fim);
+        document.getElementById("viewFim").textContent = res.fim; 
+        console.log("loadRecord estado=" + res.estado);
+        document.getElementById("editEstado").value = res.estado;
+        console.log("loadRecord Pago=" + res.pago); 
+        document.getElementById("viewPago").textContent = res.pago; 
+        document.getElementById("viewSaldo").textContent = res.saldo;
+        console.log("loadRecord NIF=" + res.nif);
+        document.getElementById("editNIF").value = res.nif;
+        console.log("loadRecord nomeFiscal=" + res.nomeFiscal);
+        document.getElementById("editNomeFiscal").value = res.nomeFiscal;
+        console.log("loadRecord ipsData=" + res.ipsData);
+        document.getElementById("editIpsData").value = res.ipsData;
+        document.getElementById("editIpsEstado").value = res.ipsEstado;
         document.getElementById("editIpsComentario").value = res.ipsComentario;
-        document.getElementById("viewTitularesIps").innerHTML = `<b>P:</b> ${res.primTitular}<br><b>O:</b> ${res.outrosTitulares}`;
-        
-        showStatus("");
+        document.getElementById("editPrimTitular").value = res.primTitular;
+        document.getElementById("editOutrosTitulares").value = res.outrosTitulares;        
+        console.log("loadRecord: numA=" + numA + ", Semanas=" +  res.semanas + ", saldo=" +  res.saldo);
+        console.log("loadRecord success - end");
 
-        // Carregar PDF da primeira semana
-        const primeiraSemana = res.semanas.split(/[+,\s]+/)[0];
-        loadPdf(primeiraSemana);
+        showStatus("loadRecord: numA=" + numA);
+        refreshPdf();
       }).loadRecordData(TICKET, numA);
     }
 
-    function loadPdf(semana) {
+    function loadPdf(semana, modo) {
       const frame = document.getElementById("pdf-frame");
       const msg = document.getElementById("pdf-msg");
       const tools = document.getElementById("pdf-tools");
       
       msg.style.display = "block";
-      msg.textContent = "A procurar PDF...";
+      msg.textContent = "A procurar " + (modo ? "Procuração..." : "IPS...");
       frame.style.display = "none";
       tools.style.display = "none";
       
@@ -156,18 +274,55 @@
           frame.src = res.url;
           frame.style.display = "block";
         } else {
-          msg.textContent = "PDF não encontrado.";
+          msg.textContent = "PDF não encontrado para este modo.";
         }
-      }).findPdfPreview(TICKET, semana, true);
+      }).findPdfPreview(TICKET, semana, modo);
+    }
+
+    function isValidDate(dateString) {
+      // Verifica o formato básico AAAA-MM-DD
+      const regEx = /^\d{4}-\d{2}-\d{2}$/;
+      if(!dateString.match(regEx)) return false;
+      
+      // Verifica se os números formam uma data real (ex: evita 2025-13-45)
+      const d = new Date(dateString);
+      const dNum = d.getTime();
+      if(!dNum && dNum !== 0) return false; // Data inválida
+      return d.toISOString().slice(0,10) === dateString;
     }
 
     function saveData() {
       const numA = document.getElementById("selRegisto").value;
+
+      // Validação da Data IPS
+      const ipsDataField = document.getElementById("editIpsData");
+      const ipsDataValue = ipsDataField.value.trim();
+      if (ipsDataValue !== "" && !isValidDate(ipsDataValue)) {
+        alert("A 'Data IPS' deve estar no formato AAAA-MM-DD e ser uma data válida.");
+        ipsDataField.classList.add("error-border");
+        ipsDataField.focus();
+        return;
+      }
+
+      // Validação do NIF (já existente)
+      const nifField = document.getElementById("editNIF");
+      const nifValue = nifField.value.trim();
+      if (nifValue.length > 0 && (nifValue.length !== 9 || isNaN(nifValue))) {
+        alert("O NIF deve ter 9 dígitos.");
+        nifField.classList.add("error-border");
+        return;
+      }
+
       const payload = {
         nomeMembros: document.getElementById("editNomeMembros").value,
-        nif: document.getElementById("editNIF").value,
+        nif: nifValue,
         nomeFiscal: document.getElementById("editNomeFiscal").value,
-        ipsComentario: document.getElementById("editIpsComentario").value
+        estado: document.getElementById("editEstado").value,
+        ipsData: ipsDataValue,
+        ipsEstado: document.getElementById("editIpsEstado").value,
+        ipsComentario: document.getElementById("editIpsComentario").value,
+        primTitular: document.getElementById("editPrimTitular").value,
+        outrosTitulares: document.getElementById("editOutrosTitulares").value
       };
 
       btnSave.disabled = true;

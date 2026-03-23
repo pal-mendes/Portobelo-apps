@@ -52,6 +52,19 @@
         border: 1px solid #ffeeba;
         margin-top: 20px;
       }
+      .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 8px;
+        font-size: 14px;
+      }
+      .btn-secondary:hover {
+        background-color: #5a6268;
+      }
     </style>
 
     <script>
@@ -313,6 +326,8 @@
               '<a href="' +
               u.toString() +
               '" target="_top" class="btn btn-primary">Entrar</a>' +
+              '<br>' +
+              '<a href="javascript:handleResetAccount()" class="btn btn-secondary">Selecionar outra conta Google</a>' +
               "</div>",
             true,
           );
@@ -464,6 +479,8 @@
             .buildAuthUrlFor(nonce, WANT_DEBUG, window.top !== window, canonExec());
         }
 
+
+
         // Botão (para quando a pop-up automática falha ou NOREDIRECT)
         BTN.addEventListener("click", function (ev) {
           ev.preventDefault();
@@ -540,7 +557,25 @@
             })
             .isTicketValid(t, WANT_DEBUG ? 1 : 0);
         })();
+
+
+
       })();
+      function handleResetAccount() {
+        log("handleResetAccount()");
+        
+        // 1. Limpa o ticket do localStorage (use a constante que tiver definida para a chave)
+        const KEY = "auth_ticket"; // Confirme se é este o nome da sua constante
+        localStorage.removeItem(KEY);
+        
+        // 2. Limpa o cookie de backup (se o usar)
+        document.cookie = KEY + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+        // 3. Redireciona para o logout no servidor para mostrar a página de confirmação
+        // O uso de ?action=logout invocará o ecrã de "Sessão terminada"
+        const url = window.CANON_URL || ""; // Usa o URL detetado pela canonExec
+        window.top.location.href = url + "?action=logout";
+      }
     </script>
   </body>
 </html>
