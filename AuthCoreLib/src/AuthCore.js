@@ -42,7 +42,7 @@ const NONCE_TTL_SEC = 180; // 3 min para nonce→ticket
 // Defaults internos da biblioteca (só para a Associação Portobelo)
 var LIB_SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
 var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:V" } };
-var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", semanas:"Semanas" };
+var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", semanas:"Semanas", webapp:"WebApp" };
 var LIB_NOTIFY = { to:"log-apps@titulares-portobelo.pt", ccAllRows:true };
 
 function __defCfg(cfgParam){
@@ -254,7 +254,7 @@ function takeTicketForNonce_(nonce) {
 /*
 function getClientId_() {
   return getScriptProp_("CLIENT_ID");
-}
+}APP_PERMISSIONS
 
 function getClientSecret_() {
   return getScriptProp_("CLIENT_SECRET");
@@ -285,21 +285,26 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg, clientUrl) {
 
 // ===== Render do Login (comum às apps) =====
 function renderLoginPage_(opts) {
+  console.log("renderLoginPage_(appTitle=" + opts.appTitle + ", appPermissions=" + opts.appPermissions + ")");
   // FORÇAR O CANON URL NO HTML
   const L = makeLogger_(opts.debug);
-  //const L = makeLogger_(1); //parece que opts.debug não está a funcionar?
   L('function renderLoginPage_');
 
   const t = HtmlService.createTemplateFromFile("Login");
   // Permite à App forçar o URL de testes
   t.CANON_URL = opts.canon || canonicalAppUrl_(); 
-  //t.CLIENT_ID = getClientId_(); // opcional; o HTML atual nem usa
   t.AUTOSTART = "1"; t.DEBUG = opts.debug ? "1" : ""; // auto-inicia o popup
   t.DEBUG = opts.debug ? "1" : "";
   t.SERVER_LOG = opts.serverLog && opts.serverLog.join ? opts.serverLog.join("\n") : String(opts.serverLog || "");
   t.WIPE = opts.wipe ? "1" : "";  
   L('renderLoginPage_: opts.wipe = ' + opts.wipe + ', t.WIPE = ' + t.WIPE);
   t.ticket = ""; t.TICKET = ""; t.SERVER_VARS = ""; t.PAGE_TAG = 'LOGIN';
+
+// NOVAS VARIÁVEIS PARA UI DINÂMICA
+  t.APP_TITLE = opts.appTitle || "Associação dos titulares de DRHP do Portobelo---";
+  t.APP_PERMISSIONS = opts.appPermissions || "---";
+
+  console.log("appTitle=" + t.APP_TITLE + ", appPermissions=" + t.APP_PERMISSIONS);
 
   try {
     return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

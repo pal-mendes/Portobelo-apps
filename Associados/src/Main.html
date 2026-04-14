@@ -1,8 +1,8 @@
-
 <!-- Main.html (Associados) -->
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Área do Associado</title>
     <style>
       :root {
@@ -33,7 +33,8 @@
         align-items: center;
         gap: 10px;
         padding: 14px 16px;
-        border-bottom: 1px solid #e5e7eb;
+        /*border-bottom: 1px solid #e5e7eb;*/
+        border-bottom: 1px solid var(--line);
         margin-bottom: 20px;
         background: #fff;
         position: sticky;
@@ -41,19 +42,19 @@
         z-index: 10;
       }
       /* Transforma o lado esquerdo numa linha horizontal perfeita */
-      .header-left { 
-        display: flex; 
-        align-items: center; 
+      .header-left {
+        display: flex;
+        align-items: center;
         gap: 8px; /* Espaço entre o ícone, o título e a versão */
         font-size: 18px;
         font-weight: 600;
       }
 
-      .header-center { 
-        text-align: center; 
-        font-weight: bold; 
-        font-size: 16px; 
-        color: #111827; 
+      .header-center {
+        text-align: center;
+        font-weight: bold;
+        font-size: 16px;
+        color: #111827;
       }
 
       #header-actions {
@@ -62,8 +63,8 @@
         align-items: center;
         justify-content: flex-end;
         gap: 12px;
+        margin-left: 0;
       }
-
 
       /* Adaptação para telemóveis na vertical */
       @media (max-width: 768px) {
@@ -72,25 +73,17 @@
           gap: 12px;
           padding: 10px 14px;
         }
-        .header-left { justify-content: center; } /* Centra o ícone e o título */
-        #header-actions { justify-content: center; } /* Centra a conta Google e o botão Sair */
-        .header-center { order: -1; margin-bottom: 4px; } /* Força o texto longo a aparecer no topo */
+        .header-left {
+          justify-content: center;
+        } /* Centra o ícone e o título */
+        #header-actions {
+          justify-content: center;
+        } /* Centra a conta Google e o botão Sair */
+        .header-center {
+          order: -1;
+          margin-bottom: 4px;
+        } /* Força o texto longo a aparecer no topo */
       }
-
-      /* --- Estilo para o Rodapé --- */
-      .footer-correcoes {
-        text-align: center;
-        margin-top: 40px;
-        padding-top: 20px;
-        border-top: 1px solid #e5e7eb;
-        color: #6b7280;
-        font-size: 14px;
-      }
-      .footer-correcoes a {
-        color: #2563eb;
-        text-decoration: none;
-      }
-      .footer-correcoes a:hover { text-decoration: underline; }
 
       .wrap {
         max-width: 1080px;
@@ -148,6 +141,7 @@
         white-space: pre-wrap;
         word-break: break-word;
       }
+	  
       .stat-ok {
         color: var(--ok);
         font-weight: 600;
@@ -250,116 +244,195 @@
         min-width: 8ch;
         font-variant-numeric: tabular-nums;
       }
-	  
-	        /* === RESPONSIVIDADE PARA PC / TABLETS === */
+
+      /* --- Estilo para o Rodapé --- */
+      .footer-correcoes {
+        text-align: center;
+        margin-top: 40px;
+        padding-top: 20px;
+		padding-bottom: 40px;
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 14px;
+      }
+      .footer-correcoes a {
+        color: #2563eb;
+        text-decoration: none;
+      }
+      .footer-correcoes a:hover {
+        text-decoration: underline;
+      }
+
+      /* === RESPONSIVIDADE PARA PC / TABLETS === */
       @media (min-width: 768px) {
-        .header { padding: 14px 24px; }
-        .title { font-size: 22px; }
-        .title span { font-size: 15px !important; }
-        .label { font-size: 14px; }
-        .value { font-size: 18px; }
-        .small { font-size: 14px; }
-        .card { padding: 20px; }
-        .info .badge { font-size: 15px; padding: 12px 18px; }
-        .info .box { font-size: 16px; padding: 12px 18px; }
-        .info .box.euro { font-size: 17px; }
+        .header {
+          padding: 14px 24px;
+        }
+        .title {
+          font-size: 22px;
+        }
+        .title span {
+          font-size: 15px !important;
+        }
+        .label {
+          font-size: 14px;
+        }
+        .value {
+          font-size: 18px;
+        }
+        .small {
+          font-size: 14px;
+        }
+        .card {
+          padding: 20px;
+        }
+        .info .badge {
+          font-size: 15px;
+          padding: 12px 18px;
+        }
+        .info .box {
+          font-size: 16px;
+          padding: 12px 18px;
+        }
+        .info .box.euro {
+          font-size: 17px;
+        }
         #transacoes-card .tx th,
-        #transacoes-card .tx td { font-size: 17px; }
-        #btn-logout { font-size: 14px !important; padding: 6px 14px !important; }
+        #transacoes-card .tx td {
+          font-size: 17px;
+        }
+        #btn-logout {
+          font-size: 14px !important;
+          padding: 6px 14px !important;
+        }
       }
     </style>
 
     <script>
-    /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
-    (function () {
-      // Defensivo: usar typeof para evitar ReferenceError no template
-      var SV = { //usar como __SERVER_VARS. no código
-        canonUrl:   "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
-        ticket:     "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
-        autostart:  "<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>",   // '1' | ''
-        debugServer:"<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" === "1",
-        serverLog:  `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
-        wipe:       "<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>",   // '1' | ''
-        pageTag:    "<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>" // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
-      };
+      /* PB Server Vars — 1.º <script> no <head> (sem efeitos colaterais) */
+      (function () {
+        // Defensivo: usar typeof para evitar ReferenceError no template
+        var SV = {
+          //usar como __SERVER_VARS. no código
+          canonUrl:
+            "<?= (typeof CANON_URL  !== 'undefined' ? CANON_URL  : '') ?>",
+          ticket:
+            "<?= (typeof TICKET     !== 'undefined' ? TICKET     : (typeof ticket !== 'undefined' ? ticket : '')) ?>",
+          autostart:
+            "<?= (typeof AUTOSTART  !== 'undefined' ? AUTOSTART  : '') ?>", // '1' | ''
+          debugServer:
+            "<?= (typeof DEBUG      !== 'undefined' ? DEBUG      : '') ?>" ===
+            "1",
+          serverLog: `<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
+          wipe: "<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>", // '1' | ''
+          pageTag:
+            "<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>", // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
+        };
 
-      // Flags calculadas no cliente
-      SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
+        // Flags calculadas no cliente
+        SV.noRedirect = /[?&]noredirect=1\b/i.test(location.search);
 
-      const CANON_SELF = location.origin + location.pathname;
+        const CANON_SELF = location.origin + location.pathname;
 
-      SV.canonSelf = CANON_SELF;
-      window.CANON_SELF = CANON_SELF;
+        SV.canonSelf = CANON_SELF;
+        window.CANON_SELF = CANON_SELF;
 
-      // Persistir: self (embed) e canon (/exec) se existir
-      try { localStorage.setItem("appSelfUrl", CANON_SELF); } catch(_) {}
-      try { if ((SV.canonUrl || "").trim()) localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim()); } catch(_) {}
-
-      // Expor de forma limpa
-      window.__SERVER_VARS = Object.freeze(SV);
-
-      // Ponte mínima (se quiser eliminar depois, pode)
-      window.CANON_URL      = SV.canonUrl;
-      window.SESSION_TICKET = SV.ticket;
-      window.SERVER_LOG     = SV.serverLog;
-
-      // --- Stubs anti-erro: garantem que log/dbg existem MESMO antes do logger carregar
-      window.log = window.log || function(){ try{ console.log.apply(console, arguments); }catch(_){} };
-      window.dbg = window.dbg || function(){};
-  })();
-  </script>
-
-  <!-- Logger global único (consola apenas) - no head dos html e servido por esta própria web app. -->
-  <script>
-    <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
-  </script>
-
-  <script>
-    // Flag global reutilizável (standalone=false, embed externo=true)
-    (function () {
-      function isAppsScript(o) {
-        return /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
-          o,
-        );
-      }
-      function computeExternalEmbed() {
-        var inFrame = true;
+        // Persistir: self (embed) e canon (/exec) se existir
         try {
-          inFrame = window.top !== window.self;
-        } catch (_) {
-          inFrame = true;
+          localStorage.setItem("appSelfUrl", CANON_SELF);
+        } catch (_) {}
+        try {
+          if ((SV.canonUrl || "").trim())
+            localStorage.setItem("appCanonicalUrl", SV.canonUrl.trim());
+        } catch (_) {}
+
+        // Expor de forma limpa
+        window.__SERVER_VARS = Object.freeze(SV);
+
+        // Ponte mínima (se quiser eliminar depois, pode)
+        window.CANON_URL = SV.canonUrl;
+        window.SESSION_TICKET = SV.ticket;
+        window.SERVER_LOG = SV.serverLog;
+
+        // --- Stubs anti-erro: garantem que log/dbg existem MESMO antes do logger carregar
+        window.log =
+          window.log ||
+          function () {
+            try {
+              console.log.apply(console, arguments);
+            } catch (_) {}
+          };
+        window.dbg = window.dbg || function () {};
+      })();
+    </script>
+
+    <!-- Logger global único (consola apenas) - no head dos html e servido por esta própria web app. -->
+    <script>
+      <?!= HtmlService.createHtmlOutputFromFile('Logger_js').getContent(); ?>
+    </script>
+
+    <script>
+      // Flag global reutilizável (standalone=false, embed externo=true)
+      (function () {
+        function isAppsScript(o) {
+          return /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
+            o,
+          );
         }
-        var ao =
-          (location.ancestorOrigins &&
-            Array.from(location.ancestorOrigins)) ||
-          [];
-        return (
-          inFrame &&
-          ao.some(function (o) {
-            return !isAppsScript(o);
-          })
-        );
-      }
-      window.EXTERNAL_EMBED = computeExternalEmbed(); // ← fica disponível globalmente
-    })();
-  </script>
+        function computeExternalEmbed() {
+          var inFrame = true;
+          try {
+            inFrame = window.top !== window.self;
+          } catch (_) {
+            inFrame = true;
+          }
+          var ao =
+            (location.ancestorOrigins &&
+              Array.from(location.ancestorOrigins)) ||
+            [];
+          return (
+            inFrame &&
+            ao.some(function (o) {
+              return !isAppsScript(o);
+            })
+          );
+        }
+        window.EXTERNAL_EMBED = computeExternalEmbed(); // ← fica disponível globalmente
+      })();
+    </script>
   </head>
 
   <body>
     <div class="header-grid">
       <div class="header-left">
-        <a class="icon-btn" href="https://titulares-portobelo.pt" target="_top" title="Início" style="color: #333; display: flex; align-items: center;">
-          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path></svg>
+        <a
+          class="icon-btn"
+          href="https://titulares-portobelo.pt"
+          target="_top"
+          title="Início"
+          style="color: #333; display: flex; align-items: center"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path d="M12 3 3 10v11h6v-6h6v6h6V10z" fill="currentColor"></path>
+          </svg>
         </a>
         <span>Área do Associado</span>
-        <span style="font-size: 13px; color: #666; font-weight: normal;">(<?= VERSION ?>)</span>      
+        <span style="font-size: 13px; color: #666; font-weight: normal"
+          >(<?= VERSION ?>)</span
+        >
       </div>
       <div class="header-center">
         Associação dos Titulares de DRHP do Portobelo
       </div>
       <div id="header-actions">
         <div class="small muted" id="who"></div>
-        <a href="#" id="btn-logout" class="btn" style="font-size: 13px; padding: 4px 10px; border-color: #ccc;">Sair</a>
+        <a
+          href="#"
+          id="btn-logout"
+          class="btn"
+          style="font-size: 13px; padding: 4px 10px; border-color: #ccc"
+          >Sair</a
+        >
       </div>
     </div>
 
@@ -384,13 +457,32 @@
       </div>
     </div>
     <div class="footer-correcoes">
-      Para corrigir os seus dados, contacte, por favor, <a href="mailto:geral@titulares-portobelo.pt">geral@titulares-portobelo.pt</a>.
+      Para corrigir os seus dados, contacte, por favor,
+      <a href="mailto:geral@titulares-portobelo.pt"
+        >geral@titulares-portobelo.pt</a
+      >.
     </div>
 
     <script>
       const VERSION = "<?= VERSION ?>";
 
-      (function () {        
+      //Valores a usar para msgSaldoText que define como mostrar o estado do registo do associado
+      const MSG_SALDO_POS = "<?= MSG_SALDO_POS ?>";
+      const MSG_SALDO_NUL = "<?= MSG_SALDO_NUL ?>";
+      const MSG_SALDO_NEG = "<?= MSG_SALDO_NEG ?>";
+
+      //Valores a usar para definir como mostrar o estado da informação predial
+      const MSG_IPS_UNKNOWN = "<?= MSG_IPS_UNKNOWN ?>";
+      const MSG_IPS_EMITIDA = "<?= MSG_IPS_EMITIDA ?>";
+      const MSG_IPS_PENDENTE = "<?= MSG_IPS_PENDENTE ?>";
+      const MSG_IPS_NOK = "<?= MSG_IPS_NOK ?>";
+      const MSG_IPS_WAIT = "<?= MSG_IPS_WAIT ?>";
+      const MSG_IPS_TITREG = "<?= MSG_IPS_TITREG ?>";
+      const MSG_IPS_HERANCA = "<?= MSG_IPS_HERANCA ?>";
+      const MSG_IPS_RENOVAR = "<?= MSG_IPS_RENOVAR ?>";
+      const MSG_IPS_OK = "<?= MSG_IPS_OK ?>";
+
+      (function () {
         // 1) persistir ticket e limpar o query ?ticket=
         (function () {
           try {
@@ -412,27 +504,46 @@
 
         // Avaliação rigorosa do debug
         const qs_global = new URLSearchParams(location.search);
-        const WANT_DEBUG = (__SERVER_VARS.debugServer === true || qs_global.get("debug") === "1" || qs_global.get("Debug") === "1");
+        const WANT_DEBUG =
+          __SERVER_VARS.debugServer === true ||
+          qs_global.get("debug") === "1" ||
+          qs_global.get("Debug") === "1";
         (function () {
-
-          const CANON       = __SERVER_VARS.canonUrl || (function(){ try{return localStorage.getItem('appCanonicalUrl')}catch(_){return ''} })() || (location.origin + location.pathname);
-          const TPL_TICKET  = __SERVER_VARS.ticket || ''; // injeta o ticket do servidor
+          const CANON =
+            __SERVER_VARS.canonUrl ||
+            (function () {
+              try {
+                return localStorage.getItem("appCanonicalUrl");
+              } catch (_) {
+                return "";
+              }
+            })() ||
+            location.origin + location.pathname;
+          const TPL_TICKET = __SERVER_VARS.ticket || ""; // injeta o ticket do servidor
           //const WANT_DEBUG  = window.DEBUG;
           const IN_IFRAME = (function () {
-            try { return window.top !== window.self; } catch (_) { return true; }
+            try {
+              return window.top !== window.self;
+            } catch (_) {
+              return true;
+            }
           })();
           const AO =
             (location.ancestorOrigins &&
               Array.from(location.ancestorOrigins)) ||
             [];
           const isAppsScript = (o) =>
-            /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(o);
+            /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
+              o,
+            );
           const EXTERNAL_EMBED = IN_IFRAME && AO.some((o) => !isAppsScript(o));
 
           // Fallback ao storage se o template vier sem ticket:
           let t = TPL_TICKET;
           if (!t) {
-            try { t = localStorage.getItem("sessTicket") || ""; } catch (_) {}
+            try {
+              t = localStorage.getItem("sessTicket") || "";
+            } catch (_) {}
           }
           const BASE = CANON_URL;
           const u = new URL(BASE);
@@ -441,10 +552,9 @@
 
           if (WANT_DEBUG) u.searchParams.set("debug", "1");
           if (EXTERNAL_EMBED) u.searchParams.set("embed", "1"); // só para logging/diagnóstico no server
-          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
+          if (!u.searchParams.has("ts"))
+            u.searchParams.set("ts", String(Date.now()));
           //if (/\bdebug=1\b/i.test(location.search)) u.searchParams.set("debug", "1");
-
-
         })();
 
         const $ = (sel) => document.querySelector(sel);
@@ -496,7 +606,9 @@
 
           const ad = parsePtDate(adesaoStr);
           if (!ad) {
-            try { log?.(`[joia] data inválida: ${adesaoStr}`); } catch (_) {}
+            try {
+              log?.(`[joia] data inválida: ${adesaoStr}`);
+            } catch (_) {}
             return 0;
           }
 
@@ -555,12 +667,11 @@
           // - 9: já não é titular => Vai passar para 0Y-NãoTitular
           // - OK: tudo em ordem => Vai passar para 0Z-Completo
 
-
- 
           //log?.(`[cardLinha] entrada`); //também funciona
           log?.("[cardLinha] entrada");
 
-          const naoTitular = String(c.estado || "").trim() === "9" || String(c.estado || "").trim() === "0Y-NãoTitular";
+          const rawEstado = String(c.estado || "").trim();
+          const naoTitular = rawEstado === "0Y-NãoTitular";
           const rgpdAceite = !!c.rgpdOk;
           const saldoNeg = !!c.saldoNeg;
 
@@ -576,25 +687,39 @@
           // 3) senão, aplica a lógica anterior (placeholders quando naoTitular)
           let primTxt, outTxt;
           if (saldoNeg) {
-            primTxt = outTxt = "Faça, por favor, pagamentos para atingir o valor das quotizações totais.";
+            primTxt = outTxt =
+              "Faça, por favor, pagamentos para atingir o valor das quotizações totais.";
           } else if (!rgpdAceite) {
             // Alterado para ficar vermelho com a classe 'stat-nok' (vermelho de erro definido no CSS)
-            primTxt = outTxt = '<span class="stat-nok">Aceite o RGPD, por favor</span>';
+            primTxt = outTxt =
+              '<span class="stat-nok">Aceite o RGPD, por favor</span>';
           } else if (naoTitular) {
             primTxt = outTxt = "---";
           } else {
             //Apanha o caso das IPS não terem sido emitidas
-            primTxt = c.primIPS && String(c.primIPS).trim() ? c.primIPS : "---";
-            outTxt = c.outIPS && String(c.outIPS).trim() ? c.outIPS : "---";
+            primTxt = c.primIPS && String(c.primIPS).trim()
+					? escapeHtml(c.primIPS) 
+					: "---";
+            outTxt = c.outIPS && String(c.outIPS).trim()
+				? escapeHtml(c.outIPS) 
+				: "---";
           }
 
           // Texto de RGPD por cartão
-          const rgpdTxt = rgpdAceite ? "Aceite" : '<span class="stat-nok">Rejeitado</span>';
+          const rgpdTxt = rgpdAceite
+            ? "Aceite"
+            : '<span class="stat-nok">Rejeitado</span>';
 
-          // IPS “data”/“estado” mantém a tua lógica atual (respeita o naoTitular)
-          const dataIPSTxt = naoExibir ? "---" : c.dataIPS || "---";
-          const statIPSTxt = naoExibir ? "---" : c.statIPS || "---";
-
+          // --- NOVO: Cores de Estado do Titular ---
+          let estadoTxt = rawEstado || "---";
+          if (rawEstado === "0Z-Completo") {
+            estadoTxt = '<span class="stat-ok">O registo está completo</span>';
+          } else if (rawEstado === "0Y-NãoTitular") {
+            estadoTxt = '<span class="stat-nok">Deixou de ser titular</span>';
+          } else if (rawEstado === "0S-Incompleto") {
+            estadoTxt = '<span class="stat-pend">O registo está incompleto</span>';
+          }
+		  
           const tri = computeJoiaQuarters(c.adesaoRaw);
           log?.("[cardLinha] tri=" + tri);
           const joiaTxt =
@@ -613,15 +738,38 @@
           const nomeFiscalTxt = c.nomeFiscal || "---";
           const fimTxt = c.fimRaw || "---";
 
-          const estadoTxt = naoTitular
-            ? '<span class="stat-nok">Deixou de ser titular</span>'
-            : String(c.estado || "").trim() === "0Z-Completo"
-              ? "Disponibilizou toda a informação"
-              : String(c.estado || "").trim() === "0U-Incompleto"
-                ? '<span class="stat-pend">Falta informação</span>'
-                : c.estado || "?";
 
           log?.("[cardLinha] estadoTxt=" + estadoTxt);
+
+          // IPS “data”/“estado” mantém a tua lógica atual (respeita o naoTitular)
+          const dataIPSTxt = naoExibir ? "---" : c.dataIPS || "---";
+          // --- NOVO: Cores de Estado IPS ---
+          let rawStatIPS = c.statIPS || "---";
+		      let statIPSTxt = "---";
+          if (!naoExibir && rawStatIPS) {
+            const ipsUpper = rawStatIPS.toUpperCase();
+            if (ipsUpper === "OK") {
+              statIPSTxt = `<span class="stat-ok">${MSG_IPS_OK}</span>`;
+            } else if (ipsUpper === "RENOVAR") {
+              statIPSTxt = `<span class="stat-ok">${MSG_IPS_RENOVAR}</span>`;
+            } else if (ipsUpper === "HERANÇA") {
+              statIPSTxt = `<span class="stat-pend">${MSG_IPS_HERANCA}</span>`;
+            } else if (ipsUpper === "TITREG") {
+              statIPSTxt = `<span class="stat-pend">${MSG_IPS_TITREG}</span>`;
+            } else if (ipsUpper === "WAIT") {
+              statIPSTxt = `<span class="stat-nok">${MSG_IPS_WAIT}</span>`;
+            } else if (ipsUpper === "NOK") {
+              statIPSTxt = `<span class="stat-nok">${MSG_IPS_NOK}</span>`;
+            } else if (ipsUpper === "PENDENTE") {
+              statIPSTxt = `<span class="stat-pend">${MSG_IPS_PENDENTE}</span>`;
+            } else if (ipsUpper === "EMITIDA") {
+              statIPSTxt = `<span class="stat-pend">${MSG_IPS_EMITIDA}</span>`;
+            } else if (ipsUpper === "?") {
+              statIPSTxt = `<span class="stat-pend">${MSG_IPS_UNKNOWN}</span>`;
+            } else {
+              statIPSTxt = `<span class="stat-nok">${rawStatIPS}</span>`;
+            }
+          }
 
           // helper p/ abrir RGPD (reutiliza o caminho go=rgpd)
           function rgpdLinkHtml() {
@@ -662,8 +810,8 @@
               </div>
               <div class="line"><div class="label">Primeiro titular (IPS)</div><div class="value wraptext">${primTxt}</div></div>
               <div class="line"><div class="label">Outros titulares (IPS)</div><div class="value wraptext">${outTxt}</div></div>
-              
-              <div class="line"><div class="label">Nome(s) relacionado(s)</div><div class="value wraptext">${c.nomes || ""}</div></div>
+            
+              <div class="line"><div class="label">Nome(s) do agregado familiar</div><div class="value wraptext">${c.nomes || ""}</div></div>
               <div class="line"><div class="label">E-mail(s)</div><div class="value wraptext">${c.emails || ""}</div></div>
               <div class="line"><div class="label">Telemóvel(eis)</div><div class="value wraptext">${c.telefones || ""}</div></div>
 
@@ -732,7 +880,9 @@
 
         function render(data) {
           if (data?.log && Array.isArray(data.log)) {
-            try { data.log.forEach((l) => log("[SV] " + l)); } catch (_) {}
+            try {
+              data.log.forEach((l) => log("[SV] " + l));
+            } catch (_) {}
           }
 
           try {
@@ -779,24 +929,43 @@
               quotizacao: 0,
               saldo: 0,
             };
+			
+            // --- NOVO: Lógica da mensagem de saldo nos Totais ---
+            let msgSaldoText = "";
+            let msgSaldoClass = "";
+            if (T.saldo > 0) {
+              msgSaldoText = MSG_SALDO_POS;
+              msgSaldoClass = "stat-ok";
+            } else if (T.saldo === 0) {
+              msgSaldoText = MSG_SALDO_NUL;
+              msgSaldoClass = "stat-ok";
+            } else {
+              msgSaldoText = MSG_SALDO_NEG;
+              msgSaldoClass = "stat-nok";
+            }
             const totalsHtml = `
               <div class="info">
                 <div class="badge">Totais</div>
-                <div class="box euro">
-                  Jóias: <b>${fmtEUR(T.joia)}</b> ·
-                  Quotas deste ano: <b>${fmtEUR(T.quota)}</b> ·
-                  Quotizações totais: <b>${fmtEUR(T.quotizacao)}</b> ·
-                  Pagamentos: <b>${fmtEUR(T.pago)}</b> ·
-                  Saldo: <b>${fmtEUR(T.saldo)}</b>
+                <div class="box euro" style="display: flex; flex-direction: column; justify-content: center;">
+				          <div>
+                    Jóias: <b>${fmtEUR(T.joia)}</b> ·
+                    Quotas deste ano: <b>${fmtEUR(T.quota)}</b> ·
+                    Quotizações totais: <b>${fmtEUR(T.quotizacao)}</b> ·
+                    Pagamentos: <b>${fmtEUR(T.pago)}</b> ·
+                    Saldo: <b>${fmtEUR(T.saldo)}</b>
+                </div>
+                <div class="${msgSaldoClass}" style="margin-top: 8px; font-size: 15px; font-family: system-ui, sans-serif;">
+                    ${msgSaldoText}
+                  </div>
                 </div>
               </div>
               
               <div class="card muted small" style="background: #f9fafb; border-color: #d1d5db; line-height: 1.6; margin-top: 0;">
-              A Informação Predial Simplificada (IPS) do Registo Predial está disponível para descarregar <b>quando o RGPD foi aceite e o saldo não é negativo</b>. Se, ao carregar sobre a semana X/Y, lhe surgir a mensagem "Sem FT-IPS para a semana X/Y", por favor contacte geral@titulares-portobelo.pt.<br><br>
-              A quotização total representa a soma da jóia e das quotas de cada ano desde a adesão.<br>
-              O saldo é calculado pela subtração das quotizações aos pagamentos. <b>Se o saldo for negativo</b>, o associado deve fazer o pagamento do montante do saldo.<br>
-              Dado ainda não existir conta bancária da associação, pague através de <b>MB WAY</b> ou <b>Revolut</b> para o número <b>+351 967 012 590</b>. O MB WAY dará erro de limite após 50 pagamentos mensais. Pode também fazer na App do seu banco a transferência <b>por telemóvel/SPIN</b> para o mesmo número, ou para o <b>IBAN PT50 0018 0238 0020 0021 976 46</b>. Pode também enviar por MB WAY para o número <b>+351 968 865 016, mas só em último caso</b>. Por favor, indique no descritivo pelo menos uma das suas semanas (104/30, por exemplo). Só vale a pena enviar <b>comprovativo</b> se o pagamento não estiver refletido nesta página <b>em 3 dias.</b><br>
-              Os pagamentos já feitos, mostrados acima, podem ser temporariamente superiores ao total das transações bancárias, mostradas abaixo, enquanto estas últimas ainda não foram atualizadas.
+                A Informação Predial Simplificada (IPS) do Registo Predial está disponível para descarregar <b>quando o RGPD foi aceite e o saldo é positivo</b>. Se, ao carregar sobre a semana X/Y, lhe surgir a mensagem "Sem FT-IPS para a semana X/Y", por favor contacte geral@titulares-portobelo.pt.<br><br>
+                A quotização total representa o pagamento devido à associação, calculado pela soma da jóia e das quotas de cada ano desde a adesão.<br>
+                O saldo é calculado pela subtração das quotizações aos pagamentos. <b>Se o saldo for negativo</b>, o associado deve fazer o pagamento do montante do saldo.<br>
+                Dado ainda não existir conta bancária da associação, pague através de <b>MB WAY</b> ou <b>Revolut</b> para o número <b>+351 967 012 590</b>. O MB WAY dará erro de limite após 50 pagamentos mensais, pelo que nessa situação mande mensagem a solicitar que lhe seja feito a si o pedido por MB WAY, que costuma funcionar sempre. Pode também fazer na App do seu banco a transferência <b>por telemóvel/SPIN</b> para o mesmo número, ou para o <b>IBAN PT50 0018 0238 0020 0021 976 46</b>. Por favor, indique no descritivo pelo menos uma das suas semanas (104/30, por exemplo). Só vale a pena enviar <b>comprovativo</b> se o pagamento não estiver refletido nesta página <b>em 3 dias.</b><br>
+                Os pagamentos já feitos, mostrados acima, podem ser temporariamente superiores ao total das transações bancárias, mostradas abaixo, enquanto estas últimas ainda não foram atualizadas.
               </div>`;
 
             $("#content").innerHTML = quotasHtml + cardsHtml + totalsHtml;
@@ -820,9 +989,7 @@
                 .insertAdjacentHTML("beforeend", html);
             }
             // Transações
-            renderTransacoes(
-              data?.transacoes || [],
-            );
+            renderTransacoes(data?.transacoes || []);
             log?.("[render] content updated");
           } catch (e) {
             log?.("[render FATAL] " + (e && e.message));
@@ -846,20 +1013,23 @@
             }
           })();
           if (!ticket) {
-            $("#content").textContent = "Sessão inválida — por favor volte a entrar.";
+            $("#content").textContent =
+              "Sessão inválida — por favor volte a entrar.";
             return;
           }
 
           google.script.run
             .withSuccessHandler(function (ok) {
               if (!ok) {
-                $("#content").textContent = "Sessão inválida — por favor volte a entrar.";
+                $("#content").textContent =
+                  "Sessão inválida — por favor volte a entrar.";
                 return;
               }
               google.script.run
                 .withSuccessHandler(render)
                 .withFailureHandler((err) => {
-                  $("#content").textContent = "Erro a carregar: " + (err?.message || err);
+                  $("#content").textContent =
+                    "Erro a carregar: " + (err?.message || err);
                 })
                 .apiGetAssociados(ticket);
             })
@@ -893,12 +1063,12 @@
         if (window.SESSION_TICKET) return String(window.SESSION_TICKET);
         // 2) Query string (quando a URL contém ?ticket=…)
         try {
-          const t = new URL(location.href).searchParams.get('ticket');
+          const t = new URL(location.href).searchParams.get("ticket");
           if (t) return t;
         } catch (_) {}
         // 3) localStorage (mesmo domínio)
         try {
-          const t = localStorage.getItem('sessTicket') || '';
+          const t = localStorage.getItem("sessTicket") || "";
           if (t) return t;
         } catch (_) {}
         // 4) cookie (caso a app o tenha definido)
@@ -906,7 +1076,7 @@
           const m = document.cookie.match(/(?:^|;)\\s*sessTicket=([^;]+)/);
           if (m) return decodeURIComponent(m[1]);
         } catch (_) {}
-        return '';
+        return "";
       }
 
       // Clique numa semana => download imediato
@@ -962,24 +1132,37 @@
         //log("[Main.html canonExec] sv.canonUrl=" + sv.canonUrl);
         //log("[Main.html canonExec] window.CANON_URL=" + window.CANON_URL);
         //log("[Main.html canonExec] sv.CANON_URL=" + sv.CANON_URL);
-        const url = (sv.canonUrl || window.CANON_URL || sv.CANON_URL || sv.canonSelf || '').trim();
-        return url || (location.origin + location.pathname);
+        const url = (
+          sv.canonUrl ||
+          window.CANON_URL ||
+          sv.CANON_URL ||
+          sv.canonSelf ||
+          ""
+        ).trim();
+        return url || location.origin + location.pathname;
       }
 
       // Abrir RGPD a partir do link em cada cartão
       document.addEventListener("click", (ev) => {
-        const a = ev.target && ev.target.closest ? ev.target.closest("a.rgpd-open") : null;
+        const a =
+          ev.target && ev.target.closest
+            ? ev.target.closest("a.rgpd-open")
+            : null;
         if (!a) return;
         ev.preventDefault();
 
-        const ticket = (typeof getSessTicket === "function") ? getSessTicket() : "";
+        const ticket =
+          typeof getSessTicket === "function" ? getSessTicket() : "";
         const u = new URL(canonExec());
         u.searchParams.set("go", "rgpd");
         if (ticket) u.searchParams.set("ticket", ticket);
 
         // Reposicionado para não apanhar lixo inesperado
         const qs_local = new URLSearchParams(location.search);
-        const isDbg = (__SERVER_VARS.debugServer === true || qs_local.get("debug") === "1" || qs_local.get("Debug") === "1");
+        const isDbg =
+          __SERVER_VARS.debugServer === true ||
+          qs_local.get("debug") === "1" ||
+          qs_local.get("Debug") === "1";
         if (isDbg) u.searchParams.set("debug", "1");
 
         u.searchParams.set("ts", String(Date.now()));
@@ -999,51 +1182,75 @@
       });
 
       // 2) Lógica do Botão Sair simplificada com navegação para a Sandbox Principal
-      document.getElementById("btn-logout").addEventListener("click", function(ev) {
-        ev.preventDefault();
-        log("[MAIN] Iniciando processo de Sair... (9/3/2026 12:03)");
-        
-        // Eliminação Agressiva Antecipada na App Cliente
-        try { localStorage.setItem("sessTicket", ""); localStorage.removeItem("sessTicket"); localStorage.clear(); } catch (_) {}
-        try { sessionStorage.setItem("sessTicket", ""); sessionStorage.removeItem("sessTicket"); sessionStorage.clear(); } catch (_) {}
-        try { 
-          const paths = ['/', '/macros/s/', location.pathname];
-          paths.forEach(function(p) {
-            document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + "; SameSite=Lax; Secure";
-            document.cookie = "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" + p + ";";
-          });
-        } catch (_) {}
-    
-        // 3. Ocultar a app e mostrar feedback imediato DENTRO do iframe
-        document.body.innerHTML = "<div style='text-align:center; padding:60px 20px; font-family:sans-serif;'>" +
-                                        "<h3 style='color:#333;'>A encerrar sessão com segurança...</h3>" +
-                                        "<p style='color:#777;'>A limpar dados do navegador.</p></div>";
+      document
+        .getElementById("btn-logout")
+        .addEventListener("click", function (ev) {
+          ev.preventDefault();
+          log("[MAIN] Iniciando processo de Sair... (9/3/2026 12:03)");
 
-        const sv = window.__SERVER_VARS || {};
-        let url = (sv.canonUrl || window.CANON_URL || sv.canonSelf || location.origin + location.pathname).trim();
-        // O TRUQUE MESTRE: Enviar para a Root URL com Hash #logout
-        const u = new URL(url);
-        if (window.location.search.includes('debug=1') || u.searchParams.has('debug')) {
-            u.searchParams.set("debug", "1");
-        }
-        //u.hash = "logout"; // <-- Garante a abertura da Sandbox original
-        // 2. Avisar o servidor para travar a Autenticação
-        u.searchParams.set("action", "logout");
-        
-        log("[MAIN] A navegar para a sandbox base de logout...");
-        // O SEGREDO ESTÁ AQUI: Dar tempo para o browser gravar a eliminação antes de destruir o iframe!
-        setTimeout(function() {
-          log("[MAIN] A navegar para: " + u.toString());
+          // Eliminação Agressiva Antecipada na App Cliente
           try {
-            if (window.top !== window.self) window.top.location.href = u.toString();
-            else location.replace(u.toString());
-          } catch (e) {
-            window.open(u.toString(), "_top");
-          }
-        }, 600);
-      });
+            localStorage.setItem("sessTicket", "");
+            localStorage.removeItem("sessTicket");
+            localStorage.clear();
+          } catch (_) {}
+          try {
+            sessionStorage.setItem("sessTicket", "");
+            sessionStorage.removeItem("sessTicket");
+            sessionStorage.clear();
+          } catch (_) {}
+          try {
+            const paths = ["/", "/macros/s/", location.pathname];
+            paths.forEach(function (p) {
+              document.cookie =
+                "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" +
+                p +
+                "; SameSite=Lax; Secure";
+              document.cookie =
+                "sessTicket=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=" +
+                p +
+                ";";
+            });
+          } catch (_) {}
 
+          // 3. Ocultar a app e mostrar feedback imediato DENTRO do iframe
+          document.body.innerHTML =
+            "<div style='text-align:center; padding:60px 20px; font-family:sans-serif;'>" +
+            "<h3 style='color:#333;'>A encerrar sessão com segurança...</h3>" +
+            "<p style='color:#777;'>A limpar dados do navegador.</p></div>";
+
+          const sv = window.__SERVER_VARS || {};
+          let url = (
+            sv.canonUrl ||
+            window.CANON_URL ||
+            sv.canonSelf ||
+            location.origin + location.pathname
+          ).trim();
+          // O TRUQUE MESTRE: Enviar para a Root URL com Hash #logout
+          const u = new URL(url);
+          if (
+            window.location.search.includes("debug=1") ||
+            u.searchParams.has("debug")
+          ) {
+            u.searchParams.set("debug", "1");
+          }
+          //u.hash = "logout"; // <-- Garante a abertura da Sandbox original
+          // 2. Avisar o servidor para travar a Autenticação
+          u.searchParams.set("action", "logout");
+
+          log("[MAIN] A navegar para a sandbox base de logout...");
+          // O SEGREDO ESTÁ AQUI: Dar tempo para o browser gravar a eliminação antes de destruir o iframe!
+          setTimeout(function () {
+            log("[MAIN] A navegar para: " + u.toString());
+            try {
+              if (window.top !== window.self)
+                window.top.location.href = u.toString();
+              else location.replace(u.toString());
+            } catch (e) {
+              window.open(u.toString(), "_top");
+            }
+          }, 600);
+        });
     </script>
   </body>
 </html>
-

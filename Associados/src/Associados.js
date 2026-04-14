@@ -59,7 +59,7 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.20";
+const VERSION = "v1.27";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
@@ -69,7 +69,7 @@ const IPS_FOLDER_ID   = "1TXL942FE_Z05gSCJ_f_1lj_nEPnD5DWv";
 
 // === CONFIG: ranges nomeados ou A1 (fallback) ===
 const RANGES = {
-  titulares: { name: "tblTitulares", sheet: "Titulares", a1: "A6:Z" },
+  titulares: { name: "tblTitulares", sheet: "Titulares", a1: "A6:AA" },
   anuncios:  { name: "tblAnuncios",         sheet: "Anúncios",   a1: "A4:H" },
   ips:       { name: "tblIPS",      sheet: "IPS",        a1: "A4:N" },
   quotas:    { name: "tblQuotas",   sheet: "Quotas",     a1: "A1:D" },
@@ -93,7 +93,14 @@ const COLS_TITULARES = {
   CT_QUOTA: "Quota",
   CT_JOIA: "Jóia",
   CT_SALDO: "Saldo",
+  CT_WEBAPP: "WebApp"
 };
+
+//Valores a usar para msgSaldoText que define como mostrar o estado do registo do associado
+const MSG_SALDO_POS = "Já pagou mais do que era necessário, pois ultrapassou o total de quotizações devidas e ficou com saldo positivo.";
+const MSG_SALDO_NUL = "Já pagou exatamente tudo o que era necessário, pois igualou o total de quotizações devidas e ficou com saldo nulo.";
+const MSG_SALDO_NEG = "Ainda lhe falta pagar o suficiente para atingir o total de quotizações devidas e ficar com o saldo nulo.";
+
 
 const COLS_IPS = {
   CI_NUM: "Num.",   //Esta é a chave, e a identificação do registo de titulares é feita por aqui.
@@ -103,6 +110,18 @@ const COLS_IPS = {
   CI_PRIMEIRO: "Primeiro titular",
   CI_OUTROS: "Outros titulares",
 };
+
+//Valores a usar para definir como mostrar o estado da informação predial
+const MSG_IPS_UNKNOWN =   "Não há informação predial e a associação ainda não emitiu a informação predial simplificada.";
+const MSG_IPS_EMITIDA =   "A associação acaba de emitir informação predial simplificada, mas ainda não a recebeu.";
+const MSG_IPS_PENDENTE =  "A associação já tem a informação predial mas ainda não a processou para preencher os seus registos.";
+const MSG_IPS_NOK =       "A informação predial que existe não corresponde ao associado nem há outros documentos que confirmem a titularidade do associado.";
+const MSG_IPS_WAIT =      "A informação predial não está bem e está-se à espera de esclarecimentos pedidos ao associado.";
+const MSG_IPS_TITREG =    "A associação tem cópia do título de registo em nome do associado, que não foi registado na conservatória.";
+const MSG_IPS_HERANCA =   "A associação tem cópia da habilitação de herdeiros que prova que o associado é titular, mas falta registo na conservatória.";
+const MSG_IPS_RENOVAR =   "A informação predial simplificada estava bem, mas é antiga e a associação vai renová-la.";
+const MSG_IPS_OK =        "A informação predial da conservatória indica o associado como titular.";
+
 
 // Coluna Telefone dos anúncios para mostrar na Área do Associado quais os anúncios que publicou, e a que telemóveis estão associados.
 const COLS_ANUNCIOS = {
@@ -124,6 +143,7 @@ function authCfg_() {
 function buildAuthUrlFor(nonce, dbg, embed, clientUrl) { return AuthCoreLib.buildAuthUrlFor(nonce, dbg, embed, authCfg_(), clientUrl); }
 function pollTicket(nonce)                  { return AuthCoreLib.pollTicket(nonce); }
 function isTicketValid(ticket, dbg)              { return AuthCoreLib.isTicketValid(ticket, dbg); }
+function getProfileStats(ticket) { return AuthCoreLib.getProfileStats(ticket, authCfg_()); }
 function acceptRgpdForMe(ticket, decision){
   // decision: 'accept' | 'reject'
   return AuthCoreLib.acceptRgpdForMe(ticket, decision, gatesCfg_());
@@ -266,7 +286,9 @@ function findLatestIpsFileForWeek_(week) {
     throw e;
   }
 
-  var prefix = String(week).replace('/', '-') + ' FT-IPS ';
+  // 1. Pesquisa Drive API (Rápida): Pede todos os PDFs que contenham a semana e "FT-IPS"
+  // O Drive ignora os prefixos na pesquisa 'contains', logo trará os ficheiros antigos (204-34 FT-IPS*2025-10-19*.pdf) e os novos (A0219-204-34 FT-IPS*2025-10-19*.pdf).
+  var prefix = String(week).replace('/', '-') + ' FT-IPS '; //ex: "204-34 FT-IPS"
   var q = "title contains '" + prefix.replace(/'/g, "\\'") + "' and mimeType = 'application/pdf'";
   dbgLog('[IPS] query=', q);
 
@@ -350,6 +372,47 @@ ALLOWLIST parsed: ${escapeHtml_(parsed)}</pre></details>`;
   );
   return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+
+function markAreaAssociadoUsage_(email) {
+  if (!email) return;
+  const emailLC = String(email).trim().toLowerCase();
+  
+  try {
+    const ss = SpreadsheetApp.openById(SS_TITULARES_ID);
+    let range = null;
+    if (RANGES.titulares.name) { try { range = ss.getRangeByName(RANGES.titulares.name); } catch(_){} }
+    if (!range) { range = ss.getSheetByName(RANGES.titulares.sheet).getRange(RANGES.titulares.a1); }
+    
+    const values = range.getDisplayValues();
+    if (!values || !values.length) return;
+    
+    const header = values[0];
+    const colIdx = indexByHeader_(header);
+    const iEmail = colIdx[COLS_TITULARES.CT_EMAIL];
+    const iArea  = colIdx[COLS_TITULARES.CT_WEBAPP];
+    
+    if (iEmail == null || iArea == null) return;
+    
+    const startRow = range.getRow();
+    const startCol = range.getColumn();
+    const sheet = range.getSheet();
+    
+    // Itera para encontrar as linhas do associado e marcar TRUE apenas se necessário
+    for (let i = 1; i < values.length; i++) {
+      if (isRowEmpty_(values[i])) continue;
+      if (cellHasEmail_(values[i][iEmail], emailLC)) {
+        const val = String(values[i][iArea]).trim().toUpperCase();
+        if (val !== "TRUE" && val !== "VERDADEIRO") {
+          // setValue(true) insere o visto na caixa de verificação no Sheets
+          sheet.getRange(startRow + i, startCol + iArea).setValue(true);
+        }
+      }
+    }
+  } catch(err) {
+    console.log("Erro ao marcar Área Assoc.: " + err);
+  }
+}
+
 
 function isRgpdAccepted(ticket){
   const sess = AuthCoreLib.requireSession(ticket);
@@ -482,6 +545,10 @@ function apiGetAssociados(ticket){
   console.log("enter apiGetAssociados");
   const sess = AuthCoreLib.requireSession(ticket);
   if (!isAllowedEmail_(sess.email)) throw new Error("Acesso não autorizado");
+	
+	// Regista automaticamente a utilização mal o associado entra com sucesso
+  markAreaAssociadoUsage_(sess.email);
+	
   const view = buildAssociadosView_(sess.email);
   view.user = view.user || {};
   view.user.name    = sess.name    || "";
@@ -563,6 +630,8 @@ function doGet(e){
     debug: DBG,    
     serverLog: [],
     wipe: false,
+    appTitle: "Área do Associado",
+    appPermissions: "Reservado apenas a associados.",
   };    
 
   //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");

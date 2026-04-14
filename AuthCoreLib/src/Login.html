@@ -80,6 +80,9 @@
           serverLog:`<?= (typeof SERVER_LOG !== 'undefined' ? SERVER_LOG : '') ?>`,
           wipe:"<?= (typeof WIPE       !== 'undefined' ? WIPE       : '') ?>", // '1' | ''
           pageTag:"<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>", // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
+          // NOVAS VARIÁVEIS
+          appTitle: "<?= (typeof APP_TITLE !== 'undefined' ? APP_TITLE : 'Área reservada a associados !!!') ?>",
+          appPermissions: "<?= (typeof APP_PERMISSIONS !== 'undefined' ? APP_PERMISSIONS : '!!!') ?>"
         };
 
         // Flags calculadas no cliente
@@ -167,7 +170,7 @@
   </head>
 
   <body>
-    <h2>Área reservada a associados</h2>
+    <h2><?= (typeof APP_TITLE !== 'undefined' && APP_TITLE ? APP_TITLE : 'Área reservada a associado!?!?') ?></h2>
     <p>
       <a id="login-link" class="btn" href="#" style="display: none"
         >Entrar com conta Google</a
@@ -311,26 +314,66 @@
 
           // Usar a variável WANT_DEBUG corrigida (impede que debug=1 apareça do nada)
           if (WANT_DEBUG) u.searchParams.set("debug", "1");
-          if (!u.searchParams.has("ts"))
-            u.searchParams.set("ts", String(Date.now()));
+          if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
 
           log("[LOGIN] goWithTicket preparado -> " + u.toString());
+
+          // 1. Decodificar o email instantaneamente a partir do Payload do JWT (sem ir ao servidor)
+          let email = "Desconhecido";
+          try {
+            const base64Url = ticket.split('.')[0];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(decodeURIComponent(escape(window.atob(base64))));
+            email = payload.email || email;
+          } catch(e) { log("Erro a ler JWT: " + e); }
 
           // SOLUÇÃO SANDBOX: O Chrome bloqueia navegações do window.top após callbacks assíncronos.
           // Em vez de redirecionar automaticamente, mostramos um botão "Entrar" para forçar um clique do utilizador.
           if (BTN) BTN.style.display = "none";
+
+          // 2. Preparar o bloco de permissões (se existir)
+          const appPerms = __SERVER_VARS.appPermissions 
+            ? '<p style="font-size: 14px; color: #444; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #e9ecef; text-align: left; margin-bottom: 20px;">' + __SERVER_VARS.appPermissions + '</p>' 
+            : '';
+
+          // 3. Mostrar UI imediata
           setStatus(
-            '<div style="text-align:center; padding: 20px 0;">' +
+            '<div style="text-align:center; padding: 10px 0;">' +
               '<div style="font-size: 40px; margin-bottom: 10px;">✅</div>' +
               '<h3 style="margin-top:0;">Sessão validada</h3>' +
-              '<a href="' +
-              u.toString() +
-              '" target="_top" class="btn btn-primary">Entrar</a>' +
-              '<br>' +
+              '<p style="margin-bottom: 15px; font-size: 15px;" id="valid-subtitle"><b>' + email + '</b> <span style="color:#666;">(A verificar perfil...)</span></p>' +
+              appPerms +
+              '<a href="' + u.toString() + '" target="_top" class="btn btn-primary">Entrar</a><br>' +
               '<a href="javascript:handleResetAccount()" class="btn btn-secondary">Selecionar outra conta Google</a>' +
-              "</div>",
-            true,
+            '</div>',
+            true
           );
+
+          // 4. Pedir ao servidor os dados de Quotas/RGPD de forma assíncrona para enriquecer o texto
+          if (typeof google !== 'undefined' && google.script && google.script.run && google.script.run.getProfileStats) {
+             google.script.run
+               .withSuccessHandler(function(stats) {
+                  if (!stats) return;
+                  let roleText = "não associado";
+                  
+                  if (stats.hasLines) {
+                      let quotaText = stats.saldo >= 0 ? "quotas em dia" : Math.abs(stats.saldo).toFixed(2).replace('.', ',') + " € de quotas em atraso";
+                      let rgpdText = stats.rgpdState === 'total' ? "RGPD totalmente aceite" : "RGPD não aceite";
+                      roleText = "associado com " + quotaText + " e " + rgpdText;
+                  }
+                  
+                  const subEl = document.getElementById("valid-subtitle");
+                  if (subEl) subEl.innerHTML = '<b>' + stats.email + '</b> <span style="color:#16a34a;">(' + roleText + ')</span>';
+               })
+               .withFailureHandler(function() {
+                  const subEl = document.getElementById("valid-subtitle");
+                  if (subEl) subEl.innerHTML = '<b>' + email + '</b>'; // Fallback em caso de erro
+               })
+               .getProfileStats(ticket);
+          } else {
+             const subEl = document.getElementById("valid-subtitle");
+             if (subEl) subEl.innerHTML = '<b>' + email + '</b>';
+          }
         }
 
         // Receber ticket via postMessage
@@ -433,7 +476,7 @@
           log("beginAuthFlow");
           const nonce = crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now() + "." + Math.random();
           if (BTN) BTN.style.display = "none";
-          setStatus("A preparar autenticação…");
+          setStatus("A preparar autenticação Google…");
 
           google.script.run
             .withSuccessHandler(function (authUrl) {
