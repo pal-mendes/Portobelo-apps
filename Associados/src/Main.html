@@ -970,6 +970,21 @@
 
             $("#content").innerHTML = quotasHtml + cardsHtml + totalsHtml;
 
+            // --- Procurações (se houver) ---
+            const procuracoes = data?.procuracoes || [];
+            if (procuracoes.length > 0) {
+              const linksProc = procuracoes.map(p => 
+                `<a href="#" class="procuracao-link mono week-link" data-id="${p.id}" title="Descarregar Procuração: ${escapeHtml(p.name)}">${escapeHtml(p.label)}</a>`
+              ).join('<span class="muted" style="margin: 0 4px;">,</span> ');
+
+              const htmlProc = `
+                <div class="info">
+                  <div class="badge">Procurações</div>
+                  <div class="box nowrap">${linksProc}</div>
+                </div>`;
+              document.querySelector("#content").insertAdjacentHTML("beforeend", htmlProc);
+            }
+
             // Anúncios (se houver)
             const anuncios = data?.anunciosPorTelefone || {};
             if (Object.keys(anuncios).length) {
@@ -1122,6 +1137,38 @@
             alert("Erro ao preparar o download: " + msg);
           })
           .apiGetWeekIpsBase64(ticket, week);
+      });
+
+      // Gatilho para o Download das Procurações
+      document.addEventListener("click", function (ev) {
+        const a = ev.target.closest("a.procuracao-link[data-id]");
+        if (!a) return;
+        ev.preventDefault();
+
+        const fileId = a.getAttribute("data-id") || "";
+        const ticket = getSessTicket();
+        if (!ticket) { alert("Sessão inválida — entre novamente, por favor."); return; }
+
+        const prevHtml = a.innerHTML;
+        a.innerHTML = `<span class="muted">a preparar…</span>`;
+        a.style.pointerEvents = "none";
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            a.innerHTML = prevHtml;
+            a.style.pointerEvents = "";
+            if (!res || !res.ok) {
+              alert("Não foi possível obter a Procuração.");
+              return;
+            }
+            triggerDownloadFromB64(res.b64, res.mime, res.name);
+          })
+          .withFailureHandler(function (err) {
+            a.innerHTML = prevHtml;
+            a.style.pointerEvents = "";
+            alert("Erro ao preparar o download: " + (err && err.message ? err.message : String(err)));
+          })
+          .apiGetProcuracaoBase64(ticket, fileId);
       });
 
       function canonExec() {

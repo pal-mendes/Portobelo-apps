@@ -41,7 +41,7 @@ const NONCE_TTL_SEC = 180; // 3 min para nonce→ticket
 
 // Defaults internos da biblioteca (só para a Associação Portobelo)
 var LIB_SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
-var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:V" } };
+var LIB_RANGES = { titulares: { name:"tblTitulares", sheet:"Titulares", a1:"A6:AA" } };
 var LIB_COLS   = { email:"e-mail", rgpd:"RGPD", pago:"€", saldo:"Saldo", semanas:"Semanas", webapp:"WebApp" };
 var LIB_NOTIFY = { to:"log-apps@titulares-portobelo.pt", ccAllRows:true };
 
@@ -465,7 +465,6 @@ function finishAuth_(e, cfg) {
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-
 // =========================
 // AuthCoreLib — Gates (membership + RGPD)
 // =========================
@@ -749,26 +748,35 @@ function setRgpdForEmail_(emailLC, accept, cfg){
   if (!range) {
     // fallback: sheet + A1 se vierem separados
     const sheet = ss.getSheetByName(cfg.sheetName || 'Titulares');
-    range = sheet.getRange(cfg.a1 || 'A6:V');
+    range = sheet.getRange(cfg.a1 || 'A6:AA');
   }
 
-  const values = range.getValues(); if (!values.length) return 0;
+  const values = range.getValues(); 
+  if (!values.length) return 0;
+  
   const header = values[0].map(String);
   const idx = header.reduce((m, h, i)=>{ m[String(h).trim()] = i; return m; }, {});
   const iEmail = idx[cfg.colEmail || 'e-mail'];
   const iRGPD  = idx[cfg.colRgpd  || 'RGPD'];
   if (iEmail == null || iRGPD == null) throw new Error('Colunas "e-mail" ou "RGPD" não encontradas');
 
+  // Obter referências diretas à folha e coordenadas de início do intervalo
+  const sheet = range.getSheet();
+  const r0 = range.getRow();
+  const c0 = range.getColumn();
+
   let touched = 0;
+  // Inicia em 1 para saltar a linha do cabeçalho
   for (let r=1; r<values.length; r++){
     const cell = String(values[r][iEmail] || '').toLowerCase();
     const emails = cell.split(/[;,]/).map(s=>s.trim());
     if (emails.includes(emailLC)){
-      values[r][iRGPD] = accept ? 'Sim' : 'Não';
+      // Atualiza estritamente a célula da coluna RGPD
+      sheet.getRange(r0 + r, c0 + iRGPD).setValue(accept ? 'Sim' : 'Não');
       touched++;
     }
   }
-  if (touched) range.setValues(values);
+
   return touched;
 }
 
@@ -791,11 +799,10 @@ function setRgpdForEmail_AuthCore_(info, cfg, want){
 }
 
 
-
 function getProfileStats_(ticket, cfg) {
   //console.log("getProfileStats_()");
   const sess = requireSession(ticket);
-  //console.log("getProfileStats_: email=", sess.email);
+  console.log("getProfileStats_: email=", sess.email);
   cfg = __defCfg(cfg);
   const st = getRgpdStatusFor(ticket, cfg);
   const info = getTitularesRowsByEmail_AuthCore_(sess.email, cfg);
@@ -816,7 +823,12 @@ function getProfileStats_(ticket, cfg) {
   if (idxTel == null) idxTel = info.ix["Telemóveis"];
   if (idxTel == null) idxTel = 10; // Fallback seguro para a Coluna K (índice 10)
 
-  // NOVO: Guardar as linhas cruas (emails e telefones) para a App Anúncios usar
+  // NOVO: Índice da coluna WebApp e flag de atualização
+  const idxWebApp = info.ix[cfg.cols.webapp || "WebApp"];
+  console.log("idxWebApp=" + idxWebApp);
+  let needsWebAppUpdate = false;
+
+  // Guardar as linhas cruas (emails e telefones) para a App Anúncios usar
   const cardsLinhas = [];
 
   for (const r of info.matches) {
@@ -829,12 +841,43 @@ function getProfileStats_(ticket, cfg) {
       totalSaldo += parsePtNumber_AuthCore_(info.values[r][idxSaldo]);
       console.log("getProfileStats_: totalSaldo=", totalSaldo);
     }
+		
+		// Verifica se a flag WebApp já está a TRUE. Se não estiver, levanta a bandeira para atualizar.
+    if (idxWebApp != null) {
+       const currentValue = String(info.values[r][idxWebApp]).toLowerCase();
+       console.log("current webapp=" + currentValue);
+       if (currentValue !== 'true') needsWebAppUpdate = true;
+       console.log("needsWebAppUpdate=" + needsWebAppUpdate);
+    }
     
     cardsLinhas.push({
       emails: info.iEmail != null ? String(info.values[r][info.iEmail]) : "",
       telefones: idxTel != null ? String(info.values[r][idxTel]) : ""
     });
     //console.log("getProfileStats_: telefones=", String(info.values[r][idxTel]));
+  }
+	
+  if (needsWebAppUpdate) { // Atualiza no Google Sheets apenas se for necessário!
+    console.log("needsWebAppUpdate");
+    try {
+      //Obtemos a folha e as coordenadas iniciais a partir do info.range
+      const sheet = info.range.getSheet();
+      const r0 = info.range.getRow();     // Linha onde começa o range (ex: 6)
+      const c0 = info.range.getColumn();  // Coluna onde começa o range (ex: 1 para A)
+      
+      info.matches.forEach(r => {
+         const currentValue = String(info.values[r][idxWebApp]).toLowerCase();
+         console.log("currentValue=" + currentValue + ", row=" + (r0 + r));
+         if (currentValue !== 'true') {
+            // Escrevemos exatamente na célula correspondente
+            // A linha real na folha é r0 + r
+            // A coluna real na folha é c0 + idxWebApp
+            sheet.getRange(r0 + r, c0 + idxWebApp).setValue(true);
+            console.log("set webapp true na linha " + (r0 + r));
+         }
+      });
+      console.log(`[AuthCoreLib] Coluna WebApp marcada a TRUE para ${sess.email}`);
+    } catch(e) { console.log("Erro ao atualizar uso da WebApp:", e); }
   }
 
   totalPago = Math.round(totalPago * 100) / 100;
@@ -855,6 +898,7 @@ function getProfileStats_(ticket, cfg) {
     cardsLinhas: cardsLinhas  // A magia volta a acontecer aqui!
   };
 }
+
 
 function hostListRgpdRowsFor_(ticket, cfg) {
   const sess = requireSession(ticket);

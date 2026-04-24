@@ -48,7 +48,7 @@
 **********************************************/
 
 
-const VERSION = "v7.2";
+const VERSION = "v7.4";
 
 
 const SS_ANUNCIOS_ID  = "1oacSvYMYrcJeaUV9XFLcylrAX2PJGodGjpeeHl96Smo";
@@ -223,7 +223,7 @@ function doGet(e) {
 
     // AVALIADOR DE ESTADO DO UTILIZADOR
     let userStatus = "";
-    if (!profile.hasLines) {
+    if (!profile.hasLines || profile.pago < 1) {
         userStatus = "Não é associado";
     } else if (profile.rgpdState !== 'total') {
         userStatus = "RGPD não aceite";
@@ -232,8 +232,8 @@ function doGet(e) {
     }
 	
     // REGRA 0: Se não for Titular (0 Linhas), Bloqueia Absoluto Imediato
-    if (!profile.hasLines) {
-      console.log("Bloqueio: Acesso Negado. Motivo: Não é titular (0 linhas)");
+    if (!profile.hasLines || profile.pago < 1) {
+      console.log("Bloqueio: Acesso Negado. Motivo: Não é titular (0 linhas) ou nunca pagou quotas");
       /*
       AuthCoreLib.logFailedAccess(ticket, "Não é titular", gatesCfg_()); 
       return renderBlocked_(
@@ -497,7 +497,7 @@ function getAnunciosDataSess(ticket) {
     console.log("getAnunciosDataSess: Perfil lido. Email associado: " + profile.email);
 	
 	  // Define o estatuto do utilizador (Membro Completo vs Guest)
-    const isEmDia = (profile.rgpdState === 'total' && profile.saldo >= 0 && profile.hasLines);
+    const isEmDia = (profile.hasLines && profile.pago >= 1 && profile.saldo >= 0 && profile.rgpdState === 'total');
     console.log("isemDia=" + isEmDia);
 
     // Extrai todos os números de telemóvel do associado

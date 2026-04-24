@@ -59,13 +59,14 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.27";
+const VERSION = "v1.30";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
 const SS_ANUNCIOS_ID  = "1oacSvYMYrcJeaUV9XFLcylrAX2PJGodGjpeeHl96Smo";
 const SS_IPS_ID       = "1rsxlHYHrXfSdpgjfhA193xYkhi3r-RMK9cc04l7Sqq8";
 const IPS_FOLDER_ID   = "1TXL942FE_Z05gSCJ_f_1lj_nEPnD5DWv";
+const FOLDER_PROCURACOES = "18LFaOcQ53pJ6FVQ6mhq6RO_PxQIK1fsx"; //https://drive.google.com/drive/folders/18LFaOcQ53pJ6FVQ6mhq6RO_PxQIK1fsx?usp=sharing
 
 // === CONFIG: ranges nomeados ou A1 (fallback) ===
 const RANGES = {
@@ -92,8 +93,7 @@ const COLS_TITULARES = {
   CT_RGPD: "RGPD",
   CT_QUOTA: "Quota",
   CT_JOIA: "Jóia",
-  CT_SALDO: "Saldo",
-  CT_WEBAPP: "WebApp"
+  CT_SALDO: "Saldo"
 };
 
 //Valores a usar para msgSaldoText que define como mostrar o estado do registo do associado
@@ -352,68 +352,6 @@ function isAllowedEmail_(email){
   return list.includes(String(email||"").toLowerCase());
 }
 
-function renderNotAllowed_(email, DBG){
-  const sp    = PropertiesService.getScriptProperties();
-  //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
-  const canon = ScriptApp.getService().getUrl();
-  const dbgBlock = DBG ? (function(){
-    const raw = sp.getProperty("ALLOWLIST_CSV") || "(vazio)";
-    const parsed = parseAllowlist_().join(", ");
-    return `<details style="margin-top:12px"><summary>DEBUG</summary>
-      <pre>Email sessão: ${escapeHtml_(email)}
-ALLOWLIST_CSV (raw): ${escapeHtml_(raw)}
-ALLOWLIST parsed: ${escapeHtml_(parsed)}</pre></details>`;
-  })() : "";
-  const out = HtmlService.createHtmlOutput(
-    '<meta charset="utf-8">' +
-    "<h3>Acesso não autorizado</h3><p>Este endereço não está na lista da fase de validação.</p>" +
-    `<p><a href="${canon}?action=logout${DBG ? "&debug=1" : ""}" target="_top">Terminar sessão</a></p>` +
-    dbgBlock
-  );
-  return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-function markAreaAssociadoUsage_(email) {
-  if (!email) return;
-  const emailLC = String(email).trim().toLowerCase();
-  
-  try {
-    const ss = SpreadsheetApp.openById(SS_TITULARES_ID);
-    let range = null;
-    if (RANGES.titulares.name) { try { range = ss.getRangeByName(RANGES.titulares.name); } catch(_){} }
-    if (!range) { range = ss.getSheetByName(RANGES.titulares.sheet).getRange(RANGES.titulares.a1); }
-    
-    const values = range.getDisplayValues();
-    if (!values || !values.length) return;
-    
-    const header = values[0];
-    const colIdx = indexByHeader_(header);
-    const iEmail = colIdx[COLS_TITULARES.CT_EMAIL];
-    const iArea  = colIdx[COLS_TITULARES.CT_WEBAPP];
-    
-    if (iEmail == null || iArea == null) return;
-    
-    const startRow = range.getRow();
-    const startCol = range.getColumn();
-    const sheet = range.getSheet();
-    
-    // Itera para encontrar as linhas do associado e marcar TRUE apenas se necessário
-    for (let i = 1; i < values.length; i++) {
-      if (isRowEmpty_(values[i])) continue;
-      if (cellHasEmail_(values[i][iEmail], emailLC)) {
-        const val = String(values[i][iArea]).trim().toUpperCase();
-        if (val !== "TRUE" && val !== "VERDADEIRO") {
-          // setValue(true) insere o visto na caixa de verificação no Sheets
-          sheet.getRange(startRow + i, startCol + iArea).setValue(true);
-        }
-      }
-    }
-  } catch(err) {
-    console.log("Erro ao marcar Área Assoc.: " + err);
-  }
-}
-
-
 function isRgpdAccepted(ticket){
   const sess = AuthCoreLib.requireSession(ticket);
   const emailLC = String(sess.email||"").trim().toLowerCase();
@@ -429,6 +367,136 @@ function isRgpdAccepted(ticket){
   return false;
 }
 
+
+// ===== Procurações helpers =====
+function searchFolderTree_(folder, query, results) {
+  let files = folder.searchFiles(query);
+  while (files.hasNext()) results.push(files.next());
+  let subfolders = folder.getFolders();
+  while (subfolders.hasNext()) {
+    searchFolderTree_(subfolders.next(), query, results);
+  }
+}
+
+function fetchProcuracoes_(registos, semanas) {
+  if ((!registos || !registos.length) && (!semanas || !semanas.length)) return [];
+
+  let terms = [];
+  (registos || []).forEach(r => terms.push(`title contains '${r}'`));
+  (semanas || []).forEach(s => terms.push(`title contains '${s.replace('/', '-')}'`));
+
+  // Acelera a pesquisa inicial no Drive
+  let query = `mimeType = 'application/pdf' and trashed = false and (${terms.join(' or ')})`;
+  let results = [];
+
+  try {
+    let folder = DriveApp.getFolderById(FOLDER_PROCURACOES);
+    searchFolderTree_(folder, query, results);
+  } catch (e) {
+    console.log("Erro ao procurar procurações:", e);
+    return [];
+  }
+
+  let rawFiles = [];
+  results.forEach(f => {
+    let nameUpper = f.getName().toUpperCase();
+    let nameDash = nameUpper.replace(/\//g, '-');
+    let exactMatch = false;
+
+    // Filtro rigoroso para evitar falsos positivos (ex: 102-3 casar com 102-36)
+    if (registos.some(r => nameUpper.includes(r.toUpperCase()))) {
+        exactMatch = true;
+    } else if (semanas.some(s => {
+        let sDash = s.toUpperCase().replace(/\//g, '-');
+        let regex = new RegExp(`(^|[^\\d])${sDash}([^\\d]|$)`);
+        return regex.test(nameDash);
+    })) {
+        exactMatch = true;
+    }
+
+    if (exactMatch) {
+      let match = f.getName().match(/\b(202\d)\b/);
+      let year = match ? parseInt(match[1], 10) : f.getLastUpdated().getFullYear();
+      rawFiles.push({ id: f.getId(), name: f.getName(), year: year });
+    }
+  });
+
+  // Ordenar cronologicamente
+  rawFiles.sort((a, b) => a.year - b.year);
+
+  // Agrupar por ano para gerar as etiquetas 2026(1), 2026(2)
+  let byYear = {};
+  rawFiles.forEach(f => {
+    if (!byYear[f.year]) byYear[f.year] = [];
+    byYear[f.year].push(f);
+  });
+
+  let out = [];
+  Object.keys(byYear).sort().forEach(y => {
+    let files = byYear[y];
+    if (files.length === 1) {
+      files[0].label = String(y);
+      out.push(files[0]);
+    } else {
+      files.forEach((f, idx) => {
+        f.label = `${y}(${idx + 1})`;
+        out.push(f);
+      });
+    }
+  });
+
+  return out;
+}
+
+// Endpoint de API para o frontend descarregar o PDF da procuração em segurança
+function apiGetProcuracaoBase64(ticket, fileId) {
+  const sess = AuthCoreLib.requireSession(ticket);
+  if (!fileId) throw new Error('Falta fileId');
+
+  const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
+  const col = indexByHeader_(header);
+  const emailLC = String(sess.email).trim().toLowerCase();
+
+  let registos = [];
+  let semanas = [];
+
+  rows.forEach(r => {
+    if (cellHasEmail_(r[col[COLS_TITULARES.CT_EMAIL]], emailLC)) {
+      let numA = r[col[COLS_TITULARES.CT_NUMA]];
+      if (numA) registos.push(String(numA).trim().toUpperCase());
+      semanas.push(...splitSemanas_(r[col[COLS_TITULARES.CT_SEMANAS]]));
+    }
+  });
+
+  let file;
+  try { file = DriveApp.getFileById(fileId); } 
+  catch (e) { return { ok: false, reason: 'not_found' }; }
+
+  let nameUpper = file.getName().toUpperCase();
+  console.log("nameUpper=" + nameUpper);
+  let nameDash = nameUpper.replace(/\//g, '-');
+  console.log("nameDash=" + nameDash);
+  let allowed = false;
+
+  // Garantir que não tentam descarregar a procuração de outro associado
+  console.log("registos=" + JSON.stringify(registos));
+  if (registos.some(r => nameUpper.includes(r))) {
+    allowed = true;
+  } else if (semanas.some(s => {
+    let sDash = s.toUpperCase().replace(/\//g, '-');
+    let regex = new RegExp(`(^|[^\\d])${sDash}([^\\d]|$)`);
+    console.log("regex.test(nameDash)=" + regex.test(nameDash));
+    return regex.test(nameDash);
+  })) {
+    allowed = true;
+  }
+
+  if (!allowed) throw new Error('Sem autorização');
+
+  const blob = file.getBlob();
+  const b64 = Utilities.base64Encode(blob.getBytes());
+  return { ok: true, name: file.getName(), mime: blob.getContentType() || 'application/pdf', b64 };
+}
 
 // ===== Página principal: view/API =====
 function buildAssociadosView_(loginEmail){
@@ -526,6 +594,7 @@ function buildAssociadosView_(loginEmail){
   const registosAssociados  = dedupe_(allNumA);
   console.log("registosAssociados=", registosAssociados);
   console.log("registosAssociados=", JSON.stringify(registosAssociados));
+  const procuracoes = fetchProcuracoes_(registosAssociados, semanasTodas);
   const anunciosPorTelefone = countAnunciosByPhones_(telefonesAssociados); //OK assim.
   const transacoes          = fetchTransacoes_(registosAssociados);
   console.log("transacoes=", JSON.stringify(transacoes));
@@ -536,6 +605,7 @@ function buildAssociadosView_(loginEmail){
     cardsLinhas: cards,
     totais: tot,
     telefonesAssociados, primeirosTelefones, registosAssociados,
+    procuracoes,
     anunciosPorTelefone, transacoes,
     semanasTodas,
   };
@@ -545,9 +615,6 @@ function apiGetAssociados(ticket){
   console.log("enter apiGetAssociados");
   const sess = AuthCoreLib.requireSession(ticket);
   if (!isAllowedEmail_(sess.email)) throw new Error("Acesso não autorizado");
-	
-	// Regista automaticamente a utilização mal o associado entra com sucesso
-  markAreaAssociadoUsage_(sess.email);
 	
   const view = buildAssociadosView_(sess.email);
   view.user = view.user || {};
@@ -842,6 +909,20 @@ function doGet(e){
     L("session ok for", sess.email);
     L("go=", (e && e.parameter && e.parameter.go) || "(none)");
 
+    // Utiliza a biblioteca para ler a ficha do Associado!
+    const profile = AuthCoreLib.getProfileStats(ticket, gatesCfg_());
+    L(`[DEBUG PERFIL] Email: ${profile.email} | Linhas: ${profile.hasLines} | RGPD: ${profile.rgpdState} | Saldo: €${profile.saldo}`);
+    const isAssociado = (profile.hasLines && profile.pago >= 1);
+    console.log("isAssociado" + isAssociado);
+
+    if (!isAssociado) {
+      const html =
+        '<meta charset="utf-8">' +
+        '<h3>Acesso não autorizado</h3><p>Este endereço de e-mail não está na lista de associados.</p>';
+      const out = HtmlService.createHtmlOutput(html);
+      return out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
     // 👇 se pedido explícito, render RGPD já aqui (mesmo que já esteja aceite)
     if (String(e.parameter.go || '') === 'rgpd') {
       L("go=rgpd → render RGPD (via ticket-branch)");
@@ -853,7 +934,6 @@ function doGet(e){
       L("go=main → render Main (skip gates)");
       return renderMainPage_(ticket, DBG, L.dump());
     }
-
 
     // Quando se vem do POST-RGPD (guardar RGPD), queremos avançar para Main
     // mesmo que RGPD ainda não esteja "Sim" (p.ex. guardou "Não").

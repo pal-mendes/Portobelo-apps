@@ -1,0 +1,992 @@
+
+<!-- Main.html (Titulares) -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+<style>
+    /* Estilos Globais 14px */
+    body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; font-size: 14px; color: #333; }
+    header { padding: 8px 15px; background: #f3f4f6; border-bottom: 1px solid #ccc; display: flex; gap: 10px; align-items: center; }
+    
+    /* Selector mais pequeno e Status fixo */
+    #selRegisto { width: 200px; font-size: 14px; }
+    #status { font-size: 13px; color: #059669; font-weight: bold; margin-left: 10px; min-width: 200px; }
+
+    main { display: flex; flex: 1; overflow: hidden; }
+    #editor-pane { width: 500px; padding: 15px 20px; border-right: 1px solid #ccc; overflow-y: auto; background: #fafafa; }
+    #pdf-pane { flex: 1; background: #525659; display: flex; flex-direction: column; }
+    
+    /* Barra de ferramentas do PDF para ajudar no Clipboard */
+    #pdf-tools { background: #333; color: white; padding: 4px 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+    #pdf-tools a { color: #60a5fa; text-decoration: none; font-weight: bold; }
+
+    .field { margin-bottom: 8px; }
+    label { display: block; font-size: 11px; color: #666; margin-bottom: 2px; text-transform: uppercase; font-weight: bold; }
+    input, textarea, select { width: 100%; padding: 5px 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    .readonly { background: #e5e7eb; color: #4b5563; border: 1px solid #d1d5db; padding: 5px 8px; border-radius: 4px; font-weight: 500; }
+
+    /* Garante que os campos fiquem lado a lado */
+    .field-row { 
+      display: flex; 
+      gap: 8px; 
+      width: 100%; 
+      align-items: flex-end; /* Alinha o fundo das caixas */
+      margin-bottom: 8px;
+    }
+    .field-row .field { 
+      flex: 1; /* Faz com que ambos ocupem o mesmo espaço */
+      min-width: 0; /* Evita que o flexbox quebre em ecrãs pequenos */
+    }
+
+    /* Atualização da linha separadora (Ponto 8) */
+    .separator { 
+      border: 0; 
+      border-top: 1px solid #3b82f6; /* Cor azul para destacar a separação de folhas */
+      margin: 5px 0;                /* Espaçamento reduzido (10px acima e abaixo) */
+      opacity: 0.6;                  /* Suaviza a cor sem perder o destaque */
+    }
+
+    .col-reg-num { flex: 0 0 70px !important; }
+    .col-saldo { flex: 0 0 70px !important; }
+    .error-border { border: 2px solid #dc2626 !important; }
+
+    /* Estilos para a tabela de pesquisa */
+    #search-container { display: none; flex: 1; overflow-y: auto; background: white; }
+    #search-results-table { width: 100%; border-collapse: collapse; background: white; color: #333; font-size: 13px; }
+    #search-results-table th { background: #eee; padding: 8px; text-align: left; border-bottom: 2px solid #ccc; position: sticky; top: 0; }
+    #search-results-table td { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+    #search-results-table tr:hover { background: #f0f7ff; }
+
+    .editable:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; border: 1px dashed #ccc; }
+
+    button { margin-top: 10px; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; transition: background 0.2s;}
+	  button:hover:not(:disabled) { background: #1d4ed8; }
+    button:disabled { background: #cbd5e1; cursor: not-allowed; }
+    iframe { flex: 1; border: none; width: 100%; }
+	.small-msg { color: #666; font-size: 11px; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Gestão de associados</strong>
+
+    <div style="display: inline-block; position: relative;">
+      <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); opacity: 0.6; pointer-events: none; display: flex; align-items: center;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </svg>
+      </span>
+      
+      <select id="selFiltro" style="width: 170px; padding-left: 26px;" onchange="popularSelRegisto()" title="Restrinja a seleção a registos num destes estados:">
+        <option value="">(Filtrar...)</option>
+        <option value="0S-Incompleto" title="Faltam dados fiscais ou outros, como o e-mail, por exemplo.">Incompleto</option>
+        <option value="0Y-NãoTitular" title="Já pagou quotizações, mas deixou de ser titular pelo que também já não é associado.">Não titular</option>
+        <option value="0Z-Completo" title="Já pagou quotizações e deu toda a informação necessária para o registo de associado.">Completo</option>
+        <option value="?" title="Não há informação predial e nunca emitimos IPS">?</option>
+        <option value="Emitida" title="Acaba de ser emitida informação predial simplificada, mas ainda não há ficheiro PDF">Emitida</option>
+        <option value="Pendente" title="Já existe ficheiro PDF da IPS mas ainda não foi processado para preencher os registos da associação">Pendente</option>
+        <option value="NOK" title="A informação predial que temos não corresponde ao associado nem há outros documentos que confirmem a titularidade do associado">NOK</option>
+        <option value="Wait" title="A informação predial não está bem e está-se à espera de esclarecimentos pedidos ao associado">Wait</option>
+        <option value="Reemitir" title="Já terá sido feito o registo predial e é preciso emitir nova informação predial simplificada. Passará a Emitida e depois Pendente.">Reemitir</option>
+        <option value="Recibo" title="A titularidade é provada por um recibo que nos foi enviado da prestação periódica cobrada pelo Portobelo.">Recibo</option>
+        <option value="TitReg" title="Temos o título de registo em nome do associado, mas não foi registado na conservatória">Título</option>
+        <option value="Herança" title="Só a habilitação de herdeiros prova que o associado é titular">Herança</option>
+        <option value="Renovar" title="A IPS que temos estava bem mas é antiga e precisa de renovação">Renovar</option>
+        <option value="OK" title="A informação predial da conservatória indica o associado como titular">OK</option>
+        <option value="Não aplicável" title="Ainda não se está a recolher procurações, ou o associado não passa procuração.">Não aplicável</option>
+        <option value="Por receber" title="Terá sido enviada por correio para para a associação.">Por receber</option>
+        <option value="Por processar" title="Já foi recebida mas ainda não foi processada.">Por processar</option>
+        <option value="Falta mandante" title="Não foi passada por todos os titulares, ou cabeça de casal da herança, ou sócios-gerentes.">Falta mandante</option>
+        <option value="Falta assinatura" title="Não foi assinada por todos os mandantes que constam da procuração.">Falta assinatura</option>
+        <option value="Outros problemas" title="A procuração tem problemas identificados noutros campos ou no comentário.">Outros problemas</option>
+        <option value="Procuração OK" title="A procuração é boa!">Procuração OK</option>
+      </select>
+    </div>
+
+    <form onsubmit="event.preventDefault(); executarPesquisa();" style="display: inline-block; margin-left: 15px; position: relative;">
+      <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.6; pointer-events: none;">🔍</span>
+      <input  type="search" id="txtPesquisa" style="width: 350px; padding: 5px 5px 5px 28px;"
+        title="Um só termo de pesquisa do registo a visualizar: 'A0001'; 'apartamento/semana'; NIF; n.º telemóvel (últimos 9 números); email; nomes" 
+        placeholder="'104/30' ou 'Pedro Mendes' ou '967012590'">
+    </form>
+
+    <select id="selRegisto" style="width: 150px;" onchange="confirmarTroca(this.value)" title="Escolha o número do registo a visualizar">
+      <option value="">Selecione registo...</option>
+    </select>
+
+    <select id="selModo" onchange="populatePdf()" style="width: 120px;" title="Pasta de documentos a visualizar">
+      <option value="">(Modo...)</option>
+      <option value="PROC">Procurações</option>
+      <option value="IPS">Inf. Predial</option>
+    </select>
+
+    <select id="selFile" onchange="displayPdf()" style="width: 360px;" title="Escolha o documento a visualizar">
+      <option value="">Selecione um ficheiro...</option>
+    </select>
+
+    <div id="status"></div>
+  </header>
+
+  <main>
+    <div id="editor-pane">
+
+      <div class="field-row">
+        <div class="field col-reg-num">
+          <label>Registo</label>
+          <div id="viewRegisto" class="readonly" style="font-weight: bold; color: #2563eb;" title="Número que identifica o associado e o conjunto de semanas.">---</div>
+        </div>
+        <div class="field">
+          <label>Semanas</label>
+          <textarea id="viewSemanas" rows="1" class="readonly" title="Semanas das quais o associado é titular, no formato apartamento/semana"></textarea>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Nome Fiscal completo do associado</label>
+          <input type="text" id="editNomeFiscal" title="Nome completo do associado, que tem de ser titular, conforme informação predial ou habilitação de herdeiros. Será a quem o Portobelo passa as faturas das prestações periódicas." class="editable">
+        </div>
+        <div class="field" style="flex: 0 0 100px;">
+          <label>NIF (9 dígitos)</label>
+          <input type="text" id="editNIF" class="editable" maxlength="9" title="Número de Identificação Fiscal do associado">
+        </div>
+	    </div>
+
+      <div class="field">
+        <label>Nomes dos membros do agregado familiar</label>
+        <textarea id="editNomeMembros" rows="2" class="editable" placeholder="Nomes do agregado familiar..." title="Nomes das pessoas do agregado familiar para as quais há telefone ou e-mail. O primeiro nome costuma ser o mais importante. No fim, colocar entre parêntesis os titulares, caso não comuniquem com a associação (desinteressados ou incontactáveis)"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Telemóveis</label>
+        <div id="viewTelemoveis" class="readonly" style="font-size: 12px; color: #1e40af; background: #dbeafe;">---</div>
+      </div>
+
+      <div class="field">
+        <label>E-mails</label>
+        <div id="viewEmails" class="readonly" style="font-size: 12px; color: #1e40af; background: #dbeafe;">---</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field" style="flex: 0 0 85px;">
+          <label>Adesão</label>
+          <div id="viewAdesao" class="readonly" title="A data da adesão é a data do primeiro pagamento de quotizações/jóia"></div>
+        </div>
+        <div class="field" style="flex: 0 0 85px;">
+          <label id="labelFimRgpd">Fim</label>
+          <div id="viewFim" class="readonly">---</div>
+          <div id="viewRgpd" class="readonly" style="display: none;">---</div>
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select id="editEstado" class="editable" title="Estado da informação do registo - não é para ter em conta o saldo, o RGPD nem a informação predial.">
+            <option value="">(Selecionar...)</option>
+            <option value="0S-Incompleto" title="Faltam dados fiscais ou outros, como o e-mail, por exemplo.">Incompleto</option>
+            <option value="0Y-NãoTitular" title="Já pagou quotizações, mas deixou de ser titular pelo que também já não é associado.">Não titular</option>
+            <option value="0Z-Completo" title="Já pagou quotizações e deu toda a informação necessária para o registo de associado.">Completo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Pago</label>
+          <div id="viewPago" class="readonly" title="Valor total de pagamento de quotizações, incluíndo a jóia"></div>
+        </div>
+        <div class="field col-saldo">
+          <label>Saldo</label>
+          <div id="viewSaldo" class="readonly" title="Se o saldo for negativo, o associado ainda não pagou o valor todas das quotizações que devia"></div>
+        </div>    
+	    </div>
+      
+      <hr class="separator">
+
+      <div class="field-row">
+        <div class="field">
+          <label>Data Inf. Predial</label>
+          <input type="text" 
+            id="editIpsData" 
+            title="Data de emissão da informação predial (AAAA-MM-DD)"
+            class="editable" 
+            placeholder="2025-12-31" 
+            maxlength="10"
+            pattern="\d{4}-\d{2}-\d{2}"
+            style="font-family: monospace;">
+        </div>
+        <div class="field">
+          <label>Estado Inf.Predial</label>
+          <select id="editIpsEstado" class="editable" title="Se algum dos membros é titular, conforme informação predial ou habilitação de herdeiros.">
+            <option value="">(Selecionar...)</option>
+            <option value="?" title="Não há informação predial e nunca emitimos IPS">?</option>
+            <option value="Emitida" title="Acaba de ser emitida informação predial simplificada, mas ainda não há ficheiro PDF">Emitida</option>
+            <option value="Pendente" title="Já existe ficheiro PDF da IPS mas ainda não foi processado para preencher os registos da associação">Pendente</option>
+            <option value="NOK" title="A informação predial que temos não corresponde ao associado nem há outros documentos que confirmem a titularidade do associado">NOK</option>
+            <option value="Wait" title="A informação predial não está bem e está-se à espera de esclarecimentos pedidos ao associado">Wait</option>
+            <option value="Reemitir" title="Já terá sido feito o registo predial e é preciso emitir nova informação predial simplificada. Passará a Emitida e depois Pendente.">Reemitir</option>
+            <option value="Recibo" title="A titularidade é provada por um recibo que nos foi enviado da prestação periódica cobrada pelo Portobelo.">Recibo</option>
+            <option value="TitReg" title="Temos o título de registo em nome do associado, mas não foi registado na conservatória">Título</option>
+            <option value="Herança" title="Só a habilitação de herdeiros prova que o associado é titular">Herança</option>
+            <option value="Renovar" title="A IPS que temos estava bem mas é antiga e precisa de renovação. Passará a Emitida e depois Pendente.">Renovar</option>
+            <option value="OK" title="A informação predial da conservatória indica o associado como titular">OK</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="field">
+        <label>Primeiro Titular conforme informação predial</label>
+        <input type="text" id="editPrimTitular" class="editable" title="colocar só um nome dos encontrados na informação predial, e se possível que seja o do associado">
+      </div>
+
+      <div class="field">
+        <label>Outros Titulares conforme informação predial</label>
+        <textarea id="editOutrosTitulares" rows="2" class="editable" title="Colocar todos os outros titulares, incluíndo os cônjuges, exceto os casados com separação de bens e não são titulares"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Comentário sobre a informação predial</label>
+        <textarea id="editIpsComentario" rows="1" class="editable" title="Indicar comunicações com o associado, relações de parentesco que ajudem a perceber como é que o associado é titular, explicaçôes sobre heranças, etc."></textarea>
+      </div>
+    
+      <hr class="separator">
+
+      <div class="field-row">
+        <div class="field">
+          <label>Participação</label>
+          <select id="editProcPart" class="editable" title="De que forma irão estes associados participar na assembleia geral de titulares do Portobelo">
+            <option value="">(Selecionar...)</option>
+            <option value="Em pessoa" title="O associado vai participar presencialmente, não passando procuração.">Em pessoa</option>
+            <option value="Por procuração" title="O associado vai passar procuração à associação">Por procuração</option>
+            <option value="Não participa" title="O associado não participa nem passa procuração.">Não participa</option>
+            <option value="Desconhecida" title="Não se sabe se vai participar ou não">Desconhecida</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Data proc.</label>
+          <input type="text" 
+            id="editProcData" 
+            title="Data de emissão da procuração (AAAA-MM-DD)"
+            class="editable" 
+            placeholder="2026-03-31" 
+            maxlength="10"
+            pattern="\d{4}-\d{2}-\d{2}"
+            style="font-family: monospace;">
+        </div>
+        <div class="field">
+          <label>Formato</label>
+          <select id="editProcForm" class="editable" title="Formato da procuração">
+            <option value="">(Selecionar...)</option>
+            <option value="Manual" title="A procuração vai ser entregue em papel. Terá de ser certificada notarialmente.">Manual</option>
+            <option value="Digital" title="A procuração vai ser entregue em PDF. Terá de ser certificada digitalmente.">Digital</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Certif.</label>
+          <select id="editProcCert" class="editable" title="A procuração foi certificada em notário ou por assinatura digital?">
+            <option value="">(Selecionar...)</option>
+            <option value="Sim" title="A procuração está corretamente certificada.">Sim</option>
+            <option value="Não" title="A procuração não está corretamente certificada.">Não</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>CC</label>
+          <select id="editProcCc" class="editable" title="Foi entregue cópia do Cartão de Cidadão?">
+            <option value="">(Selecionar...)</option>
+            <option value="Sim" title="Foi entregue cópia legível.">Sim</option>
+            <option value="Não" title="Não foi entregue cópia, ou não legível.">Não</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Docs</label>
+          <select id="editProcDocs" class="editable" title="Foi entregue cópia dos restantes documentos necessários, como Habilitação de Herdeiros, se necessário?">
+            <option value="">(Selecionar...)</option>
+            <option value="Sim" title="Foram entregues outros documentos.">Sim</option>
+            <option value="Não" title="Falta entregar outros documentos.">Não</option>
+            <option value="N/A" title="Não aplicável por não haver necessidade.">N/A</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select id="editProcEstado" class="editable" title="Estado da procuração em termos de ser aceite pelo Portobelo para a próxima assembleia-geral, do mais grave ao menos grave.">
+            <option value="">(Selecionar...)</option>
+            <option value="Não aplicável" title="Ainda não se está a recolher procurações, ou o associado não passa procuração.">Não aplicável</option>
+            <option value="Por receber" title="Terá sido enviada por correio para para a associação.">Por receber</option>
+            <option value="Por processar" title="Já foi recebida mas ainda não foi processada.">Por processar</option>
+            <option value="Falta mandante" title="Não foi passada por todos os titulares, ou cabeça de casal da herança, ou sócios-gerentes.">Falta mandante</option>
+            <option value="Falta assinatura" title="Não foi assinada por todos os mandantes que constam da procuração.">Falta assinatura</option>
+            <option value="Outros problemas" title="A procuração tem problemas identificados noutros campos ou no comentário.">Outros problemas</option>
+            <option value="Procuração OK" title="A procuração é boa!">Procuração OK</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Comentário sobre a procuração</label>
+        <textarea id="editProcComent" rows="2" class="editable"></textarea>
+      </div>
+
+      <hr class="separator">
+
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button id="btnLock" onclick="tryAcquireLock()" disabled style="background: #9ca3af; flex: 1;">Editar</button>
+        <button id="btnSave" onclick="saveData()" disabled style="flex: 2;">Gravar Alterações</button>
+      </div>
+    </div>
+
+    <div id="pdf-pane">
+      <div id="pdf-tools" style="display:none;">
+        <span id="pdf-filename" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;"></span>
+        <a id="pdf-link" href="#" target="_blank">Abrir em nova aba ↗ (para copiar texto)</a>
+      </div>
+      <div id="pdf-msg" style="color: white; padding: 40px; text-align: center;">Selecione um registo para visualizar o documento.</div>
+
+      <div id="search-container">
+          <table id="search-results-table"><thead></thead><tbody></tbody></table>
+      </div>
+
+      <iframe id="pdf-frame" style="display:none;"></iframe>
+    </div>
+  </main>
+
+  <script>
+    const TICKET = "<?= ticket ?>";
+    const btnSave = document.getElementById("btnSave");
+
+    let isDirty = false;
+    let currentNumA = "";
+    let viewedRecords = {}; // Ponto 3: { "A0001": { status: "?", timer: ID } }
+
+    // Monitorizar alterações para ativar o botão de gravar
+    document.querySelectorAll('.editable').forEach(el => {
+      el.addEventListener('input', () => { isDirty = true; btnSave.disabled = false; });
+	    el.addEventListener('change', () => { isDirty = true; btnSave.disabled = false; });
+    });
+    
+    document.getElementById("editIpsData").addEventListener('input', function (e) {
+      let v = e.target.value.replace(/\D/g, ""); // Remove tudo o que não é dígito
+      if (v.length > 4) v = v.slice(0,4) + "-" + v.slice(4);
+      if (v.length > 7) v = v.slice(0,7) + "-" + v.slice(7,9);
+      e.target.value = v;
+      isDirty = true; btnSave.disabled = false
+    });
+
+    document.getElementById("editProcData").addEventListener('input', function (e) {
+      let v = e.target.value.replace(/\D/g, ""); // Remove tudo o que não é dígito
+      if (v.length > 4) v = v.slice(0,4) + "-" + v.slice(4);
+      if (v.length > 7) v = v.slice(0,7) + "-" + v.slice(7,9);
+      e.target.value = v;
+      isDirty = true; btnSave.disabled = false
+    });
+
+    let lockPollingInterval = null;
+    let lockWarningTimeout = null;
+    let lockExpirationTimeout = null;
+
+    /**
+     * Ponto 11: Bloqueia todos os campos editáveis por defeito.
+     * allow = true => Vai-se iniciar edição: ativar as caixas de edição e desativar botões save e lock
+     * allow = false => enable
+     */
+    function toggleEditing(allow) {
+      console.log("togleEditing(" + allow + ")");
+      document.querySelectorAll('.editable').forEach(el => el.disabled = !allow);
+
+      // Ponto 2: O botão de gravar deve permanecer desativado ao entrar em modo de edição.
+      // Só será ativado pelos Event Listeners quando o utilizador realmente escrever algo.
+      document.getElementById("btnSave").disabled = true;
+
+      isDirty = false; // Reset da flag de edição ao mudar o modo
+      
+      const btnLock = document.getElementById("btnLock");
+      btnLock.innerText = allow ? "Em Edição" : "Editar"; //Reflete o modo de edição
+      btnLock.style.background = allow ? "#9ca3af" : "#059669";
+      btnLock.disabled = allow; // Fica inativo se já estivermos a editar
+    }
+
+    /**
+     * Ponto 11: Polling a cada 10 segundos.
+     */
+    function verificarStatusLock() {
+      // Limpar qualquer intervalo que pudesse estar a correr de um registo anterior
+      if (lockPollingInterval) {
+        clearInterval(lockPollingInterval);
+        lockPollingInterval = null;
+      }
+      
+      // Função interna para processar a resposta do getLockStatus
+      const processarStatus = (status) => {
+        const btnLock = document.getElementById("btnLock");
+        
+        if (status.isLocked && !status.isMine) {
+          // CASO 1: Bloqueado por outro utilizador
+            console.log("verificarStatusLock: toggleEditing(false)");
+            toggleEditing(false); //Não permitir edição
+            console.log("verificarStatusLock: btnLock 'Bloqueado'");
+            btnLock.disabled = true;
+            btnLock.innerText = "Bloqueado";
+            btnLock.style.background = "#9ca3af";
+            showStatus("Registo " + currentNumA + " em edição por " + status.lockedBy);
+            
+            // Se o polling ainda não estiver ativo, iniciamos agora
+            if (!lockPollingInterval) {
+              lockPollingInterval = setInterval(() => {
+                google.script.run.withSuccessHandler(processarStatus).getLockStatus(TICKET, currentNumA);
+              }, 10000);
+            }
+        } else { //Permitir edição
+          // CASO 2: O registo está livre ou o lock é meu
+          console.log("verificarStatusLock: btnLock 'Editar'");
+          btnLock.disabled = false;
+          btnLock.innerText = "Editar";
+          btnLock.style.background = "#059669";
+          if (!status.isMine) showStatus("");
+
+          // Se o polling estava a correr (porque estava bloqueado e libertou), paramos imediatamente
+          if (lockPollingInterval) {
+            clearInterval(lockPollingInterval);
+            lockPollingInterval = null;
+          }
+        }
+      };
+
+      // Primeira chamada obrigatória ao carregar o registo para decidir se inicia o polling
+      google.script.run.withSuccessHandler(processarStatus).getLockStatus(TICKET, currentNumA);
+    }
+
+    /**
+     * Ponto 11: Tenta obter o privilégio de edição.
+     */
+    function tryAcquireLock() {
+      google.script.run.withSuccessHandler(res => {
+        if (res.ok) {
+          console.log("tryAcquireLock: toggleEditing(true)");
+          toggleEditing(true);
+          iniciarTimersDeSeguranca();
+          showStatus("Privilégio de edição obtido.");
+        } else {
+          alert("Não foi possível editar: " + res.owner + " está a editar este registo.");
+        }
+      }).acquireLock(TICKET, currentNumA);
+    }
+
+    function iniciarTimersDeSeguranca() {
+      pararTimersLock();
+
+      // Aviso a cada hora (Ponto 11)
+      lockWarningTimeout = setInterval(() => {
+        alert("Está a editar o registo " + currentNumA + " há mais de 1 hora. Recomenda-se gravar as alterações.");
+      }, 60 * 60 * 1000);
+
+      // Expiração forçada após 6 horas (Ponto 11)
+      lockExpirationTimeout = setTimeout(() => {
+        alert("Tempo limite de edição atingido (6h). O bloqueio foi removido e o registo será recarregado.");
+        removerLockLocal();
+      }, 6 * 60 * 60 * 1000);
+    }
+
+    function pararTimersLock() {
+      if (lockWarningTimeout) clearInterval(lockWarningTimeout);
+      if (lockExpirationTimeout) clearTimeout(lockExpirationTimeout);
+    }
+
+    function removerLockLocal() {
+      google.script.run.withSuccessHandler(() => {
+        loadRecord(currentNumA); // Força recarregamento (Ponto 11)
+      }).releaseLock(TICKET, currentNumA);
+    }
+
+    function confirmarTroca(novoNumA) {
+      if (isDirty) {
+        if (!confirm("Tem alterações não gravadas. Deseja descartá-las?")) {
+          document.getElementById("selRegisto").value = currentNumA;
+          return;
+        }
+      }
+      // Ponto 8: Apagar a caixa de pesquisa ao selecionar via select
+      document.getElementById("txtPesquisa").value = "";
+      isDirty = false;
+      btnSave.disabled = true;
+      loadRecord(novoNumA);
+    }    
+
+    /**
+     * Ponto 1-6: Prepara a UI para um novo carregamento, limpando vestígios anteriores.
+     */
+    function preparaCarregamento(numA) {
+
+      console.log("preparaCarregamento: toggleEditing(false)");
+      toggleEditing(false); // Garante campos bloqueados
+      pararTimersLock();
+
+      // Ponto 1: Desativar o botão de lock imediatamente no início do processo
+      console.log("preparaCarregamento: btnLock 'A carregar...'");
+      const btnLock = document.getElementById("btnLock");
+      btnLock.disabled = true;
+      btnLock.innerText = numA ? "A carregar..." : "Editar";
+      btnLock.style.background = "#9ca3af";
+
+      // 4. Reset do botão Gravar
+      document.getElementById("btnSave").disabled = true;
+
+      if (!numA) {
+        limparVisualizacaoPdf("Selecione um registo para visualizar o documento.");
+        if (lockPollingInterval) clearInterval(lockPollingInterval);
+      }
+
+      // 1. Apagar todos os campos editáveis e áreas de leitura
+      document.querySelectorAll('#editor-pane .editable').forEach(el => {
+        el.value = '';
+        el.disabled = true; // Garante campos bloqueados
+      });
+      document.querySelectorAll('#editor-pane .readonly').forEach(el => el.innerText = '---');
+
+      // 2. Definir o número do registo
+      document.getElementById("viewRegisto").innerText = numA || "---";
+      
+      // 3. Apagar a caixa de pesquisa
+      const txtPesq = document.getElementById("txtPesquisa");
+      if (txtPesq) txtPesq.value = "";
+      
+      // 4. Apagar a caixa de seleção de registos
+      document.getElementById("selRegisto").value = "";
+      
+      // 5. Apagar a lista de ficheiros
+      document.getElementById("selFile").innerHTML = '<option value="">Selecione um ficheiro...</option>';
+      
+      // 6. Apagar modo para não demorar a procurar ficheiros.
+      document.getElementById("selModo").value = "";
+
+      // Limpar estado visual do PDF
+      limparVisualizacaoPdf("A aguardar dados do registo...");
+    }
+
+
+    let allRecords = []; // Cache local da lista inicial
+
+    window.onload = function() {
+      showStatus("A carregar registos...");
+      google.script.run.withSuccessHandler(data => {
+        allRecords = data.list; // Guarda {num, estado}
+        popularSelRegisto(); // Popula inicialmente
+        showStatus("Registos carregados.");
+      }).getEditorInitialData(TICKET);
+    };
+
+    /**
+     * Filtra e popula o selRegisto com base no selFiltro (Ponto 12)
+     */
+    function popularSelRegisto() {
+      const filtro = document.getElementById("selFiltro").value;
+      const sel = document.getElementById("selRegisto");
+      const estadosTitulares = ["0S-Incompleto", "0Y-NãoTitular", "0Z-Completo"];
+      const isFiltroTit = estadosTitulares.includes(filtro);
+      const estadosProc = ["Não aplicável", "Por receber", "Por processar", "Falta mandante", "Falta assinatura", "Outros problemas", "Procuração OK"];
+      const isFiltroProc = estadosProc.includes(filtro);
+      
+      // Limpar e adicionar opção default
+      sel.innerHTML = '<option value="">Selecione registo...</option>';
+      
+      allRecords.forEach(rec => {
+        let mostrar = false;
+        if (!filtro) {
+          mostrar = true;
+        } else if (isFiltroTit) {
+          mostrar = (rec.estTit && String(rec.estTit).trim() === filtro);
+          //mostrar = (rec.estTit === filtro);
+        } else if (isFiltroProc) {
+          mostrar = (rec.estProc && String(rec.estProc).trim() === filtro);
+          //mostrar = (rec.estProc === filtro);
+        } else {
+          mostrar = (rec.estIps && String(rec.estIps).trim() === filtro);
+          //mostrar = (rec.estIps === filtro);
+        }
+        
+        if (mostrar) {
+          let opt = document.createElement("option");
+          opt.value = rec.num;
+          // Manter o símbolo de visualização se existir no viewedRecords
+          const statusChar = viewedRecords[rec.num]?.status ? " (" + viewedRecords[rec.num].status + ")" : "";
+          opt.textContent = rec.num + statusChar;
+          sel.appendChild(opt);
+        }
+
+      });
+    }
+
+    function iniciarContadorVisualizacao(numA) {
+      console.log("iniciarContadorVisualizacao(" + numA + ")"); 
+
+      // Se já existir um temporizador a correr para este registo, limpamos para reiniciar do zero
+      if (viewedRecords[numA]?.timer) {
+        clearTimeout(viewedRecords[numA].timer);
+      }
+
+      // Se o registo já foi gravado (!) nesta sessão, não reiniciamos a contagem
+      if (viewedRecords[numA]?.status === "!") return;
+
+      //console.log("atualizarStatusNoSelect para '?'"); 
+      atualizarStatusNoSelect(numA, "(?)");
+
+      //console.log("definir timeout de 30 segundos para status passar a '.'"); 
+      viewedRecords[numA] = {
+        status: "?",
+        timer: setTimeout(() => {
+          // Verificação fundamental: só alteramos o estado se:
+          // 1. O registo que está agora no editor (currentNumA) ainda for o mesmo que disparou o timer
+          // 2. O estado ainda for (?) e não tiver sido gravado (!) entretanto
+          if (currentNumA === numA && viewedRecords[numA].status === "?") {
+            viewedRecords[numA].status = ".";
+            atualizarStatusNoSelect(numA, "(.)");
+          }
+        }, 30000) //Tempo de visualização para dar o registo como analisado. 30 segundos
+      }; 
+    }
+
+    function atualizarStatusNoSelect(numA, char) {
+      const sel = document.getElementById("selRegisto");
+      for (let opt of sel.options) {
+        if (opt.value === numA) {
+          opt.text = numA + " " + char;
+          break;
+        }
+      }
+    }
+
+    function executarPesquisa() {
+      const q = document.getElementById("txtPesquisa").value;
+      if (q.length < 3) {
+        console.log("Termo de pesquisa não entendido");
+        showStatus("Termo de pesquisa não entendido");
+        return;
+      }
+      const filtro = document.getElementById("selFiltro").value;
+      
+      document.getElementById("selRegisto").value = "";
+      showStatus("A pesquisar...");
+      //console.log("searchRecords...");
+      google.script.run.withSuccessHandler(results => {
+        //console.log("searchRecords success");
+        //console.log("length=" + results.length);
+        //console.log("searchRecords results=" + JSON.stringify(results));
+
+        const container = document.getElementById("search-container");
+        const tableBody = container.querySelector("tbody");
+        const tableHead = container.querySelector("thead");
+        
+        document.getElementById("pdf-frame").style.display = "none";
+        document.getElementById("pdf-tools").style.display = "none";
+        document.getElementById("pdf-msg").style.display = "none";
+        container.style.display = "block";
+        
+        //console.log("about to show results");
+        tableHead.innerHTML = "<tr><th>Registo</th><th>Estado</th><th>Semanas</th><th>Membros</th><th>Telefone</th><th>Email</th></tr>";
+        tableBody.innerHTML = results.map(r => `
+          <tr onclick="confirmarTroca('${r.num}')">
+            <td>${r.num}</td><td>${r.estado}</td><td>${r.semanas}</td><td>${r.membros}</td><td>${r.tel}</td><td>${r.email}</td>
+          </tr>`).join("");
+        
+        showStatus("Encontrados: " + results.length);
+      }).searchRecords(TICKET, q, filtro);
+    }
+
+    // Atualização da função loadRecord existente
+    function loadRecord(numA) {
+      if (!numA) {
+        preparaCarregamento("");
+        return;
+      }
+
+      // Se já havia um registo carregado e é diferente do novo, libertamos o lock anterior
+      if (currentNumA && currentNumA !== numA) {
+        console.log("A libertar lock de " + currentNumA + " por mudança de registo.");
+        google.script.run.releaseLock(TICKET, currentNumA); 
+        // Não precisamos de withSuccessHandler aqui porque queremos avançar logo para o próximo
+      }
+      currentNumA = numA;
+
+      // Executa o reset imediato 
+      preparaCarregamento(numA);
+
+      // Limpar visualização do PDF imediatamente
+      const pdfFrame = document.getElementById("pdf-frame");
+      pdfFrame.src = "";
+      pdfFrame.style.display = "none";
+      document.getElementById("pdf-tools").style.display = "none";
+      document.getElementById("pdf-msg").style.display = "block";
+      document.getElementById("pdf-msg").innerText = "A carregar registo " + numA + "...";
+      
+      document.getElementById("selRegisto").value = numA;
+
+      iniciarContadorVisualizacao(numA);
+
+      isDirty = false;
+      btnSave.disabled = true;
+
+      showStatus("A carregar...");
+      google.script.run.withSuccessHandler(res => {
+        if (!res) {
+          showStatus("Erro: Registo não encontrado.");
+          return;
+        }
+
+        console.log("loadRecord success - start");
+        document.getElementById("viewSemanas").textContent = res.semanas;
+        document.getElementById("editNomeMembros").value = res.nomeMembros;
+        document.getElementById("viewTelemoveis").textContent = res.telemoveis; // Atualiza telemóveis
+        document.getElementById("viewEmails").textContent = res.emails; 
+        //console.log("loadRecord Adesao=" + res.adesao);
+        document.getElementById("viewAdesao").textContent = res.adesao; 
+        
+        console.log("loadRecord Fim=" + res.fim);
+        console.log("loadRecord Rgpd=" + res.RGPD);
+        // Lógica condicional Fim vs RGPD
+        const viewFim = document.getElementById("viewFim");
+        const viewRgpd = document.getElementById("viewRgpd");
+        const label = document.getElementById("labelFimRgpd");
+        
+        viewFim.innerText = res.fim;
+        viewRgpd.innerText = res.rgpd;
+        
+        const hasFim = res.fim && res.fim !== "---";
+        
+        // Toggles de visualização
+        viewFim.style.display = hasFim ? "block" : "none";
+        viewRgpd.style.display = hasFim ? "none" : "block";
+        label.innerText = hasFim ? "Fim" : "RGPD"; // Atualiza o label para ser coerente
+
+        //console.log("loadRecord estado=" + res.estado);
+        document.getElementById("editEstado").value = res.estado;
+        //console.log("loadRecord Pago=" + res.pago); 
+        document.getElementById("viewPago").textContent = res.pago; 
+        document.getElementById("viewSaldo").textContent = res.saldo;
+        //console.log("loadRecord NIF=" + res.nif);
+        document.getElementById("editNIF").value = res.nif;
+        //console.log("loadRecord nomeFiscal=" + res.nomeFiscal);
+        document.getElementById("editNomeFiscal").value = res.nomeFiscal;
+        //console.log("loadRecord ipsData=" + res.ipsData);
+        document.getElementById("editIpsData").value = res.ipsData;
+        document.getElementById("editIpsEstado").value = res.ipsEstado;
+        document.getElementById("editIpsComentario").value = res.ipsComentario;
+        document.getElementById("editPrimTitular").value = res.primTitular;
+        document.getElementById("editOutrosTitulares").value = res.outrosTitulares;        
+        //console.log("loadRecord: numA=" + numA + ", Semanas=" +  res.semanas + ", saldo=" +  res.saldo);
+        //console.log("loadRecord success - end");
+
+        document.getElementById("editProcPart").value = res.procPart;
+        document.getElementById("editProcData").value = res.procData;
+        document.getElementById("editProcForm").value = res.procForm;
+        document.getElementById("editProcCert").value = res.procCert;
+        document.getElementById("editProcCc").value = res.procCc;
+        document.getElementById("editProcDocs").value = res.procDocs;
+        document.getElementById("editProcEstado").value = res.procEstado;
+        document.getElementById("editProcComent").value = res.procComent;
+
+
+        showStatus("Carregado o registo " + numA);
+        document.getElementById("search-container").style.display = "none";
+        verificarStatusLock();
+        // populatePdf(); Já não vamos procurar ficheiros ao carregar um registo pois queremos obrigar a escolher o modo
+        document.getElementById("pdf-msg").innerText = "Escolha os documentos a visualizar.";
+      }).loadRecordData(TICKET, numA);
+    }
+
+
+    /**
+     * Helper para limpar o estado da visualização
+     */
+    function limparVisualizacaoPdf(mensagem) {
+      const frame = document.getElementById("pdf-frame");
+      frame.style.display = "none";
+      frame.src = "";
+      document.getElementById("pdf-tools").style.display = "none";
+      document.getElementById("pdf-msg").style.display = "block";
+      document.getElementById("pdf-msg").innerText = mensagem;
+    }
+
+    // Função para carregar o PDF isoladamente (útil ao trocar apenas o modo)
+    function populatePdf() {
+      console.log("populatePdf()");
+
+    // Obtém o número do registo (ex: A0137) para o novo filtro de IPS
+      const numA = document.getElementById("viewRegisto").innerText;
+      if (!numA || numA === "---") return;
+
+      const semanas = document.getElementById("viewSemanas").textContent;
+      const primeiraSemana = semanas.split(/[+,\s]+/)[0];
+      console.log("populatePdf: semanas=" + semanas + ", primeiraSemana=" + primeiraSemana);
+
+      if (!semanas || semanas === "---") {
+        //É preciso fazer alguma coisa aqui para a zona dos PDF não ficar parada com "A carregar registo Y0065..."
+        //document.getElementById("pdf-msg").innerText = "A carregar registo " + numA + "...";
+        limparVisualizacaoPdf("Não há semanas associadas a este registo.");
+        return;
+      }
+      
+      const modo = document.getElementById("selModo").value; // Quando se chama populatePdf já deve estar definido o modo.
+      console.log("populatePdf: modo=" + modo);
+      if (!modo || modo === "") {
+        limparVisualizacaoPdf("Escolha os documentos a visualizar.");
+        return;        
+      }
+
+      const selFile = document.getElementById("selFile");
+
+      // Limpar visualização atual e o select
+      limparVisualizacaoPdf("A procurar ficheiros em " + modo + "...");
+      selFile.innerHTML = '<option value="">A carregar lista...</option>';
+
+      google.script.run.withSuccessHandler(files => {
+        if (!files || files.length === 0) {
+          console.log("populatePdf: listPdfs success - sem ficheiros!");
+          selFile.innerHTML = '<option value="">Nenhum ficheiro encontrado</option>';
+          limparVisualizacaoPdf("Nenhum PDF encontrado para esta semana.");
+          return;
+        }
+
+        console.log("populatePdf: listPdfs success - files.length=" + files.length);
+        selFile.innerHTML = '<option value="">Selecione um ficheiro...</option>';
+        
+        // Popular o select com os nomes dos ficheiros
+        files.forEach(f => {
+          const opt = document.createElement("option");
+          opt.value = f.url;
+          opt.text = f.name;
+          console.log("populatePdf: f.name=" + f.name);
+          selFile.appendChild(opt);
+        });
+
+        // Opcional: Auto-selecionar o primeiro se houver apenas um
+        if (files.length === 1) {
+          selFile.selectedIndex = 1;
+          displayPdf();
+        } else {
+          document.getElementById("pdf-msg").innerText = "Encontrados " + files.length + " ficheiros. Escolha um na lista acima.";
+        }
+      }).listPdfs(TICKET, numA, primeiraSemana, modo);
+    }
+
+
+    /**
+     * Carrega o ficheiro selecionado no iframe
+     */
+    function displayPdf() {
+      const selFile = document.getElementById("selFile");
+      const url = selFile.value;
+      const fileName = selFile.options[selFile.selectedIndex]?.text;
+      console.log("displayPdf: fileName=" + fileName);
+
+      if (!url) {
+        limparVisualizacaoPdf("Selecione um ficheiro para visualizar.");
+        console.log("displayPdf: sem url");
+        return;
+      }
+
+      const frame = document.getElementById("pdf-frame");
+      document.getElementById("pdf-msg").style.display = "none";
+      document.getElementById("pdf-tools").style.display = "flex";
+      document.getElementById("pdf-filename").innerText = fileName;
+      document.getElementById("pdf-link").href = url.replace("/preview", "/view");
+
+      /*
+      const msg = document.getElementById("pdf-msg");
+      const tools = document.getElementById("pdf-tools");
+      
+      msg.style.display = "none";
+      tools.style.display = "flex";
+      document.getElementById("pdf-filename").innerText = fileName;
+      document.getElementById("pdf-link").href = url.replace("/preview", "/view");
+      */
+
+      frame.src = url;
+      frame.style.display = "block";            
+    }
+
+    function isValidDate(dateString) {
+      // Verifica o formato básico AAAA-MM-DD
+      const regEx = /^\d{4}-\d{2}-\d{2}$/;
+      if(!dateString.match(regEx)) return false;
+      
+      // Verifica se os números formam uma data real (ex: evita 2025-13-45)
+      const d = new Date(dateString);
+      const dNum = d.getTime();
+      if(!dNum && dNum !== 0) return false; // Data inválida
+      return d.toISOString().slice(0,10) === dateString;
+    }
+
+    function saveData() {
+      const numA = document.getElementById("selRegisto").value;
+
+      // Validação do NIF (já existente)
+      const nifField = document.getElementById("editNIF");
+      const nifValue = nifField.value.trim();
+      if (nifValue.length > 0 && (nifValue.length !== 9 || isNaN(nifValue))) {
+        alert("O NIF deve ter 9 dígitos.");
+        nifField.classList.add("error-border");
+        return;
+      }
+
+      // Validação da Data IPS
+      const ipsDataField = document.getElementById("editIpsData");
+      const ipsDataValue = ipsDataField.value.trim();
+      if (ipsDataValue !== "" && !isValidDate(ipsDataValue)) {
+        alert("A 'Data IPS' deve estar no formato AAAA-MM-DD e ser uma data válida.");
+        ipsDataField.classList.add("error-border");
+        ipsDataField.focus();
+        return;
+      }
+
+      // Validação da Data Proc
+      const procDataField = document.getElementById("editProcData");
+      const procDataValue = procDataField.value.trim();
+      if (procDataValue !== "" && !isValidDate(procDataValue)) {
+        alert("A 'Data proc' deve estar no formato AAAA-MM-DD e ser uma data válida.");
+        procDataField.classList.add("error-border");
+        procDataField.focus();
+        return;
+      }
+
+      const payload = {
+        nomeMembros: document.getElementById("editNomeMembros").value,
+        nif: nifValue,
+        nomeFiscal: document.getElementById("editNomeFiscal").value,
+        estado: document.getElementById("editEstado").value,
+        ipsData: ipsDataValue,
+        ipsEstado: document.getElementById("editIpsEstado").value,
+        ipsComentario: document.getElementById("editIpsComentario").value,
+        primTitular: document.getElementById("editPrimTitular").value,
+        outrosTitulares: document.getElementById("editOutrosTitulares").value,
+        procPart: document.getElementById("editProcPart").value,
+        procData: document.getElementById("editProcData").value,
+        procForm: document.getElementById("editProcForm").value,
+        procCert: document.getElementById("editProcCert").value,
+        procCc: document.getElementById("editProcCc").value,
+        procDocs: document.getElementById("editProcDocs").value,
+        procEstado: document.getElementById("editProcEstado").value,
+        procComent: document.getElementById("editProcComent").value
+      };
+
+      showStatus("A gravar...");
+
+      google.script.run.withSuccessHandler(() => {
+        // CORREÇÃO: Resetar a flag de alterações e desativar o botão
+        isDirty = false; 
+        btnSave.disabled = true;
+
+        google.script.run.releaseLock(TICKET, currentNumA); // Liberta o lock (Ponto 11)
+        loadRecord(currentNumA); // Recarrega para voltar ao modo visualização
+
+        if (viewedRecords[numA].timer) clearTimeout(viewedRecords[numA].timer);
+        viewedRecords[currentNumA].status = "!";
+        atualizarStatusNoSelect(numA, "(!)");
+
+        showStatus("✅ Gravado e desbloqueado com sucesso!");
+        setTimeout(() => showStatus(""), 3000);
+      }).saveRecordData(TICKET, numA, payload);
+    }
+
+    function showStatus(text) {
+      document.getElementById("status").textContent = text;
+    }
+  </script>
+</body>
+</html>

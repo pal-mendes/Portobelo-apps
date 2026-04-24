@@ -2,16 +2,7 @@
   "timeZone": "Europe/Lisbon",
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
-  "dependencies": {
-    "libraries": [
-      {
-        "userSymbol": "AuthCoreLib",
-        "libraryId": "1cyjgfEtpjB7muIaSwmoLr_BD_BbgeEzHPA8M8Upni_LJkzT2hK6V1Tuh",
-        "version": "355",
-        "developmentMode": false
-      }
-    ]
-  },
+  "dependencies": {},
   "webapp": {
     "executeAs": "USER_DEPLOYING",
     "access": "ANYONE_ANONYMOUS"

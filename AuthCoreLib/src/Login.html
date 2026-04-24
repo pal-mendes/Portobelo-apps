@@ -356,7 +356,7 @@
                   if (!stats) return;
                   let roleText = "não associado";
                   
-                  if (stats.hasLines) {
+                  if (stats.hasLines && stats.pago >= 1) {
                       let quotaText = stats.saldo >= 0 ? "quotas em dia" : Math.abs(stats.saldo).toFixed(2).replace('.', ',') + " € de quotas em atraso";
                       let rgpdText = stats.rgpdState === 'total' ? "RGPD totalmente aceite" : "RGPD não aceite";
                       roleText = "associado com " + quotaText + " e " + rgpdText;
