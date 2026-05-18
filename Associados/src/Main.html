@@ -698,11 +698,11 @@
           } else {
             //Apanha o caso das IPS não terem sido emitidas
             primTxt = c.primIPS && String(c.primIPS).trim()
-					? escapeHtml(c.primIPS) 
-					: "---";
-            outTxt = c.outIPS && String(c.outIPS).trim()
-				? escapeHtml(c.outIPS) 
-				: "---";
+            ? escapeHtml(c.primIPS) 
+            : "---";
+              outTxt = c.outIPS && String(c.outIPS).trim()
+            ? escapeHtml(c.outIPS) 
+            : "---";
           }
 
           // Texto de RGPD por cartão
@@ -771,6 +771,11 @@
             }
           }
 
+          const procTxt = c.estadoProc || "---";
+          const isProcOk = procTxt.trim().toUpperCase() === "PROCURAÇÃO OK";
+          const procClass = isProcOk ? "stat-ok" : "stat-pend";
+          const procHtml = `<span class="${procClass}">${escapeHtml(procTxt)}</span>`;
+
           // helper p/ abrir RGPD (reutiliza o caminho go=rgpd)
           function rgpdLinkHtml() {
             return `<a href="#" class="rgpd-open small" title="Gerir RGPD">RGPD</a>`;
@@ -824,8 +829,13 @@
                   Saldo: <b>${c.saldo || "0,00 €"}</b>
                 </div>
               </div>
-
               ${joiaTxt}
+              
+              <!-- Nova linha da Procuração -->
+              <div class="line">
+                <div class="value">Procuração: ${procHtml}</div>
+              </div>
+
             </div>`;
         }
 

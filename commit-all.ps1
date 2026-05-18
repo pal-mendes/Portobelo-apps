@@ -89,4 +89,4 @@ if ($LASTEXITCODE -eq 0) {
 
 # [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 # $OutputEncoding = [System.Text.Encoding]::UTF8
-Show-ChatGPTBlock
+#Show-ChatGPTBlock

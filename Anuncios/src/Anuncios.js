@@ -48,8 +48,11 @@
 **********************************************/
 
 
-const VERSION = "v7.4";
+const VERSION = "v8.2";
 
+// O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
+//utilizar APP_AUTHMODE em todas as chamadas a AuthCoreLib.requireSession(ticket, APP_AUTHMODE)
+const APP_AUTHMODE = 'email'; // 'both', 'google' ou 'email'
 
 const SS_ANUNCIOS_ID  = "1oacSvYMYrcJeaUV9XFLcylrAX2PJGodGjpeeHl96Smo";
 const ANUNCIOS_SHEET = "Anúncios";
@@ -99,6 +102,9 @@ function buildAuthUrlFor(nonce, dbg, embed, clientUrl) { return AuthCoreLib.buil
 function pollTicket(nonce)                  { return AuthCoreLib.pollTicket(nonce); }
 function isTicketValid(ticket, dbg)         { return AuthCoreLib.isTicketValid(ticket, dbg); }
 function getProfileStats(ticket) { return AuthCoreLib.getProfileStats(ticket, authCfg_()); }
+// Adicione isto no Anuncios.js (e nas outras apps) junto das restantes chamadas AuthCoreLib:
+function sendOtp(email) { return AuthCoreLib.sendOtp(email); }
+function verifyOtp(email, code) { return AuthCoreLib.verifyOtp(email, code); }
 
 // Funções ponte para o RGPD HTML (agora delegadas à AuthCoreLib)
 function listRgpdRowsFor(ticket) { return AuthCoreLib.hostListRgpdRowsFor(ticket, gatesCfg_()); }
@@ -143,6 +149,7 @@ function doGet(e) {
     wipe: false,
     appTitle: "Consulta de anúncios",
     appPermissions: "Os associados com quotas em dia e RGPD totalmente aceite podem ver e publicar todo o tipo de anúncios. Os outros utilizadores podem apenas ver os anúncios de 'Venda na Internet' e publicar anúncios de 'compra na Internet'.",
+    authMode: APP_AUTHMODE // O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
   };    
 
   const action = (e && e.parameter && e.parameter.action) || "";
@@ -196,15 +203,22 @@ function doGet(e) {
     console.log("doGet ACTION LOGIN");
     //console.log("doGet action login: optsProc.appTitle=" + optsProc.appTitle );
     //console.log("doGet action login: optsProc.appPermissions=" + optsProc.appPermissions);
+    console.log("doGet action login: optsProc.authMode=" + optsProc.authMode);
     return AuthCoreLib.renderLoginPage(optsProc);
   }
   
-  if (action === "logout") { optsProc.serverLog = L.dump(); optsProc.serverLog.unshift("logout"); optsProc.wipe = true; return AuthCoreLib.renderLoginPage(optsProc); }
+  if (action === "logout") { 
+    optsProc.serverLog = L.dump(); 
+    optsProc.serverLog.unshift("logout"); 
+    optsProc.wipe = true;
+    return AuthCoreLib.renderLoginPage(optsProc);
+  }
 
   // 3) Validar Ticket & Regras Estritas de Negócio
   const ticket = (e && e.parameter && e.parameter.ticket) || "";
   if (ticket){
-    try { AuthCoreLib.requireSession(ticket); } 
+    console.log("doGet action ticket: optsProc.authMode=" + optsProc.authMode);
+    try { AuthCoreLib.requireSession(ticket, optsProc.authMode); } 
     catch(err) {
       console.log("doGet error ticket");
       optsProc.serverLog = L.dump(); 
@@ -223,60 +237,23 @@ function doGet(e) {
 
     // AVALIADOR DE ESTADO DO UTILIZADOR
     let userStatus = "";
-    if (!profile.hasLines || profile.pago < 1) {
+    if (!profile.hasLines) {
+        userStatus = "Desconhecido";
+        AuthCoreLib.logFailedAccess(ticket, userStatus, gatesCfg_()); 
+    } else if (profile.pago < 1) {
         userStatus = "Não é associado";
+        AuthCoreLib.logFailedAccess(ticket, userStatus, gatesCfg_()); 
     } else if (profile.rgpdState !== 'total') {
         userStatus = "RGPD não aceite";
+        AuthCoreLib.logFailedAccess(ticket, userStatus, gatesCfg_()); 
     } else if (profile.saldo < 0) {
         userStatus = "Saldo negativo";
+        AuthCoreLib.logFailedAccess(ticket, userStatus, gatesCfg_()); 
     }
 	
-    // REGRA 0: Se não for Titular (0 Linhas), Bloqueia Absoluto Imediato
-    if (!profile.hasLines || profile.pago < 1) {
-      console.log("Bloqueio: Acesso Negado. Motivo: Não é titular (0 linhas) ou nunca pagou quotas");
-      /*
-      AuthCoreLib.logFailedAccess(ticket, "Não é titular", gatesCfg_()); 
-      return renderBlocked_(
-          "Acesso negado: O seu e-mail não está registado como titular.", 
-          "Ir para Titulares Portobelo", 
-          "https://titulares-portobelo.pt", 
-          DBG, L.dump()
-      );
-      */
-    }
-
     // Pedido manual para ver a página de RGPD
-    if (String(e.parameter.go || '') === 'rgpd') { return renderRgpdPage_(ticket, DBG, L.dump()); }
+    //if (String(e.parameter.go || '') === 'rgpd') { return renderRgpdPage_(ticket, DBG, L.dump()); }  
 
-    // Regra 1: RGPD DEVE ESTAR TOTALMENTE ACEITE
-    if (profile.rgpdState !== 'total') {
-      console.log("Bloqueio: RGPD está '" + profile.rgpdState + "'. Exigindo ida à página local de RGPD.");
-      /*
-      AuthCoreLib.logFailedAccess(ticket, "RGPD pendente ou parcial", gatesCfg_());
-      return renderRgpdPage_(ticket, DBG, L.dump(), {
-          msg: "Para aceder à secção de anúncios é obrigatório aceitar o RGPD para todas as suas frações/semanas. Pode fazê-lo agora mesmo usando o formulário abaixo."
-          //btnLabel: "Ou vá para a Área do Associado",
-          //btnUrl: "https://associados.titulares-portobelo.pt"
-      });
-      */
-    }
-
-  
-    // Regra 2: Saldo global deve ser positivo/zero
-    if (profile.saldo < 0) {
-      const motivo = "Saldo negativo (€" + profile.saldo + ")";
-	    console.log("Bloqueio: Acesso Negado. Motivo: " + motivo);
-      /*
-      AuthCoreLib.logFailedAccess(ticket, "Saldo negativo", gatesCfg_()); // <-- REGISTA NA FOLHA ACESSOS
-      return renderBlocked_(
-          "Acesso negado: Para aceder aos anúncios é necessário não ter quotas em dívida (o seu saldo global é de €" + profile.saldo + ").", 
-          "Ir para a Área do Associado", 
-          "https://associados.titulares-portobelo.pt", 
-          DBG, L.dump()
-      );
-      */
-    }
-  
     // OK -> Main e Mostra a grelha de Anúncios
     console.log("Sucesso: Acesso aos Anúncios concedido.");
     return renderMainPage_(ticket, DBG, L.dump(), userStatus);
@@ -284,6 +261,7 @@ function doGet(e) {
 
   optsProc.serverLog = L.dump(); optsProc.serverLog.unshift("sem ticket");
   console.log("doGet no action");
+  console.log("doGet no action: optsProc.authMode=" + optsProc.authMode);
   return AuthCoreLib.renderLoginPage(optsProc);
 }
 
@@ -349,7 +327,7 @@ function renderMainPage_(ticket, DBG, serverLogLines, userStatus) {
 // Interação de Dados / Anúncios
 // =============================
 function validateApiAccess_(ticket) {
-  AuthCoreLib.requireSession(ticket);
+  AuthCoreLib.requireSession(ticket, APP_AUTHMODE); // optsProc.authMode
 
   // Já não lançamos erro de Saldo/RGPD aqui. O sistema agora aceita
   // utilizadores com limitações de leitura e escrita em vez de os expulsar.
@@ -390,7 +368,7 @@ function incrementVisitCounters(userStatus) {
   props.setProperty('visitHistory', JSON.stringify(history));
 
   let countGuests = parseInt(props.getProperty('VISITAS_GUESTS') || '0', 10);
-  if (userStatus === "Não é associado") {
+  if (userStatus === "Não é associado" || userStatus === "Desconhecido") {
     countGuests++;
     props.setProperty('VISITAS_GUESTS', countGuests.toString());
   }
@@ -687,7 +665,6 @@ function apiGestaoAnuncios(ticket, payload) {
   };
 
   console.log("Conteúdo completo: " + JSON.stringify(payload));
-  console.log(" payload.novo.length=" +  payload.novo.length);
 
   // AÇÃO: PUBLICAR / ATUALIZAR
   if (payload.action === 'add' || payload.action === 'update') {
@@ -695,6 +672,7 @@ function apiGestaoAnuncios(ticket, payload) {
     if (!payload.novo || !Array.isArray(payload.novo) || payload.novo.length !== 6) {
       throw new Error('Dados inválidos. O array de dados tem de ter 6 posições e tem ' + payload.novo.length);
     }
+    console.log(" payload.novo.length=" +  payload.novo.length);
     const tipo = payload.novo[1];
     const preco = (payload.novo[5] || "").trim();
 	    

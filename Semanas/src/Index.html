@@ -1,0 +1,333 @@
+<!-- Index.html (Google Apps Script Web App) -->
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calculadora do Número da Semana</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 18px; }
+    .card { max-width: 720px; margin: 0 auto; border: 1px solid rgba(127,127,127,.35); border-radius: 14px; padding: 16px; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 640px) { .row { grid-template-columns: 1fr 1fr; } }
+    label { display: block; font-size: 13px; opacity: .85; margin-bottom: 6px; }
+    select, input[type="date"] { width: 100%; maxwidth: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(127,127,127,.45); background: transparent; font-size: 14px; line-height: 1.2; }
+    .result { margin-top: 14px; padding: 12px; border-radius: 12px; border: 1px solid rgba(127,127,127,.35); }
+    .big { font-size: 28px; font-weight: 700; }
+    .muted { opacity: .8; font-size: 13px; margin-top: 4px; line-height: 1.3; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(127,127,127,.35); font-size: 12px; opacity: .9; }
+    .warn { margin-top: 10px; font-size: 13px; opacity: .85; }
+    .footer { margin-top: 12px; font-size: 12px; opacity: .7; }
+    .inline { display:flex; gap:8px; flex-wrap: wrap; align-items: center; }
+    .resultGrid {
+      display: grid;
+      grid-template-columns: 1fr 290px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    @media (max-width: 640px) {
+      .resultGrid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .leftPane .muted {
+      max-width: 360px;      /* “reduz” a largura útil do texto */
+    }
+
+    .rightPane {
+      overflow-x: auto;
+    }
+
+    .wkTable {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid rgba(127,127,127,.35);
+      border-radius: 12px;
+      overflow: hidden;      /* arredondar cantos em alguns browsers */
+      font-size: 13px;
+    }
+
+    .wkTable th,
+    .wkTable td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(127,127,127,.20);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .wkTable thead th {
+      font-weight: 650;
+      opacity: .9;
+      border-bottom: 1px solid rgba(127,127,127,.35);
+    }
+
+    .wkTable tr:last-child td {
+      border-bottom: none;
+    }
+
+    .wkSelected td {
+      font-weight: 700;
+      border-left: 3px solid rgba(127,127,127,.65);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Calculadora do número da semana (regra do Portobelo)</h1>
+
+    <div class="row">
+      <div>
+        <label for="startDay">Dia que inicia a semana</label>
+        <select id="startDay">
+          <option value="THU">quinta-feira</option>
+          <option value="SAT">sábado</option>
+          <option value="SUN" selected>domingo</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="datePick">Data</label>
+        <input id="datePick" type="date" />
+      </div>
+    </div>
+
+    <div class="result" aria-live="polite">
+      <div class="inline">
+        <span class="pill" id="pillFirst">Início do ano (semana 1): —</span>
+      </div>
+      <div class="resultGrid">
+        <div class="leftPane">
+          <div class="big" id="weekNum">—</div>
+          <div class="muted" id="explain">Selecione o dia e a data.</div>
+          <div class="warn" id="warn" style="display:none"></div>
+        </div>
+
+        <div class="rightPane">
+          <table class="wkTable" aria-label="Semanas vizinhas">
+            <thead>
+              <tr>
+                <th>Semana</th>
+                <th id="wkDayHeader">Domingo</th>
+              </tr>
+            </thead>
+            <tbody id="wkTbody">
+              <!-- linhas geradas por JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Regra: a semana 1 começa no <b>primeiro</b> dia escolhido (quinta/sábado/domingo) <b>do ano</b>.
+    </div>
+  </div>
+
+<script>
+(function () {
+  // Alert("script function"); //Não funciona!
+  console.log("script function");
+
+  // Mapeamento para "0=domingo ... 6=sábado" (JavaScript Date.getDay()).
+  const START_DAY_TO_DOW = { SUN: 0, THU: 4, SAT: 6 };
+  const START_DAY_LABEL = { SUN: 'domingo', THU: 'quinta-feira', SAT: 'sábado' };
+
+  const elStart = document.getElementById('startDay');
+  const elDate  = document.getElementById('datePick');
+  const elWeek  = document.getElementById('weekNum');
+  const elExp   = document.getElementById('explain');
+  const elWarn  = document.getElementById('warn');
+  const elWkDayHeader = document.getElementById('wkDayHeader');
+  const elWkTbody = document.getElementById('wkTbody');
+
+  const elPillFirst = document.getElementById('pillFirst');
+
+  // Define hoje por defeito (em hora local do browser).
+  elDate.value = toISODate(new Date());
+  console.log("elDate.value: ", elDate.value);
+
+  // Atualiza sempre que muda algo.
+  elStart.addEventListener('change', update);
+  elDate.addEventListener('change', update);
+  elDate.addEventListener('input', update);
+
+  update();
+
+  function update() {
+    console.log("start function update");
+
+    elWarn.style.display = 'none';
+    elWarn.textContent = '';
+
+    const startKey = elStart.value;
+    const startDow = START_DAY_TO_DOW[startKey];
+
+    const picked = parseISODate(elDate.value);
+    if (!picked) {
+      elWeek.textContent = '—';
+      elExp.textContent = 'Selecione uma data válida.';
+      return;
+    }
+
+    const year = picked.getFullYear();
+    const jan1 = new Date(year, 0, 1); // 1 de janeiro (00:00 local)
+    const firstStart = firstWeekStartOnOrAfter(jan1, startDow);
+
+    const week = weekNumberForDate(picked, firstStart);
+
+    console.log("update: year=", year, "week=", week);
+
+    elPillFirst.textContent = `Início da semana 1 do ano: ${formatPT(firstStart)} (${START_DAY_LABEL[startKey]})`;
+
+    console.log("update 1");
+
+    elWeek.textContent = String(week);
+    console.log("update 2");
+    if (week === 0) {
+      elExp.textContent = `A data escolhida é anterior ao primeiro ${START_DAY_LABEL[startKey]} de ${year}. Pela regra definida, o número da semana é 0.`;
+    } else {
+      elExp.textContent = `A data de ${formatPT(picked)} pertence à semana ${week}.`;
+    }
+
+    console.log("update 3");
+
+    // Atualiza cabeçalho da 2ª coluna conforme o dia selecionado
+    elWkDayHeader.textContent = START_DAY_LABEL[startKey].replace(/^\w/, c => c.toUpperCase());
+
+    console.log("update: cabeçalho atualizado");
+
+    // Gera tabela (5 linhas) centrada na semana atual
+    renderWeekTable({
+      year,
+      selectedWeek: week,
+      firstStart,
+      startKey
+    });
+
+    // Aviso suave: se o utilizador escolher ano muito distante, alguns browsers têm edge cases com input date.
+    if (year < 1900 || year > 2100) {
+      elWarn.style.display = 'block';
+      elWarn.textContent = 'Nota: alguns browsers podem ter limitações para datas muito antigas ou muito futuras.';
+    }
+    console.log("end function update");
+  }
+
+  // Regra:
+  // - Semana 1 começa no primeiro dia "startDow" do ano (incluindo 1 de janeiro se já for esse dia)
+  // - Se date < firstStart => 0
+  // - Senão => floor((date - firstStart)/7) + 1
+  function weekNumberForDate(date, firstStart) {
+    const d0 = stripTime(date);
+    const fs = stripTime(firstStart);
+    if (d0 < fs) return 0;
+    const days = diffDays(d0, fs);
+    return Math.floor(days / 7) + 1;
+  }
+
+  function firstWeekStartOnOrAfter(jan1, startDow) {
+    const j = stripTime(jan1);
+    const janDow = j.getDay(); // 0..6
+    const delta = (startDow - janDow + 7) % 7; // 0..6
+    return new Date(j.getFullYear(), j.getMonth(), j.getDate() + delta);
+  }
+
+  function diffDays(a, b) {
+    // Ambos sem hora.
+    const ms = a.getTime() - b.getTime();
+    return Math.round(ms / 86400000); // 24*60*60*1000
+  }
+
+  function stripTime(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  // Converte Date -> "YYYY-MM-DD" (para preencher input date)
+  function toISODate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // Converte "YYYY-MM-DD" -> Date (local)
+  function parseISODate(s) {
+    if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    // Date(y, m-1, d) em hora local; estável para a maioria dos casos
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== (m - 1) || dt.getDate() !== d) return null;
+    return dt;
+  }
+
+  function formatPT(d) {
+    // Formato simples pt-PT: DD/MM/AAAA
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = d.getFullYear();
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  function renderWeekTable({ year, selectedWeek, firstStart, startKey }) {
+    // Limpa tbody
+    elWkTbody.innerHTML = '';
+
+    const maxWeek = maxWeekForYear(year, firstStart);
+    if (maxWeek === 0) {
+      // ano sem "semana 1" (teoricamente não acontece, mas fica robusto)
+      return;
+    }
+
+    // Se selectedWeek for 0 (data antes da semana 1), centramos na semana 1
+    const center = Math.max(1, Math.min(selectedWeek || 1, maxWeek));
+
+    // Queremos 5 linhas: center-2..center+2, com clamp
+    let startW = center - 2;
+    let endW = center + 2;
+
+    if (startW < 1) { endW += (1 - startW); startW = 1; }
+    if (endW > maxWeek) { startW -= (endW - maxWeek); endW = maxWeek; }
+    startW = Math.max(1, startW);
+
+    for (let w = startW; w <= endW; w++) {
+      const d = addDays(stripTime(firstStart), (w - 1) * 7);
+
+      const tr = document.createElement('tr');
+      if (w === center) tr.className = 'wkSelected';
+
+      const tdW = document.createElement('td');
+      tdW.textContent = String(w);
+
+      const tdD = document.createElement('td');
+      tdD.textContent = formatPT(d);
+
+      tr.appendChild(tdW);
+      tr.appendChild(tdD);
+      elWkTbody.appendChild(tr);
+    }
+  }
+
+  function maxWeekForYear(year, firstStart) {
+    const dec31 = new Date(year, 11, 31);
+    const fs = stripTime(firstStart);
+    const d31 = stripTime(dec31);
+    if (d31 < fs) return 0;
+    return Math.floor(diffDays(d31, fs) / 7) + 1;
+  }
+
+  function addDays(d, n) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  }
+
+})();
+</script>
+</body>
+</html>

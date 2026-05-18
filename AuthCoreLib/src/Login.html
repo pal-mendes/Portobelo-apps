@@ -64,6 +64,23 @@
       }
       .btn-secondary:hover {
         background-color: #5a6268;
+        .input-field {
+          width: 100%;
+          padding: 20px; /* Duplicado para criar o dobro da altura */
+          margin-bottom: 15px; 
+          border-radius: 8px; 
+          border: 1px solid #ccc; 
+          box-sizing: border-box;
+          font-size: 16px;
+        }
+        .divider {
+          display: flex; align-items: center; text-align: center; color: #777; margin: 20px 0;
+        }
+        .divider::before, .divider::after {
+          content: ''; flex: 1; border-bottom: 1px solid #ddd;
+        }
+        .divider:not(:empty)::before { margin-right: .5em; }
+        .divider:not(:empty)::after { margin-left: .5em; }
       }
     </style>
 
@@ -82,7 +99,8 @@
           pageTag:"<?= (typeof PAGE_TAG   !== 'undefined' ? PAGE_TAG   : '') ?>", // etiqueta para prefixo nos logs ex.: 'LOGIN' | 'RGPD' | 'MAIN'
           // NOVAS VARIÁVEIS
           appTitle: "<?= (typeof APP_TITLE !== 'undefined' ? APP_TITLE : 'Área reservada a associados !!!') ?>",
-          appPermissions: "<?= (typeof APP_PERMISSIONS !== 'undefined' ? APP_PERMISSIONS : '!!!') ?>"
+          appPermissions: "<?= (typeof APP_PERMISSIONS !== 'undefined' ? APP_PERMISSIONS : '!!!') ?>",
+          authMode: "<?= (typeof AUTH_MODE !== 'undefined' ? AUTH_MODE : 'both') ?>" // NOVO
         };
 
         // Flags calculadas no cliente
@@ -167,6 +185,37 @@
         }
       }
     </script>
+
+    <script>
+      // Flag global reutilizável (standalone=false, embed externo=true)
+      (function () {
+        function isAppsScript(o) {
+          return /^(https:\/\/[-\w.]*script\.googleusercontent\.com|https:\/\/script\.google\.com)$/i.test(
+            o,
+          );
+        }
+        function computeExternalEmbed() {
+          var inFrame = true;
+          try {
+            inFrame = window.top !== window.self;
+          } catch (_) {
+            inFrame = true;
+          }
+          var ao =
+            (location.ancestorOrigins &&
+              Array.from(location.ancestorOrigins)) ||
+            [];
+          return (
+            inFrame &&
+            ao.some(function (o) {
+              return !isAppsScript(o);
+            })
+          );
+        }
+        window.EXTERNAL_EMBED = computeExternalEmbed(); // ← fica disponível globalmente
+      })();
+    </script>
+
   </head>
 
   <body>
@@ -279,6 +328,84 @@
           return url || location.origin + location.pathname;
         }
 
+
+        window.requestOtp = function() {
+          const em = document.getElementById('otp-email').value;
+          if (!em || em.indexOf('@') < 1) return alert('Por favor, insira um e-mail válido.');
+          
+          const btn = document.getElementById('btn-req-otp');
+          btn.disabled = true; btn.innerText = 'A enviar e-mail...';
+          
+          google.script.run
+            .withSuccessHandler(function() {
+              btn.innerText = 'Código Enviado!';
+              document.getElementById('otp-verify-section').style.display = 'block';
+              document.getElementById('otp-email').readOnly = true;
+            })
+            .withFailureHandler(function(err) {
+              alert('Erro: ' + err.message);
+              btn.disabled = false; btn.innerText = 'Enviar código por E-mail';
+            })
+            .sendOtp(em);
+        };
+
+        window.submitOtp = function() {
+          console.log("window.submitOtp");
+          const em = document.getElementById('otp-email').value;
+          const code = document.getElementById('otp-code').value;
+          if (!code || code.length < 5) return alert('Por favor, insira o código recebido.');
+          
+          const btn = document.getElementById('btn-sub-otp');
+          btn.disabled = true; btn.innerText = 'A verificar...';
+          
+          google.script.run
+            .withSuccessHandler(function(ticket) {
+              console.log("window.submitOtp: verifyOtp success");
+              // Código certo! Avança usando a mesma infraestrutura da Google
+              goWithTicket(ticket);
+              console.log("window.submitOtp: after goWithTicket");
+            })
+            .withFailureHandler(function(err) {
+              alert('Erro: ' + err.message);
+              btn.disabled = false; btn.innerText = 'Verificar Código';
+            })
+            .verifyOtp(em, code);
+        };
+
+        function renderLoginChoices() {
+          const mode = __SERVER_VARS.authMode;
+          let html = '';
+          
+          if (mode === 'both') {
+            html += '<div class="divider" style="font-weight: bold; font-size: 16px;">OU</div>';
+          }
+          
+          if (mode === 'email' || mode === 'both') {
+            html += '<div style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; text-align:left;">';
+            html += '<p style="margin-top:0; font-size:18px; color:#444; font-weight:bold;">Autenticação por código</p>';
+            
+            // Caixa de E-mail com estilos forçados (Altura dupla e 16px)
+            html += '<input type="email" id="otp-email" placeholder="O seu endereço de e-mail" ' +
+                    'style="width: 100%; min-height: 60px; font-size: 16px; padding: 15px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 15px; font-family: inherit;">';
+            
+            html += '<button onclick="requestOtp()" id="btn-req-otp" class="btn" style="background:#e5e7eb; color:#111; font-size:16px; padding:16px;">Enviar código por E-mail</button>';
+            
+            html += '<div id="otp-verify-section" style="display:none; margin-top:20px; border-top:1px solid #ddd; padding-top:20px;">';
+            
+            // Caixa do Código com estilos forçados (Altura dupla, 16px, centrado e espaçado)
+            html += '<input type="text" id="otp-code" placeholder="Código de 6 dígitos" ' + 
+                    'style="width: 100%; min-height: 60px; font-size: 20px; font-weight: bold; letter-spacing: 4px; text-align: center; padding: 15px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 15px; font-family: inherit;">';
+            
+            html += '<button onclick="submitOtp()" id="btn-sub-otp" class="btn btn-primary" style="font-size:16px; padding:16px;">Verificar Código</button>';
+            html += '</div></div>';
+          }
+          
+          setStatus(html, true);
+        }
+
+
+
+
         function persistTicket(t) {
           try {
             localStorage.setItem("sessTicket", t);
@@ -308,6 +435,7 @@
         }
 
         function goWithTicket(ticket) {
+          console.log("goWithTicket()");
           persistTicket(ticket); // IMPORTANTÍSSIMO: antes de mexer no location
           const u = new URL(canonExec());
           u.searchParams.set("ticket", ticket);
@@ -316,7 +444,7 @@
           if (WANT_DEBUG) u.searchParams.set("debug", "1");
           if (!u.searchParams.has("ts")) u.searchParams.set("ts", String(Date.now()));
 
-          log("[LOGIN] goWithTicket preparado -> " + u.toString());
+          //console.log("[LOGIN] goWithTicket preparado -> " + u.toString());
 
           // 1. Decodificar o email instantaneamente a partir do Payload do JWT (sem ir ao servidor)
           let email = "Desconhecido";
@@ -325,7 +453,7 @@
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             const payload = JSON.parse(decodeURIComponent(escape(window.atob(base64))));
             email = payload.email || email;
-          } catch(e) { log("Erro a ler JWT: " + e); }
+          } catch(e) { console.log("Erro a ler JWT: " + e); }
 
           // SOLUÇÃO SANDBOX: O Chrome bloqueia navegações do window.top após callbacks assíncronos.
           // Em vez de redirecionar automaticamente, mostramos um botão "Entrar" para forçar um clique do utilizador.
@@ -337,6 +465,7 @@
             : '';
 
           // 3. Mostrar UI imediata
+          console.log("goWithTicket: setStatus()");
           setStatus(
             '<div style="text-align:center; padding: 10px 0;">' +
               '<div style="font-size: 40px; margin-bottom: 10px;">✅</div>' +
@@ -344,13 +473,15 @@
               '<p style="margin-bottom: 15px; font-size: 15px;" id="valid-subtitle"><b>' + email + '</b> <span style="color:#666;">(A verificar perfil...)</span></p>' +
               appPerms +
               '<a href="' + u.toString() + '" target="_top" class="btn btn-primary">Entrar</a><br>' +
-              '<a href="javascript:handleResetAccount()" class="btn btn-secondary">Selecionar outra conta Google</a>' +
+              '<a href="javascript:handleResetAccount()" class="btn btn-secondary">Selecionar outra conta</a>' +
             '</div>',
             true
           );
 
           // 4. Pedir ao servidor os dados de Quotas/RGPD de forma assíncrona para enriquecer o texto
+          console.log("goWithTicket: type of google=" + typeof google);
           if (typeof google !== 'undefined' && google.script && google.script.run && google.script.run.getProfileStats) {
+            console.log("goWithTicket: check getProfileStats");
              google.script.run
                .withSuccessHandler(function(stats) {
                   if (!stats) return;
@@ -371,6 +502,7 @@
                })
                .getProfileStats(ticket);
           } else {
+            console.log("goWithTicket: non google");
              const subEl = document.getElementById("valid-subtitle");
              if (subEl) subEl.innerHTML = '<b>' + email + '</b>';
           }
@@ -391,7 +523,7 @@
 
         // Polling de fallback (3 min)
         function startServerPolling(nonce, authUrl, popupBlocked) {
-          log("startServerPolling(" + nonce + ")");
+          console.log("startServerPolling(" + nonce + ")");
           const t0 = Date.now();
           let delay = 1800;
           let done = false;
@@ -441,7 +573,7 @@
                   done = true;
                   clearTimeout(hintTimer);
                   clearTimeout(btnTimer); // Limpa também o timer do botão
-                  log("server → ticket (" + String(ticket).slice(0, 12) + "…)");
+                  console.log("server → ticket (" + String(ticket).slice(0, 12) + "…)");
                   try {
                     if (popupRef && !popupRef.closed) popupRef.close();
                   } catch (_) {}
@@ -454,7 +586,7 @@
                   return;
                 }
                 delay = Math.min(delay * 1.35, 6500);
-                log("pollTicket success setTimeout()");
+                console.log("pollTicket success setTimeout()");
                 setTimeout(tick, delay + Math.random() * 250);
               })
               .withFailureHandler(function () {
@@ -465,7 +597,7 @@
                   return;
                 }
                 delay = Math.min(delay * 1.35, 6500);
-                log("pollTicket failure setTimeout()");
+                console.log("pollTicket failure setTimeout()");
                 setTimeout(tick, delay);
               })
               .pollTicket(nonce);
@@ -567,9 +699,12 @@
           // Se não for wipe, continua com o login normal
           const t = bestLocalTicket();
           if (!t) {
-            // sem ticket → podemos autostartar popup (se AUTOSTART=1)
+            // Se NÃO houver ticket, renderiza o ecrã de opções (Google/Email)
+            renderLoginChoices();
+
+            // sem ticket → podemos autostartar popup (se AUTOSTART=1) e autenticação só Google
             const AUTOSTART = __SERVER_VARS.autostart;
-            if (AUTOSTART) {
+            if (__SERVER_VARS.authMode === 'google' && AUTOSTART) {
               // não mostra nada já: tenta popup; só mostra UI se falhar/atrasar
               beginAuthFlow(false);
             } else {
@@ -578,20 +713,20 @@
             return;
           }
 
-          log("bootstrap Found local ticket/cookie — validating…");
+          console.log("bootstrap Found local ticket/cookie — validating…");
           google.script.run
             .withSuccessHandler(function (valid) {
               if (valid) {
                 goWithTicket(t);
                 return;
               }
-              log("ticket inválido → wipe");
+              console.log("ticket inválido → wipe");
               killLocalSession(); // CHAMADA ADICIONADA AQUI TAMBÉM!
               setStatus("A sua sessão expirou.");
               if (BTN) BTN.style.display = "";
             })
             .withFailureHandler(function (err) {
-              log(
+              console.log(
                 "validate fail: " +
                   (err && err.message ? err.message : err),
               );

@@ -3,10 +3,16 @@
 // Registo.gs - web app de Registo de Associados
 // =========================
 
-const VERSION = "v1.8";
+const VERSION = "v2.0";
 
+// O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
+//utilizar APP_AUTHMODE em todas as chamadas a AuthCoreLib.requireSession(ticket, APP_AUTHMODE)
+const APP_AUTHMODE = 'both'; // 'both', 'google' ou 'email'
 
 function buildAuthUrlFor(nonce, dbg, embed, clientUrl) { return AuthCoreLib.buildAuthUrlFor(nonce, dbg, embed, authCfg_(), clientUrl); }
+function sendOtp(email) { return AuthCoreLib.sendOtp(email); }
+function verifyOtp(email, code) { return AuthCoreLib.verifyOtp(email, code); }
+
 function pollTicket(nonce)                  { return AuthCoreLib.pollTicket(nonce); }
 function isTicketValid(ticket, dbg)              { return AuthCoreLib.isTicketValid(ticket, dbg); }
 
@@ -139,6 +145,7 @@ function doGet(e) {
     wipe: false,
     appTitle: "Registo de associados",
     appPermissions: "Só tem acesso quem for designado pela direção da associação.",
+    authMode: APP_AUTHMODE 
   };
 
   if (e && e.parameter && e.parameter.action === 'logout') {
@@ -149,7 +156,7 @@ function doGet(e) {
 
   if (ticket) {
     try {
-      const sess = AuthCoreLib.requireSession(ticket);
+      const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
 
       const editorCfg = getEditorConfig_(sess.email);
       if (!editorCfg) return HtmlService.createHtmlOutput("<h3>Acesso não autorizado para este editor.</h3>");
@@ -217,7 +224,7 @@ function getEditorConfig_(email) {
  * Formato: email=A0130(2026-03-26 11:50);outro@email.com=A0007(...)
  */
 function getLockStatus(ticket, numA) {
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   const sp = PropertiesService.getScriptProperties();
   let lockStr = sp.getProperty("EDITOR_LOCK") || "";
   const now = new Date();
@@ -257,7 +264,7 @@ function getLockStatus(ticket, numA) {
 }
 
 function acquireLock(ticket, numA) {
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   const status = getLockStatus(ticket, numA);
   
   if (status.isLocked && !status.isMine) return { ok: false, owner: status.lockedBy };
@@ -275,7 +282,7 @@ function acquireLock(ticket, numA) {
 }
 
 function releaseLock(ticket, numA) {
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   const sp = PropertiesService.getScriptProperties();
   let lockStr = sp.getProperty("EDITOR_LOCK") || "";
   if (!lockStr) return { ok: true };
@@ -298,7 +305,7 @@ function renderMainPage_(ticket, DBG) {
 
 // Ponto 7: Função de Pesquisa no Servidor, que pode ou não vir restringida a um filtro de estado do associado ou IPS
 function searchRecords(ticket, query, filtroEstado) {
-  AuthCoreLib.requireSession(ticket);
+  AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
 
   const fullQuery = query.trim();
   if (!fullQuery) return [];
@@ -415,7 +422,7 @@ function searchRecords(ticket, query, filtroEstado) {
 
 // API chamada pelo Frontend
 function getEditorInitialData(ticket) {
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   const cfg = getEditorConfig_(sess.email);
   //console.log("getEditorInitialData: start=",cfg.start,", end=",cfg.end);
 
@@ -478,7 +485,7 @@ function getEditorInitialData(ticket) {
 
 function loadRecordData(ticket, numA) {
   console.log("loadRecordData(" + numA + ")");
-  AuthCoreLib.requireSession(ticket);
+  AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
 
   const { header: th, rows: titulares } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
   const colT = indexByHeader_(th); const HT = COLS_TITULARES;
@@ -554,16 +561,20 @@ function loadRecordData(ticket, numA) {
  * Função auxiliar para pesquisar ficheiros em toda a árvore de subpastas.
  */
 function getAllFilesRecursive_(folder, query) {
+  console.log("getAllFilesRecursive_()");
   let results = [];
   
   // Procura na pasta atual
   const files = folder.searchFiles(query);
+  console.log("getAllFilesRecursive_: after folder.searchFiles(query)");
   while (files.hasNext()) {
     results.push(files.next());
   }
-  
+  console.log("getAllFilesRecursive_: after current folder");
   // Procura recursivamente em todas as subpastas
   const subfolders = folder.getFolders();
+
+  console.log("getAllFilesRecursive_: before sub folders");
   while (subfolders.hasNext()) {
     const sub = subfolders.next();
     results = results.concat(getAllFilesRecursive_(sub, query));
@@ -577,7 +588,7 @@ function getAllFilesRecursive_(folder, query) {
  */
 function listPdfs(ticket, numA, semana, modo) {
   console.log("listPdfs(" + numA + ", "  + semana + ", " + modo + ")");
-  AuthCoreLib.requireSession(ticket);
+  AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   
   const semDash = semana.replace("/", "-"); //Em 'semana' já só vem a primeira semana (104/30)
   console.log("listPdfs: semDash=" + semDash);
@@ -585,13 +596,16 @@ function listPdfs(ticket, numA, semana, modo) {
 
   let folderId = (modo === "PROC") ? FOLDER_PROCURACOES : FOLDER_IPS;
   const rootFolder = DriveApp.getFolderById(folderId);
+  console.log("listPdfs: after rootFolder");
 
   // A query exata que pediu: procura pelo ID do associado OU pela semana
   let query = `(title contains '${numA}' or title contains '${semDash}') and mimeType = 'application/pdf' and trashed = false`;
 
+  console.log("listPdfs: before getAllFilesRecursive_");
   const candidates = getAllFilesRecursive_(rootFolder, query);
-  console.log("candidates.length=" + candidates.length);
-  console.log("candidates=" + candidates);
+  console.log("listPdfs: after getAllFilesRecursive_");
+  console.log("candidates.length=" + candidates.length || "0");
+  console.log("candidates=" + candidates || "none");
 
   //// Filtro estrito: apenas os que começam exatamente pelo prefixo (ignora case)
   //const strictPattern = new RegExp("^" + prefix, "i");
@@ -614,7 +628,7 @@ function listPdfs(ticket, numA, semana, modo) {
 
 function saveRecordData(ticket, numA, payload) {
   console.log("saveRecordData(" + numA + "," + JSON.stringify(payload) + ")");
-  AuthCoreLib.requireSession(ticket);
+  AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   
   // Update Titulares
   const ss = SpreadsheetApp.openById(SS_TITULARES_ID);

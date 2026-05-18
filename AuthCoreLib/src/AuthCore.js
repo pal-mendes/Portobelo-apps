@@ -14,11 +14,23 @@ function beginAuth(e, cfg) { return beginAuth_(e, cfg); }
 function finishAuth(e, cfg) { return finishAuth_(e, cfg); }
 function isTicketValid(ticket, dbg) { return !!validateSessionToken_(ticket); }
 function pollTicket(nonce) { return takeTicketForNonce_(nonce) || ""; }
-function requireSession(ticket) {
+function requireSession(ticket, allowedMode) {
+  console.log("equireSession(ticket, allowedMode=" + allowedMode + ")");
   const p = getSession(ticket);
   if (!p) throw new Error("Sessão inválida/expirada");
-  return JSON.parse(p);
+  const sess = JSON.parse(p);
+  
+  // Verifica se o método de autenticação cumpre a exigência da app host
+  if (allowedMode === 'email' && sess.amr !== 'email') {
+    throw new Error("Esta aplicação exige autenticação exclusiva por código de e-mail.");
+  }
+  if (allowedMode === 'google' && sess.amr !== 'google') {
+    throw new Error("Esta aplicação exige autenticação por conta Google.");
+  }
+  return sess;
 }
+function sendOtp(email) { return sendOtp_(email); }
+function verifyOtp(email, code) { return verifyOtp_(email, code); }
 function enforceGates(email, ticket, DBG, gatesCfg, extLogger) {
   return enforceGates_(email, ticket, DBG, gatesCfg, extLogger) || "";
 }
@@ -285,7 +297,7 @@ function buildAuthUrlFor_(nonce, dbg, embed, cfg, clientUrl) {
 
 // ===== Render do Login (comum às apps) =====
 function renderLoginPage_(opts) {
-  console.log("renderLoginPage_(appTitle=" + opts.appTitle + ", appPermissions=" + opts.appPermissions + ")");
+  console.log("renderLoginPage_(appTitle=" + opts.appTitle + ", appPermissions=" + opts.appPermissions + ", authMode=" + opts.authMode + ")");
   // FORÇAR O CANON URL NO HTML
   const L = makeLogger_(opts.debug);
   L('function renderLoginPage_');
@@ -300,11 +312,12 @@ function renderLoginPage_(opts) {
   L('renderLoginPage_: opts.wipe = ' + opts.wipe + ', t.WIPE = ' + t.WIPE);
   t.ticket = ""; t.TICKET = ""; t.SERVER_VARS = ""; t.PAGE_TAG = 'LOGIN';
 
-// NOVAS VARIÁVEIS PARA UI DINÂMICA
+  // NOVAS VARIÁVEIS PARA UI DINÂMICA
   t.APP_TITLE = opts.appTitle || "Associação dos titulares de DRHP do Portobelo---";
   t.APP_PERMISSIONS = opts.appPermissions || "---";
+  t.AUTH_MODE = opts.authMode || "both"; // NOVO: 'both', 'google' ou 'email'
 
-  console.log("appTitle=" + t.APP_TITLE + ", appPermissions=" + t.APP_PERMISSIONS);
+  console.log("renderLoginPage_: appTitle=" + t.APP_TITLE + ", appPermissions=" + t.APP_PERMISSIONS + ", authMode=" + t.AUTH_MODE);
 
   try {
     return t.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -431,7 +444,7 @@ function finishAuth_(e, cfg) {
 
   if (!email) return HtmlService.createHtmlOutput("<pre>id_token sem email.</pre>");
 
-  var ticket = issueSessionToken_(email, 14, { name: name, picture: picture });
+  var ticket = issueSessionToken_(email, 14, { name: name, picture: picture, amr: 'google' });
   if (nonce) putTicketForNonce_(nonce, ticket);
 
   //var canon = canonicalAppUrl_(); 
@@ -718,6 +731,53 @@ function acceptRgpdForMe(ticket, decision, gatesCfg){
 
 
 // --- helpers privados na biblioteca ---
+
+
+function sendOtp_(email) {
+  email = String(email || '').trim().toLowerCase();
+  if (!email || email.indexOf('@') < 1) throw new Error("E-mail inválido.");
+  
+  // Gera um código de 6 dígitos
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Guarda na cache por 10 minutos (600 segundos)
+  CacheService.getScriptCache().put("otp:" + email, code, 600);
+  
+  const body = 
+    "Olá,\n\n" +
+    "O seu código de acesso temporário para a Associação Portobelo é:\n\n" +
+    "👉  " + code + "  👈\n\n" +
+    "Este código é válido por 10 minutos. Se não pediu este código, pode ignorar esta mensagem.\n\n" +
+    "Associação dos titulares de DRHP do Portobelo";
+    
+  MailApp.sendEmail({
+    to: email,
+    replyTo: "geral@titulares-portobelo.pt",
+    subject: "Código de acesso - Associação Portobelo",
+    body: body,
+    name: "Autenticação Portobelo"
+  });
+  
+  return true;
+}
+
+function verifyOtp_(email, code) {
+  email = String(email || '').trim().toLowerCase();
+  code = String(code || '').trim();
+  
+  const cache = CacheService.getScriptCache();
+  const key = "otp:" + email;
+  const stored = cache.get(key);
+  
+  if (!stored) throw new Error("Código expirado ou inválido. Por favor, peça um novo.");
+  if (stored !== code) throw new Error("Código incorreto.");
+  
+  // Se acertou, apaga o código para não ser reutilizado
+  cache.remove(key);
+  
+  // Emite o ticket com amr: 'email' (sem nome nem foto, pois não os temos)
+  return issueSessionToken_(email, 14, { amr: 'email' });
+}
 
 // helper interno (igual em espírito ao do host)
 function rgpdStats_(email, cfg){

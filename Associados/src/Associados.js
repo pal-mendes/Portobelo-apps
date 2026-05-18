@@ -59,12 +59,13 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v1.30";
+const VERSION = "v2.1";
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
 const SS_ANUNCIOS_ID  = "1oacSvYMYrcJeaUV9XFLcylrAX2PJGodGjpeeHl96Smo";
 const SS_IPS_ID       = "1rsxlHYHrXfSdpgjfhA193xYkhi3r-RMK9cc04l7Sqq8";
+const SS_PROC_ID       = "1j8c97XMoHvmmUhvVP3brsIq42DQzmkml4B1N7KeSHNg";
 const IPS_FOLDER_ID   = "1TXL942FE_Z05gSCJ_f_1lj_nEPnD5DWv";
 const FOLDER_PROCURACOES = "18LFaOcQ53pJ6FVQ6mhq6RO_PxQIK1fsx"; //https://drive.google.com/drive/folders/18LFaOcQ53pJ6FVQ6mhq6RO_PxQIK1fsx?usp=sharing
 
@@ -75,6 +76,7 @@ const RANGES = {
   ips:       { name: "tblIPS",      sheet: "IPS",        a1: "A4:N" },
   quotas:    { name: "tblQuotas",   sheet: "Quotas",     a1: "A1:D" },
   transacoes:    { name: "tblTransacoes",   sheet: "Transações",     a1: "A2:L" },
+  procuracoes:    { name: "tblProc",   sheet: "Procurações",     a1: "A4:Q" },
 };
 
 // Cabeçalhos esperados
@@ -129,6 +131,21 @@ const COLS_ANUNCIOS = {
   CA_TEL: "Telemóvel", 
 };
 
+
+const COLS_PROCURACOES = {
+  CP_NUM: "Num.",   //Esta é a chave, e a identificação do registo de titulares é feita por aqui.
+  CP_PART: "Participação", 
+  CP_DATA: "Data Proc.",
+  CP_FORM: "Formato",  
+  CP_CERT: "Certificação",
+  CP_CC: "Cartão Cidadão",
+  CP_DOCS: "Docs.",
+  CP_ESTADO: "Estado",
+  CP_COMENT: "Comentário",
+};
+
+
+
 // ---------- Auth wrappers chamados pelo Login.html (biblioteca) ----------
 // Lê as Script Properties do host e constrói a cfg
 function authCfg_() {
@@ -144,6 +161,10 @@ function buildAuthUrlFor(nonce, dbg, embed, clientUrl) { return AuthCoreLib.buil
 function pollTicket(nonce)                  { return AuthCoreLib.pollTicket(nonce); }
 function isTicketValid(ticket, dbg)              { return AuthCoreLib.isTicketValid(ticket, dbg); }
 function getProfileStats(ticket) { return AuthCoreLib.getProfileStats(ticket, authCfg_()); }
+// Adicione isto no Anuncios.js (e nas outras apps) junto das restantes chamadas AuthCoreLib:
+function sendOtp(email) { return AuthCoreLib.sendOtp(email); }
+function verifyOtp(email, code) { return AuthCoreLib.verifyOtp(email, code); }
+
 function acceptRgpdForMe(ticket, decision){
   // decision: 'accept' | 'reject'
   return AuthCoreLib.acceptRgpdForMe(ticket, decision, gatesCfg_());
@@ -353,7 +374,7 @@ function isAllowedEmail_(email){
 }
 
 function isRgpdAccepted(ticket){
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, 'both');
   const emailLC = String(sess.email||"").trim().toLowerCase();
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
   const col = indexByHeader_(header);
@@ -450,7 +471,7 @@ function fetchProcuracoes_(registos, semanas) {
 
 // Endpoint de API para o frontend descarregar o PDF da procuração em segurança
 function apiGetProcuracaoBase64(ticket, fileId) {
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, 'both');
   if (!fileId) throw new Error('Falta fileId');
 
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
@@ -516,10 +537,18 @@ function buildAssociadosView_(loginEmail){
 
   const { header: ih, rows: ipsRows } = fetchTable_(SS_IPS_ID, RANGES.ips);
   const icol = indexByHeader_(ih);
-  const ipsBySemanas = {}; //Isto é para deixar de ser assim, e passar-e a usar numA
+  const ipsByNumA = {};
   ipsRows.forEach(r => {
-    const key = String(r[icol[COLS_IPS.CI_SEMANAS]]||"").trim();
-    if (key) ipsBySemanas[key] = r;
+    const key = String(r[icol[COLS_IPS.CI_NUM]]||"").trim().toUpperCase();
+    if (key) ipsByNumA[key] = r;
+  });
+
+  const { header: ph, rows: pRows } = fetchTable_(SS_PROC_ID, RANGES.procuracoes);
+  const pcol = indexByHeader_(ph); HP = COLS_PROCURACOES;
+  const procByNumA = {};
+  pRows.forEach(r => {
+    const key = String(r[pcol[HP.CP_NUM]] || "").trim().toUpperCase();
+    if (key) procByNumA[key] = r;
   });
 
   const cards=[]; const tot={joia:0, quota:0, pago:0, quotizacao:0, saldo:0};
@@ -527,7 +556,7 @@ function buildAssociadosView_(loginEmail){
 
   linhas.forEach(r=>{
     const nomes   = r[col[H.CT_MEMBROS]] || "";
-    const numA   = r[col[H.CT_NUM]] || "";
+    const numA   = String(r[col[H.CT_NUM]] || "").trim().toUpperCase();
     const nif   = r[col[H.CT_NIF]] || "";
     const nomeFiscal   = r[col[H.CT_NOMEFISCAL]] || "";
 
@@ -575,17 +604,21 @@ function buildAssociadosView_(loginEmail){
     allPhones.push(...splitPhones_(telef));
     const fp = getFirstPhone_(telef); if (fp) firstPhones.push(fp);
 
-    const ip = ipsBySemanas[String(semanas).trim()]; //Substituir por IpsByNumA
+    const ip = ipsByNumA[numA];
     const dataIPS = ip ? (ip[icol[COLS_IPS.CI_DATA]]||"") : "";
     const statIPS = ip ? (ip[icol[COLS_IPS.CI_STATUS]]||"") : "";
     const primIPS = ip ? (ip[icol[COLS_IPS.CI_PRIMEIRO]]||"") : "";
     const outIPS  = ip ? (ip[icol[COLS_IPS.CI_OUTROS]]||"") : "";
 
+    const rowP = procByNumA[numA];
+    const estadoProc = rowP ? (rowP[pcol[HP.CP_ESTADO]] || "") : "Sem registo";
+
     cards.push({
       numA, nif, nomeFiscal, semanas, t0, t1, t2, adesaoRaw, fimRaw, estado, dataIPS, statIPS, primIPS, outIPS,
       nomes, emails, telefones: telef, pago, quota, joia, saldo,
       quotizacao: quotizacaoNum,
-      rgpdOk, saldoNeg
+      rgpdOk, saldoNeg,
+      estadoProc
     });
   });
 
@@ -595,6 +628,7 @@ function buildAssociadosView_(loginEmail){
   console.log("registosAssociados=", registosAssociados);
   console.log("registosAssociados=", JSON.stringify(registosAssociados));
   const procuracoes = fetchProcuracoes_(registosAssociados, semanasTodas);
+  
   const anunciosPorTelefone = countAnunciosByPhones_(telefonesAssociados); //OK assim.
   const transacoes          = fetchTransacoes_(registosAssociados);
   console.log("transacoes=", JSON.stringify(transacoes));
@@ -613,7 +647,7 @@ function buildAssociadosView_(loginEmail){
 
 function apiGetAssociados(ticket){
   console.log("enter apiGetAssociados");
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, 'both');
   if (!isAllowedEmail_(sess.email)) throw new Error("Acesso não autorizado");
 	
   const view = buildAssociadosView_(sess.email);
@@ -625,7 +659,7 @@ function apiGetAssociados(ticket){
 }
 
 function apiGetWeekIpsBase64(ticket, week){
-  const sess = AuthCoreLib.requireSession(ticket);
+  const sess = AuthCoreLib.requireSession(ticket, 'both');
   week = String(week||'').trim();
   if (!week) throw new Error('Falta week');
   if (!isWeekOfEmail_(sess.email, week)) throw new Error('Sem autorização');
@@ -699,6 +733,7 @@ function doGet(e){
     wipe: false,
     appTitle: "Área do Associado",
     appPermissions: "Reservado apenas a associados.",
+    authMode: 'both' // O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
   };    
 
   //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
@@ -720,7 +755,7 @@ function doGet(e){
   if (action === "who")  {
     L("route: who");
     try {
-      const s = AuthCoreLib.requireSession(e.parameter.ticket||"");
+      const s = AuthCoreLib.requireSession(e.parameter.ticket||"", optsProc.authMode);
       return HtmlService.createHtmlOutput("<pre>"+JSON.stringify(s,null,2)+"</pre>");
     } catch (err) {
       return HtmlService.createHtmlOutput("<pre>ERR: "+String(err)+"</pre>");
@@ -819,7 +854,7 @@ function doGet(e){
       const ticket = e.parameter.ticket || "";
       const week   = String(e.parameter.week || "").trim();
       const autoDl = String(e.parameter.dl || "") === "1";
-      const sess   = AuthCoreLib.requireSession(ticket);
+      const sess   = AuthCoreLib.requireSession(ticket, optsProc.authMode);
 
       if (!week) {
         return HtmlService.createHtmlOutput("<p>Falta parâmetro <code>week</code>.</p>");
@@ -897,7 +932,7 @@ function doGet(e){
     L("have ticket, validating");
     let sess;
     try{
-      sess = AuthCoreLib.requireSession(ticket);
+      sess = AuthCoreLib.requireSession(ticket, optsProc.authMode);
     } catch(err){
       L("invalid ticket → login(wipe) ERR="+(err && err.message));
       //optsProc.serverLog = ["wipe"];
@@ -916,6 +951,7 @@ function doGet(e){
     console.log("isAssociado" + isAssociado);
 
     if (!isAssociado) {
+      AuthCoreLib.logFailedAccess(ticket, "Não é associado", gatesCfg_()); // <-- REGISTA NA FOLHA ACESSOS
       const html =
         '<meta charset="utf-8">' +
         '<h3>Acesso não autorizado</h3><p>Este endereço de e-mail não está na lista de associados.</p>';
@@ -1032,7 +1068,7 @@ function diagFetchFileBytes_(fileId) {
 
 
 // ===== Debug utils =====
-function debugWho(ticket){ return AuthCoreLib.requireSession(ticket); }
+function debugWho(ticket){ return AuthCoreLib.requireSession(ticket, 'both'); }
 function debugAuthConfig(){
   const cfg = authCfg_();
   return {
