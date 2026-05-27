@@ -3,7 +3,7 @@
 // Registo.gs - web app de Registo de Associados
 // =========================
 
-const VERSION = "v2.0";
+const VERSION = "v2.1";
 
 // O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
 //utilizar APP_AUTHMODE em todas as chamadas a AuthCoreLib.requireSession(ticket, APP_AUTHMODE)

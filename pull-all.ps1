@@ -1,6 +1,6 @@
 # Força o terminal a interpretar caracteres UTF-8 corretamente
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-@('Semanas','AuthCoreLib','Associados','Anuncios','Registo','Titulares','Anuncios-sheet') | ForEach-Object {
+@('Semanas','AuthCoreLib','Associados','Anuncios','Registo','Titulares','Anuncios-sheet','Movimentos financeiros') | ForEach-Object {
   $project = $_
   if (Test-Path $project) {
     Push-Location $project

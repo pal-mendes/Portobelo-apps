@@ -94,7 +94,7 @@
         <option value="Herança" title="Só a habilitação de herdeiros prova que o associado é titular">Herança</option>
         <option value="Renovar" title="A IPS que temos estava bem mas é antiga e precisa de renovação">Renovar</option>
         <option value="OK" title="A informação predial da conservatória indica o associado como titular">OK</option>
-        <option value="Não aplicável" title="Ainda não se está a recolher procurações, ou o associado não passa procuração.">Não aplicável</option>
+        <option value="Não há procuração" title="O associado não passou procuração para este ano.">Não há procuração</option>
         <option value="Por receber" title="Terá sido enviada por correio para para a associação.">Por receber</option>
         <option value="Por processar" title="Já foi recebida mas ainda não foi processada.">Por processar</option>
         <option value="Falta mandante" title="Não foi passada por todos os titulares, ou cabeça de casal da herança, ou sócios-gerentes.">Falta mandante</option>
@@ -309,7 +309,7 @@
           <label>Estado</label>
           <select id="editProcEstado" class="editable" title="Estado da procuração em termos de ser aceite pelo Portobelo para a próxima assembleia-geral, do mais grave ao menos grave.">
             <option value="">(Selecionar...)</option>
-            <option value="Não aplicável" title="Ainda não se está a recolher procurações, ou o associado não passa procuração.">Não aplicável</option>
+            <option value="Não há procuração" title="O associado não passou procuração para este ano.">Não há procuração</option>
             <option value="Por receber" title="Terá sido enviada por correio para para a associação.">Por receber</option>
             <option value="Por processar" title="Já foi recebida mas ainda não foi processada.">Por processar</option>
             <option value="Falta mandante" title="Não foi passada por todos os titulares, ou cabeça de casal da herança, ou sócios-gerentes.">Falta mandante</option>
@@ -580,7 +580,7 @@
       const sel = document.getElementById("selRegisto");
       const estadosTitulares = ["0S-Incompleto", "0Y-NãoTitular", "0Z-Completo"];
       const isFiltroTit = estadosTitulares.includes(filtro);
-      const estadosProc = ["Não aplicável", "Por receber", "Por processar", "Falta mandante", "Falta assinatura", "Outros problemas", "Procuração OK"];
+      const estadosProc = ["Não há procuração", "Por receber", "Por processar", "Falta mandante", "Falta assinatura", "Outros problemas", "Procuração OK"];
       const isFiltroProc = estadosProc.includes(filtro);
       
       // Limpar e adicionar opção default
