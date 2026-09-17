@@ -48,11 +48,11 @@
 **********************************************/
 
 
-const VERSION = "v8.2";
+const VERSION = "v8.3";
 
 // O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
 //utilizar APP_AUTHMODE em todas as chamadas a AuthCoreLib.requireSession(ticket, APP_AUTHMODE)
-const APP_AUTHMODE = 'email'; // 'both', 'google' ou 'email'
+const APP_AUTHMODE = 'both'; // 'both', 'google' ou 'email'
 
 const SS_ANUNCIOS_ID  = "1oacSvYMYrcJeaUV9XFLcylrAX2PJGodGjpeeHl96Smo";
 const ANUNCIOS_SHEET = "Anúncios";

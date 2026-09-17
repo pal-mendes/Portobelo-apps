@@ -175,6 +175,8 @@ function CALCULAR_QUOTA(numT0, numT1, numT2, anoAtual, matrizQuotas) {
  */
 function CALCULAR_JOIA(numT0, numT1, numT2, dataAdesaoRaw, matrizQuotas) {
   numT0 = Number(numT0) || 0; numT1 = Number(numT1) || 0; numT2 = Number(numT2) || 0;
+  
+  // Se não houver semanas associadas, a jóia é zero
   if (numT0 + numT1 + numT2 === 0) return 0;
 
   let dataAdesao = new Date(dataAdesaoRaw);
@@ -186,18 +188,43 @@ function CALCULAR_JOIA(numT0, numT1, numT2, dataAdesaoRaw, matrizQuotas) {
 
   const ano = dataAdesao.getFullYear();
   const mes = dataAdesao.getMonth() + 1;
-  const qnum = Math.floor((mes - 1) / 3) + 1;
-  const qstart = new Date(ano, (qnum - 1) * 3, 1);
-  const afterQstart = dataAdesao.getTime() > qstart.getTime() ? 1 : 0;
-  const fullQuarters = 5 - qnum - afterQstart;
+  const qnum = Math.floor((mes - 1) / 3) + 1; // Devolve 1, 2, 3 ou 4
+  
+  // O número de trimestres inteiros a cobrar é o restante do ano.
+  // Ex: Q1 -> paga 3; Q2 -> paga 2; Q3 -> paga 1; Q4 -> paga 0.
+  const fullQuarters = 4 - qnum;
 
   const p = getPrecosAno_(ano, matrizQuotas);
-  const cotaAnual = (numT0 * p.t0) + (numT1 * p.t1) + (numT2 * p.t2);
   
-  const base = (cotaAnual * fullQuarters) / 4;
-  return Math.floor(base / 0.05) * 0.05; // Arredondamento da Jóia aos 5 cêntimos
-}
+  /**
+   * Função interna para calcular a jóia de uma única semana de forma isolada.
+   * Garante que o mínimo de 1€ é aplicado primeiro a nível unitário.
+   */
+  const calcularJoiaPorSemana = function(precoAnual) {
+    if (precoAnual <= 0) return 0;
+    
+    const base = (precoAnual * fullQuarters) / 4;
+    
+    // Arredondamento aos 5 cêntimos de forma segura contra dízimas do JS
+    let valor = Math.floor(Math.round(base * 100) / 5) * 0.05;
+    valor = Math.round(valor * 100) / 100;
 
+    // Regra do valor mínimo: se o cálculo der menos de 1€ por semana, passa para 1€
+    if (valor < 1) {
+      valor = 1;
+    }
+    
+    return valor;
+  };
+
+  // Calcula a jóia individual de cada tipo de semana e multiplica pela respetiva quantidade
+  const joiaT0 = numT0 > 0 ? numT0 * calcularJoiaPorSemana(p.t0) : 0;
+  const joiaT1 = numT1 > 0 ? numT1 * calcularJoiaPorSemana(p.t1) : 0;
+  const joiaT2 = numT2 > 0 ? numT2 * calcularJoiaPorSemana(p.t2) : 0;
+
+  // Devolve a soma final arredondada com precisão de duas casas decimais
+  return Math.round((joiaT0 + joiaT1 + joiaT2) * 100) / 100;
+}
 /**
  * Calcula a Quotização Total (Jóia + Quotas anuais completas até ao ano atual).
  * Uso no Sheets: =CALCULAR_QUOTIZACAO(F7; G7; H7; E7; YEAR(TODAY()); Quotas!$A$2:$D$20)

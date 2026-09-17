@@ -3,7 +3,7 @@
 // Registo.gs - web app de Registo de Associados
 // =========================
 
-const VERSION = "v2.1";
+const VERSION = "v2.4";
 
 // O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
 //utilizar APP_AUTHMODE em todas as chamadas a AuthCoreLib.requireSession(ticket, APP_AUTHMODE)
@@ -424,7 +424,7 @@ function searchRecords(ticket, query, filtroEstado) {
 function getEditorInitialData(ticket) {
   const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   const cfg = getEditorConfig_(sess.email);
-  //console.log("getEditorInitialData: start=",cfg.start,", end=",cfg.end);
+  console.log("getEditorInitialData: start=",cfg.start,", end=",cfg.end);
 
   // 1. Obter dados de Titulares
   const shT = SpreadsheetApp.openById(SS_TITULARES_ID).getSheetByName("Titulares");	
@@ -432,6 +432,7 @@ function getEditorInitialData(ticket) {
   const th = shT.getRange(6, 1, 1, shT.getLastColumn()).getValues()[0];
   const colT = indexByHeader_(th);
   const HT = COLS_TITULARES;
+  console.log("Titulares: colT=", colT);
 
   // 2. Obter dados de IPS
   const shI = SpreadsheetApp.openById(SS_IPS_ID).getSheetByName("IPS");
@@ -439,6 +440,7 @@ function getEditorInitialData(ticket) {
   const ih = shI.getRange(4, 1, 1, shI.getLastColumn()).getValues()[0];
   const colI = indexByHeader_(ih);
   const HI = COLS_IPS;
+  console.log("IPS: colI=", colI);
 
   // 2. Obter dados de Proc
   const shP = SpreadsheetApp.openById(SS_PROC_ID).getSheetByName("Procurações");
@@ -446,6 +448,7 @@ function getEditorInitialData(ticket) {
   const ph = shP.getRange(4, 1, 1, shP.getLastColumn()).getValues()[0];
   const colP = indexByHeader_(ph);
   const HP = COLS_PROCURACOES;
+  console.log("Procurações: colP=", colP);
 
   // Criar um mapa de estados IPS indexado pelo Num
   const ipsMap = {};
@@ -586,20 +589,36 @@ function getAllFilesRecursive_(folder, query) {
 /**
  * Lista todos os PDFs que começam com o prefixo da primeira semana
  */
-function listPdfs(ticket, numA, semana, modo) {
-  console.log("listPdfs(" + numA + ", "  + semana + ", " + modo + ")");
+function listPdfs(ticket, numA, semanas, modo) {
+  console.log("listPdfs(" + numA + ", "  + semanas + ", " + modo + ")");
   AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   
-  const semDash = semana.replace("/", "-"); //Em 'semana' já só vem a primeira semana (104/30)
-  console.log("listPdfs: semDash=" + semDash);
-  if (!semDash || semDash === "---") return [];
+  console.log("listPdfs: numA=" + numA);
+  if (!numA || numA === "---") return [];
 
   let folderId = (modo === "PROC") ? FOLDER_PROCURACOES : FOLDER_IPS;
   const rootFolder = DriveApp.getFolderById(folderId);
   console.log("listPdfs: after rootFolder");
 
-  // A query exata que pediu: procura pelo ID do associado OU pela semana
-  let query = `(title contains '${numA}' or title contains '${semDash}') and mimeType = 'application/pdf' and trashed = false`;
+// 1. A base da pesquisa será sempre o número do associado (apanha os ficheiros novos)
+  let queryParts = [`title contains '${numA}'`];
+
+  // 2. Adicionar TODAS as semanas à pesquisa (apanha os ficheiros antigos)
+  if (semanas && semanas !== "---") {
+    // Divide as semanas separadas por '+' ou espaços
+    const listaSemanas = semanas.split(/[+,\s]+/);
+    listaSemanas.forEach(sem => {
+      const semLimpa = sem.trim();
+      if (semLimpa) {
+        // Ex: transforma "316/33" em "316-33" e junta ao leque de opções
+        queryParts.push(`title contains '${semLimpa.replace("/", "-")}'`);
+      }
+    });
+  }
+
+  // 3. Constrói a query final juntando tudo com ' or '
+  // Exemplo resultante: (title contains 'A0003' or title contains '316-32' or title contains '316-33') and ...
+  const query = `(${queryParts.join(" or ")}) and mimeType = 'application/pdf' and trashed = false`;
 
   console.log("listPdfs: before getAllFilesRecursive_");
   const candidates = getAllFilesRecursive_(rootFolder, query);
@@ -622,7 +641,7 @@ function listPdfs(ticket, numA, semana, modo) {
     return matches.sort((a, b) => a.name.localeCompare(b.name));
   }
   
-  console.warn("Aviso: Nenhum ficheiro PDF encontrado para: " + numA + " ou " + semDash + " (mesmo em subpastas)");
+  console.warn("Aviso: Nenhum ficheiro PDF encontrado para: " + numA + " ou " + semanas + " (mesmo em subpastas)");
   return [];
 }
 

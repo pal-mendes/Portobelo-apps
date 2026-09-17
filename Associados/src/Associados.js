@@ -59,7 +59,11 @@
     Acesso: "Qualquer pessoa com o link".
 */
 
-const VERSION = "v2.1";
+const VERSION = "v2.3";
+
+// O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
+//utilizar APP_AUTHMODE em todas as chamadas a AuthCoreLib.requireSession(ticket, APP_AUTHMODE)
+const APP_AUTHMODE = 'both'; // 'both', 'google' ou 'email'
 
 // === CONFIG: IDs das 3 folhas ===
 const SS_TITULARES_ID = "1YE16kNuiOjb1lf4pbQBIgDCPWlEkmlf5_-DDEZ1US3g";
@@ -374,7 +378,7 @@ function isAllowedEmail_(email){
 }
 
 function isRgpdAccepted(ticket){
-  const sess = AuthCoreLib.requireSession(ticket, 'both');
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   const emailLC = String(sess.email||"").trim().toLowerCase();
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
   const col = indexByHeader_(header);
@@ -471,7 +475,7 @@ function fetchProcuracoes_(registos, semanas) {
 
 // Endpoint de API para o frontend descarregar o PDF da procuração em segurança
 function apiGetProcuracaoBase64(ticket, fileId) {
-  const sess = AuthCoreLib.requireSession(ticket, 'both');
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   if (!fileId) throw new Error('Falta fileId');
 
   const { header, rows } = fetchTable_(SS_TITULARES_ID, RANGES.titulares);
@@ -611,7 +615,7 @@ function buildAssociadosView_(loginEmail){
     const outIPS  = ip ? (ip[icol[COLS_IPS.CI_OUTROS]]||"") : "";
 
     const rowP = procByNumA[numA];
-    const estadoProc = rowP ? (rowP[pcol[HP.CP_ESTADO]] || "") : "Sem registo";
+    const estadoProc = rowP ? (rowP[pcol[HP.CP_ESTADO]] || "") : "Sem procurações";
 
     cards.push({
       numA, nif, nomeFiscal, semanas, t0, t1, t2, adesaoRaw, fimRaw, estado, dataIPS, statIPS, primIPS, outIPS,
@@ -647,7 +651,7 @@ function buildAssociadosView_(loginEmail){
 
 function apiGetAssociados(ticket){
   console.log("enter apiGetAssociados");
-  const sess = AuthCoreLib.requireSession(ticket, 'both');
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   if (!isAllowedEmail_(sess.email)) throw new Error("Acesso não autorizado");
 	
   const view = buildAssociadosView_(sess.email);
@@ -659,7 +663,7 @@ function apiGetAssociados(ticket){
 }
 
 function apiGetWeekIpsBase64(ticket, week){
-  const sess = AuthCoreLib.requireSession(ticket, 'both');
+  const sess = AuthCoreLib.requireSession(ticket, APP_AUTHMODE);
   week = String(week||'').trim();
   if (!week) throw new Error('Falta week');
   if (!isWeekOfEmail_(sess.email, week)) throw new Error('Sem autorização');
@@ -733,7 +737,7 @@ function doGet(e){
     wipe: false,
     appTitle: "Área do Associado",
     appPermissions: "Reservado apenas a associados.",
-    authMode: 'both' // O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
+    authMode: APP_AUTHMODE // O utilizador escolhe se se autentica com conta Google ou por código recebido por e-mail
   };    
 
   //const canon = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros/, "/macros");
@@ -1068,7 +1072,7 @@ function diagFetchFileBytes_(fileId) {
 
 
 // ===== Debug utils =====
-function debugWho(ticket){ return AuthCoreLib.requireSession(ticket, 'both'); }
+function debugWho(ticket){ return AuthCoreLib.requireSession(ticket, APP_AUTHMODE); }
 function debugAuthConfig(){
   const cfg = authCfg_();
   return {

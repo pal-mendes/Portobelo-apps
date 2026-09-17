@@ -580,53 +580,49 @@
 
         // === Cálculo dos trimestres completos para a Jóia, com debug
         function computeJoiaQuarters(adesaoStr) {
-          // 1) parse robusto de datas PT / ISO
           function parsePtDate(s) {
             if (!s) return null;
             s = String(s).trim();
-            if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-              // ISO
+            
+            // Suporta yyyy-mm-dd ou yyyy/mm/dd (ex: 2024/11/06)
+            if (/^\d{4}[\/\-]\d{2}[\/\-]\d{2}/.test(s)) {
               const [y, m, d] = s.split(/[^\d]/).map(Number);
               return new Date(y, m - 1, d);
             }
+            
+            // Suporta dd/mm/yyyy ou dd-mm-yyyy
             const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
             if (m) {
-              let d = +m[1],
-                mo = +m[2] - 1,
-                y = +m[3];
+              let d = +m[1], mo = +m[2] - 1, y = +m[3];
               if (y < 100) y += 2000;
               return new Date(y, mo, d);
             }
+            
             const t = Date.parse(s);
             return isNaN(t) ? null : new Date(t);
           }
 
-          // 2) mínimo = 26/03/2025 (meses 0-based ⇒ 2 = março)
-          const MIN = new Date(2025, 2, 26);
+          const MIN = new Date(2025, 2, 26); // 26 de Março de 2025
 
           const ad = parsePtDate(adesaoStr);
           if (!ad) {
-            try {
-              log?.(`[joia] data inválida: ${adesaoStr}`);
-            } catch (_) {}
+            try { log?.(`[joia] data inválida: ${adesaoStr}`); } catch (_) {}
             return 0;
           }
 
+          // Todas as datas anteriores a 26/3/2025 são fixadas em 26/3/2025
           const adj = ad < MIN ? MIN : ad;
           const y = adj.getFullYear();
-          const m = adj.getMonth() + 1; // 1..12
-          const q = Math.floor((m - 1) / 3) + 1; // 1..4
-          const qstart = new Date(y, (q - 1) * 3, 1); // 1.º dia do trimestre
-          const afterQstart = adj.getTime() > qstart.getTime() ? 1 : 0;
-          const full = 5 - q - afterQstart; // 0..4
+          const m = adj.getMonth() + 1; 
+          
+          // Determina o trimestre de entrada (1 a 4)
+          const q = Math.floor((m - 1) / 3) + 1; 
 
-          try {
-            log?.(
-              `[joia] adesão=${_iso(ad)} → adj=${_iso(adj)} | ano=${y} | Q=${q} (qstart=${_iso(qstart)}) | afterQstart=${afterQstart} | trimestres=${full}`,
-            );
-          } catch (_) {}
+          // CORREÇÃO: Fórmula ajustada para "4 - q" de acordo com a nova regra
+          const full = 4 - q; 
 
-          return Math.max(0, Math.min(4, full));
+          // Garante que o resultado devolvido fica estritamente entre 0 e 3 trimestres
+          return Math.max(0, Math.min(3, full));
         }
 
         function fmtSemanasText(str, naoExibir) {
@@ -724,7 +720,7 @@
           log?.("[cardLinha] tri=" + tri);
           const joiaTxt =
             tri > 0
-              ? `<div class="small muted">A jóia corresponde à quota de <b>${tri}</b> ${tri === 1 ? "trimestre" : "trimestres"} ${tri === 1 ? "completo" : "completos"} desde a data de adesão, não anterior a 26/3/2025, até ao fim desse ano.</div>`
+              ? `<div class="small muted">A jóia corresponde à quota de <b>${tri}</b> ${tri === 1 ? "trimestre" : "trimestres"} ${tri === 1 ? "completo" : "completos"} desde a data de adesão, não anterior a 26/3/2025, até ao fim desse ano, com o valor mínimo de um euro por cada semana.</div>`
               : "";
 
           log?.("[cardLinha] adesão e estado");
